@@ -1973,10 +1973,11 @@ impl<'tcx> WfCheckingCtxt<'_, 'tcx> {
 
 fn check_mod_type_wf(tcx: TyCtxt<'_>, module: LocalModDefId) -> Result<(), ErrorGuaranteed> {
     let items = tcx.hir_module_items(module);
-    let mut res = items.par_items(|item| tcx.ensure().check_well_formed(item.owner_id));
-    res = res.and(items.par_impl_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
-    res = res.and(items.par_trait_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
-    res = res.and(items.par_foreign_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
+    let mut res = items.try_par_items(|item| tcx.ensure().check_well_formed(item.owner_id));
+    res = res.and(items.try_par_impl_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
+    res = res.and(items.try_par_trait_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
+    res =
+        res.and(items.try_par_foreign_items(|item| tcx.ensure().check_well_formed(item.owner_id)));
     if module == LocalModDefId::CRATE_DEF_ID {
         super::entry::check_for_entry_fn(tcx);
     }

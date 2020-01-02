@@ -702,12 +702,26 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
                 CStore::from_tcx(tcx).report_unused_deps(tcx);
             },
             {
+                // Prefetch this as it is used later by the loop below
+                // to prevent multiple threads from blocking on it.
+                tcx.ensure_with_value().get_lang_items(());
+
+                let _timer = tcx.sess.timer("misc_module_passes");
                 tcx.hir().par_for_each_module(|module| {
                     tcx.ensure().check_mod_loops(module);
                     tcx.ensure().check_mod_attrs(module);
                     tcx.ensure().check_mod_naked_functions(module);
-                    tcx.ensure().check_mod_unstable_api_usage(module);
                     tcx.ensure().check_mod_const_bodies(module);
+                });
+            },
+            {
+                // Prefetch this as it is used later by the loop below
+                // to prevent multiple threads from blocking on it.
+                tcx.ensure_with_value().stability_index(());
+
+                let _timer = tcx.sess.timer("check_unstable_api_usage");
+                tcx.hir().par_for_each_module(|module| {
+                    tcx.ensure().check_mod_unstable_api_usage(module);
                 });
             },
             {
@@ -729,32 +743,48 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
     // passes are timed inside typeck
     rustc_hir_analysis::check_crate(tcx)?;
 
-    sess.time("MIR_borrow_checking", || {
-        tcx.hir().par_body_owners(|def_id| {
-            // Run unsafety check because it's responsible for stealing and
-            // deallocating THIR.
-            tcx.ensure().check_unsafety(def_id);
-            tcx.ensure().mir_borrowck(def_id)
-        });
-    });
-
-    sess.time("MIR_effect_checking", || {
-        for def_id in tcx.hir().body_owners() {
-            if !tcx.sess.opts.unstable_opts.thir_unsafeck {
-                rustc_mir_transform::check_unsafety::check_unsafety(tcx, def_id);
-            }
-            tcx.ensure().has_ffi_unwind_calls(def_id);
-
-            // If we need to codegen, ensure that we emit all errors from
-            // `mir_drops_elaborated_and_const_checked` now, to avoid discovering
-            // them later during codegen.
-            if tcx.sess.opts.output_types.should_codegen()
-                || tcx.hir().body_const_context(def_id).is_some()
+    sess.time("misc_checking_2", || {
+        parallel!(
             {
-                tcx.ensure().mir_drops_elaborated_and_const_checked(def_id);
-                tcx.ensure().unused_generic_params(ty::InstanceDef::Item(def_id.to_def_id()));
+                // Prefetch this as it is used later by lint checking and privacy checking.
+                tcx.ensure_with_value().effective_visibilities(());
+            },
+            {
+                sess.time("MIR_borrow_checking", || {
+                    tcx.hir().par_body_owners(|def_id| {
+                        // Run unsafety check because it's responsible for stealing and
+                        // deallocating THIR.
+                        tcx.ensure().check_unsafety(def_id);
+                        tcx.ensure().mir_borrowck(def_id)
+                    });
+                });
+            },
+            {
+                sess.time("MIR_effect_checking", || {
+                    for def_id in tcx.hir().body_owners() {
+                        if !tcx.sess.opts.unstable_opts.thir_unsafeck {
+                            rustc_mir_transform::check_unsafety::check_unsafety(tcx, def_id);
+                        }
+                        tcx.ensure().has_ffi_unwind_calls(def_id);
+
+                        // If we need to codegen, ensure that we emit all errors from
+                        // `mir_drops_elaborated_and_const_checked` now, to avoid discovering
+                        // them later during codegen.
+                        if tcx.sess.opts.output_types.should_codegen()
+                            || tcx.hir().body_const_context(def_id).is_some()
+                        {
+                            tcx.ensure().mir_drops_elaborated_and_const_checked(def_id);
+                            tcx.ensure()
+                                .unused_generic_params(ty::InstanceDef::Item(def_id.to_def_id()));
+                        }
+                    }
+                });
+            },
+            {
+                sess.time("layout_testing", || layout_test::test_layout(tcx));
+                sess.time("abi_testing", || abi_test::test_abi(tcx));
             }
-        }
+        )
     });
 
     tcx.hir().par_body_owners(|def_id| {
@@ -763,9 +793,6 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
             tcx.ensure().check_coroutine_obligations(def_id);
         }
     });
-
-    sess.time("layout_testing", || layout_test::test_layout(tcx));
-    sess.time("abi_testing", || abi_test::test_abi(tcx));
 
     // Avoid overwhelming user with errors if borrow checking failed.
     // I'm not sure how helpful this is, to be honest, but it avoids a
@@ -782,25 +809,18 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
     sess.time("misc_checking_3", || {
         parallel!(
             {
-                tcx.ensure().effective_visibilities(());
-
-                parallel!(
-                    {
-                        tcx.ensure().check_private_in_public(());
-                    },
-                    {
-                        tcx.hir()
-                            .par_for_each_module(|module| tcx.ensure().check_mod_deathness(module));
-                    },
-                    {
-                        sess.time("lint_checking", || {
-                            rustc_lint::check_crate(tcx);
-                        });
-                    },
-                    {
-                        tcx.ensure().clashing_extern_declarations(());
-                    }
-                );
+                tcx.ensure().check_private_in_public(());
+            },
+            {
+                tcx.hir().par_for_each_module(|module| tcx.ensure().check_mod_deathness(module));
+            },
+            {
+                sess.time("lint_checking", || {
+                    rustc_lint::check_crate(tcx);
+                });
+            },
+            {
+                tcx.ensure().clashing_extern_declarations(());
             },
             {
                 sess.time("privacy_checking_modules", || {

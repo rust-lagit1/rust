@@ -98,6 +98,7 @@ mod outlives;
 pub mod structured_errors;
 mod variance;
 
+use rustc_data_structures::sync::par_for_each_in;
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir as hir;
 use rustc_middle::middle;
@@ -163,7 +164,11 @@ pub fn check_crate(tcx: TyCtxt<'_>) -> Result<(), ErrorGuaranteed> {
     // this ensures that later parts of type checking can assume that items
     // have valid types and not error
     tcx.sess.time("type_collecting", || {
-        tcx.hir().for_each_module(|module| tcx.ensure().collect_mod_item_types(module))
+        // Run dependencies of type collecting before entering the loop
+        tcx.ensure_with_value().inferred_outlives_crate(());
+
+        let _prof_timer = tcx.sess.timer("type_collecting_loop");
+        tcx.hir().par_for_each_module(|module| tcx.ensure().collect_mod_item_types(module));
     });
 
     if tcx.features().rustc_attrs {
@@ -175,9 +180,10 @@ pub fn check_crate(tcx: TyCtxt<'_>) -> Result<(), ErrorGuaranteed> {
         let res =
             tcx.hir().try_par_for_each_module(|module| tcx.ensure().check_mod_impl_wf(module));
 
-        for &trait_def_id in tcx.all_local_trait_impls(()).keys() {
+        par_for_each_in(tcx.all_local_trait_impls(()), |(trait_def_id, _)| {
             let _ = tcx.ensure().coherent_trait(trait_def_id);
-        }
+        });
+
         // these queries are executed for side-effects (error reporting):
         let _ = tcx.ensure().crate_inherent_impls(());
         let _ = tcx.ensure().crate_inherent_impls_overlap_check(());
