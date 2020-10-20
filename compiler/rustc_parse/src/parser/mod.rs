@@ -1302,12 +1302,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses inline const expressions.
+    /// Parses inline const expressions. The `const` keyword was already eaten.
     fn parse_const_block(&mut self, span: Span, pat: bool) -> PResult<'a, P<Expr>> {
         if pat {
             self.psess.gated_spans.gate(sym::inline_const_pat, span);
         }
-        self.expect_keyword(kw::Const)?;
         let (attrs, blk) = self.parse_inner_attrs_and_block()?;
         let anon_const = AnonConst {
             id: DUMMY_NODE_ID,
