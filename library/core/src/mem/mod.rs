@@ -720,6 +720,8 @@ pub unsafe fn uninitialized<T>() -> T {
 #[unstable(feature = "mem_conjure_zst", issue = "95383")]
 #[track_caller]
 pub const unsafe fn conjure_zst<T>() -> T {
+    // This is not a guarantee exposed to clients, but it'll easily optimize out
+    // in the sound cases, so we might as well check because we can.
     assert!(size_of::<T>() == 0); // FIXME: Use assert_eq! once that's allowed in const
 
     // SAFETY: because the caller must guarantee that it's inhabited and zero-sized,
