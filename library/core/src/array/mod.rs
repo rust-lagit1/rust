@@ -799,8 +799,9 @@ where
     R: Residual<[T; N]>,
 {
     if N == 0 {
-        // SAFETY: An empty array is always inhabited and has no validity invariants.
-        return unsafe { Some(Try::from_output(mem::zeroed())) };
+        // SAFETY: An empty array is always inhabited and zero-sized,
+        // regardless of the size or inhabitedness of its element type.
+        return unsafe { Some(Try::from_output(mem::conjure_zst())) };
     }
 
     struct Guard<'a, T, const N: usize> {

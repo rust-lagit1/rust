@@ -116,6 +116,7 @@
 #![feature(iter_advance_by)]
 #![feature(layout_for_ptr)]
 #![feature(maybe_uninit_slice)]
+#![feature(mem_conjure_zst)]
 #![cfg_attr(test, feature(new_uninit))]
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(pattern)]

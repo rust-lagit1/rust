@@ -147,7 +147,7 @@ impl<T, A: Allocator> Iterator for IntoIter<T, A> {
             self.ptr = unsafe { arith_offset(self.ptr as *const i8, 1) as *mut T };
 
             // Make up a value of this ZST.
-            Some(unsafe { mem::zeroed() })
+            Some(unsafe { mem::conjure_zst() })
         } else {
             let old = self.ptr;
             self.ptr = unsafe { self.ptr.offset(1) };
@@ -224,7 +224,7 @@ impl<T, A: Allocator> DoubleEndedIterator for IntoIter<T, A> {
             self.end = unsafe { arith_offset(self.end as *const i8, -1) as *mut T };
 
             // Make up a value of this ZST.
-            Some(unsafe { mem::zeroed() })
+            Some(unsafe { mem::conjure_zst() })
         } else {
             self.end = unsafe { self.end.offset(-1) };
 
