@@ -678,7 +678,7 @@ pub unsafe fn uninitialized<T>() -> T {
     }
 }
 
-/// Create a fresh instance of the inhabited ZST type `T`.
+/// Create a fresh instance of the inhabited zero-sized type `T`.
 ///
 /// Prefer this to [`zeroed`] or [`uninitialized`] or [`transmute_copy`]
 /// in places where you know that `T` is zero-sized, but don't have a bound
