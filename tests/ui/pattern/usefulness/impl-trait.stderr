@@ -91,22 +91,6 @@ LL |             _ => {}
 LL |             Rec { n: 0, w: Some(Rec { n: 0, w: _ }) } => {}
    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable pattern
 
-error: unreachable pattern
-  --> $DIR/impl-trait.rs:137:13
-   |
-LL |             _ => {}
-   |             ^
-   |
-   = note: this pattern matches no values because `SecretelyVoid` is uninhabited
-
-error: unreachable pattern
-  --> $DIR/impl-trait.rs:150:13
-   |
-LL |             _ => {}
-   |             ^
-   |
-   = note: this pattern matches no values because `SecretelyDoubleVoid` is uninhabited
-
 error[E0004]: non-exhaustive patterns: type `impl Copy` is non-empty
   --> $DIR/impl-trait.rs:22:11
    |
@@ -135,6 +119,6 @@ LL +         _ => todo!(),
 LL +     }
    |
 
-error: aborting due to 15 previous errors
+error: aborting due to 13 previous errors
 
 For more information about this error, try `rustc --explain E0004`.

@@ -1,5 +1,6 @@
 use std::{cmp, ops};
 
+use rustc_hir::HirId;
 use rustc_span::Span;
 
 /// Tracks whether executing a node may exit normally (versus
@@ -72,5 +73,6 @@ impl Diverges {
 pub enum DivergeReason {
     AllArmsDiverge,
     NeverPattern,
+    UninhabitedExpr(HirId),
     Other,
 }

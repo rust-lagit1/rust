@@ -134,7 +134,7 @@ fn nested_empty_opaque(x: Void) -> X {
         let opaque_void = nested_empty_opaque(x);
         let secretely_void = SecretelyVoid(opaque_void);
         match secretely_void {
-            _ => {} //~ ERROR unreachable
+            _ => {}
         }
     }
     x
@@ -147,7 +147,7 @@ fn super_nested_empty_opaque(x: Void) -> Y {
         let opaque_void = super_nested_empty_opaque(x);
         let secretely_void = SecretelyDoubleVoid(opaque_void);
         match secretely_void {
-            _ => {} //~ ERROR unreachable
+            _ => {}
         }
     }
     (x, x)
