@@ -47,7 +47,7 @@ use crate::Expectation::{self, ExpectCastableToType, ExpectHasType, NoExpectatio
 use crate::TupleArgumentsFlag::DontTupleArguments;
 use crate::{
     cast, fatally_break_rust, report_unexpected_variant_res, type_error_struct, BreakableCtxt,
-    CoroutineTypes, Diverges, FnCtxt, Needs,
+    CoroutineTypes, DivergeReason, Diverges, FnCtxt, Needs,
 };
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
@@ -239,7 +239,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         // Any expression that produces a value of type `!` must have diverged
         if ty.is_never() {
-            self.diverges.set(self.diverges.get() | Diverges::always(expr.span));
+            self.diverges
+                .set(self.diverges.get() | Diverges::Always(DivergeReason::Other, expr.span));
         }
 
         // Record the type, which applies it effects.
@@ -1307,7 +1308,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             // of a `break` or an outer `break` or `return`.
             self.diverges.set(Diverges::Maybe);
         } else {
-            self.diverges.set(self.diverges.get() | Diverges::always(expr.span));
+            self.diverges
+                .set(self.diverges.get() | Diverges::Always(DivergeReason::Other, expr.span));
         }
 
         // If we permit break with a value, then result type is
@@ -1410,7 +1412,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 })
                 .unwrap_or_else(|| self.next_ty_var(expr.span));
             let mut coerce = CoerceMany::with_coercion_sites(coerce_to, args);
-            assert_eq!(self.diverges.get(), Diverges::Maybe);
+            assert!(matches!(self.diverges.get(), Diverges::Maybe));
             for e in args {
                 let e_ty = self.check_expr_with_hint(e, coerce_to);
                 let cause = self.misc(e.span);
