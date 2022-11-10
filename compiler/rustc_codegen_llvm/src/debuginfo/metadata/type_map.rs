@@ -16,11 +16,11 @@ use crate::{
     debuginfo::utils::{create_DIArray, debug_context, DIB},
     llvm::{
         self,
-        debuginfo::{DIFlags, DIScope, DIType},
+        debuginfo::{DIFile, DIFlags, DIScope, DIType},
     },
 };
 
-use super::{unknown_file_metadata, SmallVec, UNKNOWN_LINE_NUMBER};
+use super::SmallVec;
 
 mod private {
     // This type cannot be constructed outside of this module because
@@ -183,6 +183,8 @@ pub(super) fn stub<'ll, 'tcx>(
     kind: Stub<'ll>,
     unique_type_id: UniqueTypeId<'tcx>,
     name: &str,
+    file_metadata: &'ll DIFile,
+    line_number: u32,
     (size, align): (Size, Align),
     containing_scope: Option<&'ll DIScope>,
     flags: DIFlags,
@@ -202,8 +204,8 @@ pub(super) fn stub<'ll, 'tcx>(
                     containing_scope,
                     name.as_ptr().cast(),
                     name.len(),
-                    unknown_file_metadata(cx),
-                    UNKNOWN_LINE_NUMBER,
+                    file_metadata,
+                    line_number,
                     size.bits(),
                     align.bits() as u32,
                     flags,
@@ -222,8 +224,8 @@ pub(super) fn stub<'ll, 'tcx>(
                 containing_scope,
                 name.as_ptr().cast(),
                 name.len(),
-                unknown_file_metadata(cx),
-                UNKNOWN_LINE_NUMBER,
+                file_metadata,
+                line_number,
                 size.bits(),
                 align.bits() as u32,
                 flags,
