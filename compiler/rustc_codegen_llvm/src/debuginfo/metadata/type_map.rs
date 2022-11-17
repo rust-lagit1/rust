@@ -16,11 +16,11 @@ use crate::{
     debuginfo::utils::{create_DIArray, debug_context, DIB},
     llvm::{
         self,
-        debuginfo::{DIFile, DIFlags, DIScope, DIType},
+        debuginfo::{DIFlags, DIScope, DIType},
     },
 };
 
-use super::SmallVec;
+use super::{file_metadata, unknown_file_metadata, SmallVec, UNKNOWN_LINE_NUMBER};
 
 mod private {
     // This type cannot be constructed outside of this module because
@@ -183,14 +183,25 @@ pub(super) fn stub<'ll, 'tcx>(
     kind: Stub<'ll>,
     unique_type_id: UniqueTypeId<'tcx>,
     name: &str,
-    file_metadata: &'ll DIFile,
-    line_number: u32,
+    def_id: Option<rustc_span::def_id::DefId>,
     (size, align): (Size, Align),
     containing_scope: Option<&'ll DIScope>,
     flags: DIFlags,
 ) -> StubInfo<'ll, 'tcx> {
     let empty_array = create_DIArray(DIB(cx), &[]);
     let unique_type_id_str = unique_type_id.generate_unique_id_string(cx.tcx);
+
+    let (file_metadata, line_number) = if let Some(def_id) = def_id {
+        let span = cx.tcx.def_span(def_id);
+        if !span.is_dummy() {
+            let loc = cx.lookup_debug_loc(span.lo());
+            (file_metadata(cx, &loc.file), loc.line)
+        } else {
+            (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
+        }
+    } else {
+        (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
+    };
 
     let metadata = match kind {
         Stub::Struct | Stub::VTableTy { .. } => {
