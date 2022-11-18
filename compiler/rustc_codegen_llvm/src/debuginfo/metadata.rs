@@ -264,6 +264,7 @@ fn build_pointer_or_reference_di_node<'ll, 'tcx>(
                             layout.fields.offset(abi::FAT_PTR_ADDR),
                             DIFlags::FlagZero,
                             data_ptr_type_di_node,
+                            None,
                         ),
                         build_field_di_node(
                             cx,
@@ -273,6 +274,7 @@ fn build_pointer_or_reference_di_node<'ll, 'tcx>(
                             layout.fields.offset(abi::FAT_PTR_EXTRA),
                             DIFlags::FlagZero,
                             type_di_node(cx, extra_field.ty),
+                            None,
                         ),
                     ]
                 },
@@ -967,15 +969,17 @@ fn build_field_di_node<'ll, 'tcx>(
     offset: Size,
     flags: DIFlags,
     type_di_node: &'ll DIType,
+    def_id: Option<DefId>,
 ) -> &'ll DIType {
+    let (file_metadata, line_number) = file_metadata_from_def_id(cx, def_id);
     unsafe {
         llvm::LLVMRustDIBuilderCreateMemberType(
             DIB(cx),
             owner,
             name.as_ptr().cast(),
             name.len(),
-            unknown_file_metadata(cx),
-            UNKNOWN_LINE_NUMBER,
+            file_metadata,
+            line_number,
             size_and_align.0.bits(),
             size_and_align.1.bits() as u32,
             offset.bits(),
@@ -1055,6 +1059,7 @@ fn build_struct_type_di_node<'ll, 'tcx>(
                         struct_type_and_layout.fields.offset(i),
                         visibility_di_flags(cx, f.did, adt_def.did()),
                         type_di_node(cx, field_layout.ty),
+                        Some(f.did),
                     )
                 })
                 .collect()
@@ -1106,6 +1111,7 @@ fn build_upvar_field_di_nodes<'ll, 'tcx>(
                 layout.fields.offset(index),
                 DIFlags::FlagZero,
                 type_di_node(cx, up_var_ty),
+                None,
             )
         })
         .collect()
@@ -1150,6 +1156,7 @@ fn build_tuple_type_di_node<'ll, 'tcx>(
                         tuple_type_and_layout.fields.offset(index),
                         DIFlags::FlagZero,
                         type_di_node(cx, component_type),
+                        None,
                     )
                 })
                 .collect()
@@ -1231,6 +1238,7 @@ fn build_union_type_di_node<'ll, 'tcx>(
                         Size::ZERO,
                         DIFlags::FlagZero,
                         type_di_node(cx, field_layout.ty),
+                        Some(f.did),
                     )
                 })
                 .collect()
@@ -1302,14 +1310,7 @@ pub fn build_global_var_di_node<'ll>(cx: &CodegenCx<'ll, '_>, def_id: DefId, glo
     // We may want to remove the namespace scope if we're in an extern block (see
     // https://github.com/rust-lang/rust/pull/46457#issuecomment-351750952).
     let var_scope = get_namespace_for_item(cx, def_id);
-    let span = tcx.def_span(def_id);
-
-    let (file_metadata, line_number) = if !span.is_dummy() {
-        let loc = cx.lookup_debug_loc(span.lo());
-        (file_metadata(cx, &loc.file), loc.line)
-    } else {
-        (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
-    };
+    let (file_metadata, line_number) = file_metadata_from_def_id(cx, Some(def_id));
 
     let is_local_to_unit = is_node_local_to_unit(cx, def_id);
     let variable_type = Instance::mono(cx.tcx, def_id).ty(cx.tcx, ty::ParamEnv::reveal_all());
@@ -1432,6 +1433,7 @@ fn build_vtable_type_di_node<'ll, 'tcx>(
                         field_offset,
                         DIFlags::FlagZero,
                         field_type_di_node,
+                        None,
                     ))
                 })
                 .collect()
@@ -1586,4 +1588,16 @@ pub fn tuple_field_name(field_index: usize) -> Cow<'static, str> {
         .get(field_index)
         .map(|s| Cow::from(*s))
         .unwrap_or_else(|| Cow::from(format!("__{field_index}")))
+}
+
+pub fn file_metadata_from_def_id<'ll>(
+    cx: &CodegenCx<'ll, '_>,
+    def_id: Option<DefId>,
+) -> (&'ll DIFile, c_uint) {
+    if let Some(def_id) = def_id && let span = cx.tcx.def_span(def_id) && !span.is_dummy() {
+        let loc = cx.lookup_debug_loc(span.lo());
+        (file_metadata(cx, &loc.file), loc.line)
+    } else {
+        (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
+    }
 }
