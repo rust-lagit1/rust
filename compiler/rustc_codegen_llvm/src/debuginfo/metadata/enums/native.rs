@@ -5,7 +5,7 @@ use crate::{
     debuginfo::{
         metadata::{
             enums::tag_base_type,
-            file_metadata, size_and_align_of, type_di_node,
+            file_metadata, file_metadata_from_def_id, size_and_align_of, type_di_node,
             type_map::{self, Stub, StubInfo, UniqueTypeId},
             unknown_file_metadata, visibility_di_flags, DINodeCreationResult, SmallVec,
             NO_GENERICS, UNKNOWN_LINE_NUMBER,
@@ -97,7 +97,10 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
                         enum_type_and_layout.for_variant(cx, variant_index),
                         visibility_flags,
                     ),
-                    source_info: None,
+                    source_info: Some(file_metadata_from_def_id(
+                        cx,
+                        Some(enum_adt_def.variant(variant_index).def_id),
+                    )),
                 })
                 .collect();
 
@@ -105,6 +108,7 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
                 cx,
                 enum_type_and_layout,
                 enum_type_di_node,
+                enum_adt_def.did(),
                 &variant_member_infos[..],
             )]
         },
@@ -213,6 +217,7 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
                 cx,
                 coroutine_type_and_layout,
                 coroutine_type_di_node,
+                coroutine_def_id,
                 &variant_struct_type_di_nodes[..],
             )]
         },
@@ -240,6 +245,7 @@ fn build_enum_variant_part_di_node<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     enum_type_and_layout: TyAndLayout<'tcx>,
     enum_type_di_node: &'ll DIType,
+    enum_type_def_id: rustc_span::def_id::DefId,
     variant_member_infos: &[VariantMemberInfo<'_, 'll>],
 ) -> &'ll DIType {
     let tag_member_di_node =
@@ -247,6 +253,8 @@ fn build_enum_variant_part_di_node<'ll, 'tcx>(
 
     let variant_part_unique_type_id =
         UniqueTypeId::for_enum_variant_part(cx.tcx, enum_type_and_layout.ty);
+
+    let (file_metadata, line_number) = file_metadata_from_def_id(cx, Some(enum_type_def_id));
 
     let stub = StubInfo::new(
         cx,
@@ -258,8 +266,8 @@ fn build_enum_variant_part_di_node<'ll, 'tcx>(
                 enum_type_di_node,
                 variant_part_name.as_ptr().cast(),
                 variant_part_name.len(),
-                unknown_file_metadata(cx),
-                UNKNOWN_LINE_NUMBER,
+                file_metadata,
+                line_number,
                 enum_type_and_layout.size.bits(),
                 enum_type_and_layout.align.abi.bits() as u32,
                 DIFlags::FlagZero,
