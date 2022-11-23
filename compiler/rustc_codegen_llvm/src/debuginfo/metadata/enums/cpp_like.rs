@@ -24,7 +24,7 @@ use crate::{
         metadata::{
             build_field_di_node,
             enums::{tag_base_type, DiscrResult},
-            file_metadata, size_and_align_of, type_di_node,
+            file_metadata, file_metadata_from_def_id, size_and_align_of, type_di_node,
             type_map::{self, Stub, UniqueTypeId},
             unknown_file_metadata, visibility_di_flags, DINodeCreationResult, SmallVec,
             NO_GENERICS, NO_SCOPE_METADATA, UNKNOWN_LINE_NUMBER,
@@ -213,7 +213,7 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
             type_map::Stub::Union,
             unique_type_id,
             &enum_type_name,
-            Some(enum_adt_def.did()),
+            Some(file_metadata_from_def_id(cx, Some(enum_adt_def.did()))),
             cx.size_and_align_of(enum_type),
             NO_SCOPE_METADATA,
             visibility_di_flags(cx, enum_adt_def.did(), enum_adt_def.did()),
@@ -292,7 +292,7 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
             type_map::Stub::Union,
             unique_type_id,
             &coroutine_type_name,
-            Some(coroutine_def_id),
+            Some(file_metadata_from_def_id(cx, Some(coroutine_def_id))),
             size_and_align_of(coroutine_type_and_layout),
             NO_SCOPE_METADATA,
             DIFlags::FlagZero,
@@ -352,7 +352,6 @@ fn build_single_variant_union_fields<'ll, 'tcx>(
 
     let variant_struct_type_wrapper_di_node = build_variant_struct_wrapper_type_di_node(
         cx,
-        enum_adt_def,
         enum_type_and_layout,
         enum_type_di_node,
         variant_index,
@@ -362,6 +361,7 @@ fn build_single_variant_union_fields<'ll, 'tcx>(
         tag_base_type_di_node,
         tag_base_type,
         DiscrResult::NoDiscriminant,
+        None,
     );
 
     smallvec![
@@ -485,7 +485,6 @@ fn build_variant_names_type_di_node<'ll, 'tcx>(
 
 fn build_variant_struct_wrapper_type_di_node<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
-    enum_adt_def: AdtDef<'tcx>,
     enum_or_coroutine_type_and_layout: TyAndLayout<'tcx>,
     enum_or_coroutine_type_di_node: &'ll DIType,
     variant_index: VariantIdx,
@@ -495,6 +494,7 @@ fn build_variant_struct_wrapper_type_di_node<'ll, 'tcx>(
     tag_base_type_di_node: &'ll DIType,
     tag_base_type: Ty<'tcx>,
     discr: DiscrResult,
+    source_info: Option<(&'ll DIFile, c_uint)>,
 ) -> &'ll DIType {
     type_map::build_type_with_children(
         cx,
@@ -507,7 +507,7 @@ fn build_variant_struct_wrapper_type_di_node<'ll, 'tcx>(
                 variant_index,
             ),
             &variant_struct_wrapper_type_name(variant_index),
-            Some(enum_adt_def.variant(variant_index).def_id),
+            source_info,
             // NOTE: We use size and align of enum_type, not from variant_layout:
             size_and_align_of(enum_or_coroutine_type_and_layout),
             Some(enum_or_coroutine_type_di_node),
@@ -793,13 +793,8 @@ fn build_union_fields_for_direct_tag_enum_or_coroutine<'ll, 'tcx>(
         let field_name = variant_union_field_name(variant_member_info.variant_index);
         let (size, align) = size_and_align_of(enum_type_and_layout);
 
-        let ty::Adt(enum_adt_def, _) = enum_type_and_layout.ty.kind() else {
-            unreachable!();
-        };
-
         let variant_struct_type_wrapper = build_variant_struct_wrapper_type_di_node(
             cx,
-            *enum_adt_def,
             enum_type_and_layout,
             enum_type_di_node,
             variant_member_info.variant_index,
@@ -809,6 +804,7 @@ fn build_union_fields_for_direct_tag_enum_or_coroutine<'ll, 'tcx>(
             tag_base_type_di_node,
             tag_base_type,
             variant_member_info.discr,
+            variant_member_info.source_info,
         );
 
         // We use LLVMRustDIBuilderCreateMemberType() member type directly because

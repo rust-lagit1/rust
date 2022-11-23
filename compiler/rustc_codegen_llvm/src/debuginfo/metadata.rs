@@ -1031,7 +1031,7 @@ fn build_struct_type_di_node<'ll, 'tcx>(
             Stub::Struct,
             unique_type_id,
             &compute_debuginfo_type_name(cx.tcx, struct_type, false),
-            Some(adt_def.did()),
+            Some(file_metadata_from_def_id(cx, Some(adt_def.did()))),
             size_and_align_of(struct_type_and_layout),
             Some(containing_scope),
             visibility_di_flags(cx, adt_def.did(), adt_def.did()),
@@ -1185,7 +1185,7 @@ fn build_closure_env_di_node<'ll, 'tcx>(
             Stub::Struct,
             unique_type_id,
             &type_name,
-            Some(def_id),
+            Some(file_metadata_from_def_id(cx, Some(def_id))),
             cx.size_and_align_of(closure_env_type),
             Some(containing_scope),
             DIFlags::FlagZero,
@@ -1217,7 +1217,7 @@ fn build_union_type_di_node<'ll, 'tcx>(
             Stub::Union,
             unique_type_id,
             &type_name,
-            Some(union_def_id),
+            Some(file_metadata_from_def_id(cx, Some(union_def_id))),
             size_and_align_of(union_ty_and_layout),
             Some(containing_scope),
             DIFlags::FlagZero,
@@ -1590,10 +1590,12 @@ pub fn tuple_field_name(field_index: usize) -> Cow<'static, str> {
         .unwrap_or_else(|| Cow::from(format!("__{field_index}")))
 }
 
+pub type DefinitionLocation<'ll> = (&'ll DIFile, c_uint);
+
 pub fn file_metadata_from_def_id<'ll>(
     cx: &CodegenCx<'ll, '_>,
     def_id: Option<DefId>,
-) -> (&'ll DIFile, c_uint) {
+) -> DefinitionLocation<'ll> {
     if let Some(def_id) = def_id && let span = cx.tcx.def_span(def_id) && !span.is_dummy() {
         let loc = cx.lookup_debug_loc(span.lo());
         (file_metadata(cx, &loc.file), loc.line)
