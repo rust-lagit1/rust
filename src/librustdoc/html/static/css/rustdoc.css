@@ -963,6 +963,10 @@ so that we can apply CSS-filters to change the arrow color in themes */
 	color: var(--stab-code-color);
 }
 
+.stab a {
+	color: inherit;
+}
+
 .stab .emoji {
 	font-size: 1.25rem;
 	margin-right: 0.3rem;
