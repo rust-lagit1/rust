@@ -5,6 +5,8 @@
 #![crate_type = "lib"]
 #![feature(generators)]
 
+// ignore-tidy-linelength
+
 // NONMSVC: ![[#FILE:]] = !DIFile({{.*}}filename:{{.*}}/codegen/issue-98678-closure-generator.rs{{".*}})
 // MSVC: ![[#FILE:]] = !DIFile({{.*}}filename:{{.*}}\\codegen\\issue-98678-closure-generator.rs{{".*}})
 
