@@ -2615,22 +2615,24 @@ impl<'a, T> Option<&'a Option<T>> {
     /// Basic usage:
     ///
     /// ```
+    /// #![feature(option_reference_flattening)]
+    ///
     /// let x: Option<&Option<u32>> = Some(&Some(6));
-    /// assert_eq!(Some(&6), x.flatten_ref());
+    /// assert_eq!(&Some(6), x.flatten_ref());
     ///
     /// let x: Option<&Option<u32>> = Some(&None);
-    /// assert_eq!(None, x.flatten_ref());
+    /// assert_eq!(&None, x.flatten_ref());
     ///
     /// let x: Option<&Option<u32>> = None;
-    /// assert_eq!(None, x.flatten_ref());
+    /// assert_eq!(&None, x.flatten_ref());
     /// ```
     #[inline]
     #[unstable(feature = "option_reference_flattening", issue = "none")]
     #[rustc_const_unstable(feature = "const_option", issue = "67441")]
-    pub const fn flatten_ref(self) -> Option<&'a T> {
+    pub const fn flatten_ref(self) -> &'a Option<T> {
         match self {
-            Some(inner) => inner.as_ref(),
-            None => None,
+            Some(inner) => inner,
+            None => const { &None },
         }
     }
 }
@@ -2643,21 +2645,23 @@ impl<'a, T> Option<&'a mut Option<T>> {
     /// Basic usage:
     ///
     /// ```
+    /// #![feature(option_reference_flattening)]
+    ///
     /// let x: Option<&mut Option<u32>> = Some(&mut Some(6));
-    /// assert_eq!(Some(&6), x.flatten_ref());
+    /// assert_eq!(&Some(6), x.flatten_ref());
     ///
     /// let x: Option<&mut Option<u32>> = Some(&mut None);
-    /// assert_eq!(None, x.flatten_ref());
+    /// assert_eq!(&None, x.flatten_ref());
     ///
     /// let x: Option<&mut Option<u32>> = None;
-    /// assert_eq!(None, x.flatten_ref());
+    /// assert_eq!(&None, x.flatten_ref());
     /// ```
     #[unstable(feature = "option_reference_flattening", issue = "none")]
     #[rustc_const_unstable(feature = "const_option", issue = "67441")]
-    pub const fn flatten_ref(self) -> Option<&'a T> {
+    pub const fn flatten_ref(self) -> &'a Option<T> {
         match self {
-            Some(inner) => inner.as_ref(),
-            None => None,
+            Some(inner) => inner,
+            None => const { &None },
         }
     }
 
@@ -2668,6 +2672,8 @@ impl<'a, T> Option<&'a mut Option<T>> {
     /// Basic usage:
     ///
     /// ```
+    /// #![feature(option_reference_flattening)]
+    ///
     /// let y: &mut Option<u32> = &mut Some(6);
     /// let x: Option<&mut Option<u32>> = Some(y);
     /// assert_eq!(Some(&mut 6), x.flatten_mut());

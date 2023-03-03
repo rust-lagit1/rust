@@ -481,7 +481,7 @@ declare_features! (
     /// Allows using `Option<&Option<T>>::flatten_ref()`,
     /// Option<&mut Option<T>>::flatten_ref()` and
     /// Option<&mut Option<T>>::flatten_mut()`
-    (active, option_reference_flattening, "1.69.0", None, None),
+    (active, option_reference_flattening, "CURRENT_RUSTC_VERSION", None, None),
     /// Allows `extern "platform-intrinsic" { ... }`.
     (active, platform_intrinsics, "1.4.0", Some(27731), None),
     /// Allows using `#![plugin(myplugin)]`.
