@@ -2638,7 +2638,7 @@ impl<'a, T> Option<&'a Option<T>> {
 }
 
 impl<'a, T> Option<&'a mut Option<T>> {
-    /// Converts from `Option<&mut Option<T>>` to `Option<&T>`.
+    /// Converts from `Option<&mut Option<T>>` to `&Option<T>`.
     ///
     /// # Examples
     ///
@@ -2647,10 +2647,12 @@ impl<'a, T> Option<&'a mut Option<T>> {
     /// ```
     /// #![feature(option_reference_flattening)]
     ///
-    /// let x: Option<&mut Option<u32>> = Some(&mut Some(6));
+    /// let y = &mut Some(6);
+    /// let x: Option<&mut Option<u32>> = Some(y);
     /// assert_eq!(&Some(6), x.flatten_ref());
     ///
-    /// let x: Option<&mut Option<u32>> = Some(&mut None);
+    /// let y: &mut Option<u32> = &mut None;
+    /// let x: Option<&mut Option<u32>> = Some(y);
     /// assert_eq!(&None, x.flatten_ref());
     ///
     /// let x: Option<&mut Option<u32>> = None;
