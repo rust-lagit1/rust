@@ -478,10 +478,6 @@ declare_features! (
     (active, object_safe_for_dispatch, "1.40.0", Some(43561), None),
     /// Allows using `#[optimize(X)]`.
     (active, optimize_attribute, "1.34.0", Some(54882), None),
-    /// Allows using `Option<&Option<T>>::flatten_ref()`,
-    /// Option<&mut Option<T>>::flatten_ref()` and
-    /// Option<&mut Option<T>>::flatten_mut()`
-    (active, option_reference_flattening, "CURRENT_RUSTC_VERSION", None, None),
     /// Allows `extern "platform-intrinsic" { ... }`.
     (active, platform_intrinsics, "1.4.0", Some(27731), None),
     /// Allows using `#![plugin(myplugin)]`.
