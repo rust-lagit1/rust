@@ -852,6 +852,10 @@ impl<D: Deps> DepGraphData<D> {
         let frame = MarkFrame { index: prev_dep_node_index, parent: frame };
 
         #[cfg(not(parallel_compiler))]
+        self.assert_nonexistent_node(dep_node, || {
+            format!("trying to mark existing {dep_node:?} as green")
+        });
+        #[cfg(not(parallel_compiler))]
         debug_assert!(self.colors.get(prev_dep_node_index).is_none());
 
         // We never try to mark eval_always nodes as green
