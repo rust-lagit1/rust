@@ -77,6 +77,7 @@ mod passes;
 mod redundant_semicolon;
 mod traits;
 mod types;
+mod unnecessary_send_constraint;
 mod unused;
 
 pub use array_into_iter::ARRAY_INTO_ITER;
@@ -127,6 +128,7 @@ pub use passes::{EarlyLintPass, LateLintPass};
 pub use rustc_session::lint::Level::{self, *};
 pub use rustc_session::lint::{BufferedEarlyLint, FutureIncompatibleInfo, Lint, LintId};
 pub use rustc_session::lint::{LintArray, LintPass};
+use unnecessary_send_constraint::UnnecessarySendConstraint;
 
 fluent_messages! { "../messages.ftl" }
 
@@ -245,6 +247,7 @@ late_lint_methods!(
             OpaqueHiddenInferredBound: OpaqueHiddenInferredBound,
             MultipleSupertraitUpcastable: MultipleSupertraitUpcastable,
             MapUnitFn: MapUnitFn,
+            UnnecessarySendConstraint: UnnecessarySendConstraint,
         ]
     ]
 );

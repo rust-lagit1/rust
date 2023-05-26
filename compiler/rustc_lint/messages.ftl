@@ -200,6 +200,12 @@ lint_redundant_semicolons =
         *[false] this semicolon
     }
 
+lint_unnecessary_send_constraint = constraining a reference to `Send` is meaningless
+    .suggestion = {$only_trait ->
+        [true] replace this with `std::any::Any`
+        *[false] remove this
+    }
+
 lint_drop_trait_constraints =
     bounds on `{$predicate}` are most likely incorrect, consider instead using `{$needs_drop}` to detect whether a type can be trivially dropped
 
