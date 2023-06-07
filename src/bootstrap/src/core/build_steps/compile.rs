@@ -136,7 +136,8 @@ impl Step for Std {
             compiler: run.builder.compiler(run.builder.top_stage, run.build_triple()),
             target: run.target,
             crates,
-            force_recompile: false,
+            // If someone explicitly says `x build std`, recompile from source so they see their changes
+            force_recompile: true,
             extra_rust_args: &[],
             is_for_mir_opt_tests: false,
         });
