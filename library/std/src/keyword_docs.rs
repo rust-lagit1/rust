@@ -1260,7 +1260,7 @@ mod return_keyword {}
 /// is part of a recursive cycle in the call graph.
 ///
 /// For example note that the functions `halt` and `halt_loop` below are
-/// identical, they both do nothing, forever. However `stack_overflow` is
+/// identical, they both do nothing, forever. However, `stack_overflow` is
 /// different from them, even though it is written almost identically to
 /// `halt`, `stack_overflow` exhausts the stack and so causes a stack
 /// overflow, instead of running forever.
@@ -1284,10 +1284,10 @@ mod return_keyword {}
 /// }
 /// ```
 ///
-/// Note that from the algorithmic standpoint loops and tail-calls are
+/// Note that from an algorithmic standpoint, loops and tail-calls are
 /// interchangeable, you can always rewrite a loop to use tail-calls
 /// instead and vice versa. They are, however, very different in the code
-/// structure, so sometimes one approach can make more sense that the other.
+/// structure, so sometimes one approach can make more sense than the other.
 #[cfg(not(bootstrap))]
 mod become_keyword {}
 
