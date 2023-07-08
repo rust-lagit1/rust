@@ -42,7 +42,7 @@ const UTF8_REPLACEMENT_CHARACTER: &str = "\u{FFFD}";
 /// which represents a Unicode scalar value:
 /// a code point that is not a surrogate (U+D800 to U+DFFF).
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
-pub struct CodePoint {
+pub(crate) struct CodePoint {
     value: u32,
 }
 
@@ -133,7 +133,7 @@ impl CodePoint {
 /// Similar to `String`, but can additionally contain surrogate code points
 /// if they’re not in a surrogate pair.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone)]
-pub struct Wtf8Buf {
+pub(crate) struct Wtf8Buf {
     bytes: Vec<u8>,
 
     /// Do we know that `bytes` holds a valid UTF-8 encoding? We can easily
@@ -496,7 +496,8 @@ impl Extend<CodePoint> for Wtf8Buf {
 /// Similar to `&str`, but can additionally contain surrogate code points
 /// if they’re not in a surrogate pair.
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
-pub struct Wtf8 {
+#[repr(transparent)]
+pub(crate) struct Wtf8 {
     bytes: [u8],
 }
 
@@ -782,6 +783,14 @@ impl Wtf8 {
     pub fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
         self.bytes.eq_ignore_ascii_case(&other.bytes)
     }
+
+    #[inline]
+    pub(crate) unsafe fn get_unchecked(&self, range: core::ops::Range<usize>) -> &Self {
+        // SAFETY: Caller promises `range` is valid.
+        let bytes = unsafe { self.bytes.get_unchecked(range) };
+        // SAFETY: We’re just a transparent wrapper around [u8].
+        unsafe { mem::transmute(bytes) }
+    }
 }
 
 /// Returns a slice of the given string for the byte range \[`begin`..`end`).
@@ -870,7 +879,7 @@ fn decode_surrogate_pair(lead: u16, trail: u16) -> char {
 
 /// Copied from core::str::StrPrelude::is_char_boundary
 #[inline]
-pub fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
+pub(crate) fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
     if index == slice.len() {
         return true;
     }
@@ -882,14 +891,14 @@ pub fn is_code_point_boundary(slice: &Wtf8, index: usize) -> bool {
 
 /// Copied from core::str::raw::slice_unchecked
 #[inline]
-pub unsafe fn slice_unchecked(s: &Wtf8, begin: usize, end: usize) -> &Wtf8 {
+pub(crate) unsafe fn slice_unchecked(s: &Wtf8, begin: usize, end: usize) -> &Wtf8 {
     // memory layout of a &[u8] and &Wtf8 are the same
     Wtf8::from_bytes_unchecked(slice::from_raw_parts(s.bytes.as_ptr().add(begin), end - begin))
 }
 
 /// Copied from core::str::raw::slice_error_fail
 #[inline(never)]
-pub fn slice_error_fail(s: &Wtf8, begin: usize, end: usize) -> ! {
+pub(crate) fn slice_error_fail(s: &Wtf8, begin: usize, end: usize) -> ! {
     assert!(begin <= end);
     panic!("index {begin} and/or {end} in `{s:?}` do not lie on character boundary");
 }
@@ -898,7 +907,7 @@ pub fn slice_error_fail(s: &Wtf8, begin: usize, end: usize) -> ! {
 ///
 /// Created with the method `.code_points()`.
 #[derive(Clone)]
-pub struct Wtf8CodePoints<'a> {
+pub(crate) struct Wtf8CodePoints<'a> {
     bytes: slice::Iter<'a, u8>,
 }
 
@@ -983,5 +992,22 @@ impl Hash for Wtf8 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(&self.bytes);
         0xfeu8.hash(state)
+    }
+}
+
+#[unstable(feature = "pattern", issue = "27721")]
+impl<'a> From<&'a Wtf8> for core::str_bytes::Bytes<'a, core::str_bytes::Wtf8> {
+    fn from(wtf8: &'a Wtf8) -> Self {
+        // SAFETY: As name implies, `Wtf8`’s bytes ares guaranteed to be WTF-8
+        // so `Wtf8` flavour is correct.
+        unsafe { core::str_bytes::Bytes::new(&wtf8.bytes) }
+    }
+}
+
+#[unstable(feature = "pattern", issue = "27721")]
+impl<'a> From<core::str_bytes::Bytes<'a, core::str_bytes::Wtf8>> for &'a Wtf8 {
+    fn from(bytes: core::str_bytes::Bytes<'a, core::str_bytes::Wtf8>) -> Self {
+        // SAFETY: Bytes<'_, Wtf8> are guaranteed to be well-formed WTF-8.
+        unsafe { Wtf8::from_bytes_unchecked(bytes.as_bytes()) }
     }
 }

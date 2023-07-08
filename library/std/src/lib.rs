@@ -241,6 +241,7 @@
 #![feature(allocator_internals)]
 #![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
+#![feature(associated_type_bounds)]
 #![feature(c_unwind)]
 #![feature(cfg_target_thread_local)]
 #![feature(concat_idents)]
@@ -299,6 +300,8 @@
 #![feature(panic_can_unwind)]
 #![feature(panic_info_message)]
 #![feature(panic_internals)]
+#![feature(pattern)]
+#![feature(pattern_internals)]
 #![feature(pointer_byte_offsets)]
 #![feature(pointer_is_aligned)]
 #![feature(portable_simd)]
@@ -492,6 +495,8 @@ pub use core::mem;
 pub use core::ops;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::option;
+#[unstable(feature = "pattern", issue = "27721")]
+pub use core::pattern;
 #[stable(feature = "pin", since = "1.33.0")]
 pub use core::pin;
 #[stable(feature = "rust1", since = "1.0.0")]

@@ -55,9 +55,9 @@ use core::ops::AddAssign;
 #[cfg(not(no_global_oom_handling))]
 use core::ops::Bound::{Excluded, Included, Unbounded};
 use core::ops::{self, Index, IndexMut, Range, RangeBounds};
+use core::pattern::Pattern;
 use core::ptr;
 use core::slice;
-use core::str::pattern::Pattern;
 #[cfg(not(no_global_oom_handling))]
 use core::str::Utf8Chunks;
 
@@ -1371,9 +1371,9 @@ impl String {
     #[unstable(feature = "string_remove_matches", reason = "new API", issue = "72826")]
     pub fn remove_matches<'a, P>(&'a mut self, pat: P)
     where
-        P: for<'x> Pattern<'x>,
+        P: for<'x> Pattern<&'x str>,
     {
-        use core::str::pattern::Searcher;
+        use core::pattern::Searcher;
 
         let rejections = {
             let mut searcher = pat.into_searcher(self);
@@ -2175,10 +2175,10 @@ impl<'a> Extend<Cow<'a, str>> for String {
     reason = "API not fully fleshed out and ready to be stabilized",
     issue = "27721"
 )]
-impl<'a, 'b> Pattern<'a> for &'b String {
-    type Searcher = <&'b str as Pattern<'a>>::Searcher;
+impl<'a, 'b> Pattern<&'a str> for &'b String {
+    type Searcher = <&'b str as Pattern<&'a str>>::Searcher;
 
-    fn into_searcher(self, haystack: &'a str) -> <&'b str as Pattern<'a>>::Searcher {
+    fn into_searcher(self, haystack: &'a str) -> <&'b str as Pattern<&'a str>>::Searcher {
         self[..].into_searcher(haystack)
     }
 
