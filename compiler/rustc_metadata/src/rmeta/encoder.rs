@@ -1336,6 +1336,14 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                     self.tcx.local_visibility(local_id).map_id(|def_id| def_id.local_def_index);
                 record!(self.tables.visibility[def_id] <- vis);
             }
+            if let DefKind::Trait = def_kind {
+                let impl_restriction = self.tcx.impl_restriction(def_id);
+                record!(self.tables.impl_restriction[def_id] <- impl_restriction);
+            }
+            if let DefKind::Field = def_kind {
+                let mut_restriction = self.tcx.mut_restriction(def_id);
+                record!(self.tables.mut_restriction[def_id] <- mut_restriction);
+            }
             if should_encode_stability(def_kind) {
                 self.encode_stability(def_id);
                 self.encode_const_stability(def_id);

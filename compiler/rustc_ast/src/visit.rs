@@ -227,6 +227,12 @@ pub trait Visitor<'ast>: Sized {
     fn visit_vis(&mut self, vis: &'ast Visibility) {
         walk_vis(self, vis)
     }
+    fn visit_restriction<Kind: crate::RestrictionKind>(
+        &mut self,
+        restriction: &'ast Restriction<Kind>,
+    ) {
+        walk_restriction(self, restriction)
+    }
     fn visit_fn_ret_ty(&mut self, ret_ty: &'ast FnRetTy) {
         walk_fn_ret_ty(self, ret_ty)
     }
@@ -357,10 +363,18 @@ pub fn walk_item<'a, V: Visitor<'a>>(visitor: &mut V, item: &'a Item) {
             visitor.visit_generics(generics);
             visitor.visit_variant_data(struct_definition);
         }
-        ItemKind::Trait(box Trait { unsafety: _, is_auto: _, generics, bounds, items }) => {
+        ItemKind::Trait(box Trait {
+            impl_restriction,
+            unsafety: _,
+            is_auto: _,
+            generics,
+            bounds,
+            items,
+        }) => {
             visitor.visit_generics(generics);
             walk_list!(visitor, visit_param_bound, bounds, BoundKind::SuperTraits);
             walk_list!(visitor, visit_assoc_item, items, AssocCtxt::Trait);
+            visitor.visit_restriction(impl_restriction);
         }
         ItemKind::TraitAlias(generics, bounds) => {
             visitor.visit_generics(generics);
@@ -705,6 +719,7 @@ pub fn walk_field_def<'a, V: Visitor<'a>>(visitor: &mut V, field: &'a FieldDef) 
     if let Some(ident) = field.ident {
         visitor.visit_ident(ident);
     }
+    visitor.visit_restriction(&field.mut_restriction);
     visitor.visit_ty(&field.ty);
     walk_list!(visitor, visit_attribute, &field.attrs);
 }
@@ -946,6 +961,17 @@ pub fn walk_arm<'a, V: Visitor<'a>>(visitor: &mut V, arm: &'a Arm) {
 pub fn walk_vis<'a, V: Visitor<'a>>(visitor: &mut V, vis: &'a Visibility) {
     if let VisibilityKind::Restricted { ref path, id, shorthand: _ } = vis.kind {
         visitor.visit_path(path, id);
+    }
+}
+
+pub fn walk_restriction<'a, V: Visitor<'a>, Kind: crate::RestrictionKind>(
+    visitor: &mut V,
+    restriction: &'a Restriction<Kind>,
+) {
+    match restriction.level {
+        RestrictionLevel::Unrestricted => {}
+        RestrictionLevel::Restricted { ref path, id, shorthand: _ } => visitor.visit_path(path, id),
+        RestrictionLevel::Implied => {}
     }
 }
 

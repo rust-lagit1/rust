@@ -1,0 +1,14 @@
+error[E0704]: incorrect mut restriction
+  --> $DIR/in-path-rustfix.rs:8:13
+   |
+LL |         mut(crate::a) _foo: u8,
+   |             ^^^^^^^^ help: make this mutable only to module `crate::a` with `in`: `in crate::a`
+   |
+   = help: some possible mut restrictions are:
+           `mut(crate)`: mutable only in the current crate
+           `mut(super)`: mutable only in the current module's parent
+           `mut(in path::to::module)`: mutable only in the specified path
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0704`.

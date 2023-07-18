@@ -314,6 +314,7 @@ impl<'a> State<'a> {
                 self.bclose(item.span, empty);
             }
             ast::ItemKind::Trait(box ast::Trait {
+                impl_restriction,
                 is_auto,
                 unsafety,
                 generics,
@@ -323,6 +324,7 @@ impl<'a> State<'a> {
             }) => {
                 self.head("");
                 self.print_visibility(&item.vis);
+                self.print_restriction(impl_restriction);
                 self.print_unsafety(*unsafety);
                 self.print_is_auto(*is_auto);
                 self.word_nbsp("trait");
@@ -428,6 +430,25 @@ impl<'a> State<'a> {
         }
     }
 
+    pub(crate) fn print_restriction<Kind: ast::RestrictionKind>(
+        &mut self,
+        restriction: &ast::Restriction<Kind>,
+    ) {
+        match restriction.level {
+            ast::RestrictionLevel::Unrestricted => self.word_nbsp(Kind::KEYWORD_STR),
+            ast::RestrictionLevel::Restricted { ref path, id: _, shorthand } => {
+                let kw = Kind::KEYWORD_STR;
+                let path = Self::to_string(|s| s.print_path(path, false, 0));
+                if shorthand {
+                    self.word_nbsp(format!("{kw}({path})"))
+                } else {
+                    self.word_nbsp(format!("{kw}(in {path})"))
+                }
+            }
+            ast::RestrictionLevel::Implied => {}
+        }
+    }
+
     fn print_defaultness(&mut self, defaultness: ast::Defaultness) {
         if let ast::Defaultness::Default(_) = defaultness {
             self.word_nbsp("default");
@@ -447,6 +468,7 @@ impl<'a> State<'a> {
                 self.maybe_print_comment(field.span.lo());
                 self.print_outer_attributes(&field.attrs);
                 self.print_visibility(&field.vis);
+                self.print_restriction(&field.mut_restriction);
                 self.print_ident(field.ident.unwrap());
                 self.word_nbsp(":");
                 self.print_type(&field.ty);

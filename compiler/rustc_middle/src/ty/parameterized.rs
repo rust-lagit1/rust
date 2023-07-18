@@ -106,6 +106,10 @@ trivially_parameterized_over_tcx! {
     rustc_type_ir::Variance,
 }
 
+impl<const KIND: ty::RestrictionKind> ty::ParameterizedOverTcx for ty::Restriction<KIND> {
+    type Value<'tcx> = Self;
+}
+
 // HACK(compiler-errors): This macro rule can only take a fake path,
 // not a real, due to parsing ambiguity reasons.
 #[macro_export]

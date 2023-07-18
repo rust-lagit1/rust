@@ -274,6 +274,10 @@ trivial! {
     rustc_middle::ty::UnusedGenericParams,
     rustc_middle::ty::util::AlwaysRequiresDrop,
     rustc_middle::ty::Visibility<rustc_span::def_id::DefId>,
+    // FIXME(jhpratt) replace with a generic impl over ty::RestrictionKind when
+    // #![feature(generic_const_exprs)] is no longer incomplete.
+    rustc_middle::ty::ImplRestriction,
+    rustc_middle::ty::MutRestriction,
     rustc_session::config::CrateType,
     rustc_session::config::EntryFnType,
     rustc_session::config::OptLevel,

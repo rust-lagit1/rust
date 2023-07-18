@@ -1120,6 +1120,7 @@ pub(crate) fn format_trait(
 ) -> Option<String> {
     if let ast::ItemKind::Trait(trait_kind) = &item.kind {
         let ast::Trait {
+            ref impl_restriction,
             is_auto,
             unsafety,
             ref generics,
@@ -1128,8 +1129,9 @@ pub(crate) fn format_trait(
         } = **trait_kind;
         let mut result = String::with_capacity(128);
         let header = format!(
-            "{}{}{}trait ",
+            "{}{}{}{}trait ",
             format_visibility(context, &item.vis),
+            format_restriction(context, &impl_restriction),
             format_unsafety(unsafety),
             format_auto(is_auto),
         );
@@ -1826,15 +1828,15 @@ pub(crate) fn rewrite_struct_field_prefix(
     field: &ast::FieldDef,
 ) -> Option<String> {
     let vis = format_visibility(context, &field.vis);
+    let mut_restriction = format_restriction(context, &field.mut_restriction);
     let type_annotation_spacing = type_annotation_spacing(context.config);
     Some(match field.ident {
         Some(name) => format!(
-            "{}{}{}:",
-            vis,
+            "{vis}{mut_restriction}{}{}:",
             rewrite_ident(context, name),
             type_annotation_spacing.0
         ),
-        None => vis.to_string(),
+        None => format!("{vis}{mut_restriction}"),
     })
 }
 

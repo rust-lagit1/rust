@@ -162,6 +162,8 @@ pub struct ResolverOutputs {
 #[derive(Debug)]
 pub struct ResolverGlobalCtxt {
     pub visibilities: FxHashMap<LocalDefId, Visibility>,
+    pub impl_restrictions: FxHashMap<LocalDefId, ImplRestriction>,
+    pub mut_restrictions: FxHashMap<LocalDefId, MutRestriction>,
     /// This field is used to decide whether we should make `PRIVATE_IN_PUBLIC` a hard error.
     pub has_pub_restricted: bool,
     /// Item with a given `LocalDefId` was defined during macro expansion with ID `ExpnId`.
@@ -288,6 +290,91 @@ pub enum Visibility<Id = LocalDefId> {
     Public,
     /// Visible only in the given crate-local module.
     Restricted(Id),
+}
+
+// FIXME(jhpratt) Once #![feature(adt_const_params)] is no longer incomplete, replace this with an
+// enum of the various kinds of restrictions.
+pub type RestrictionKind = u8;
+pub type MutRestriction =
+    Restriction<{ <rustc_ast::restriction_kind::Mut as rustc_ast::RestrictionKind>::MIDDLE_KIND }>;
+pub type ImplRestriction =
+    Restriction<{ <rustc_ast::restriction_kind::Impl as rustc_ast::RestrictionKind>::MIDDLE_KIND }>;
+
+#[derive(Clone, Debug, PartialEq, Eq, Copy, Hash, Encodable, Decodable, HashStable)]
+pub enum Restriction<const KIND: RestrictionKind, Id = DefId> {
+    /// The restriction does not affect the item.
+    Unrestricted,
+    /// The restriction only applies outside of this path.
+    Restricted(Id, Span),
+}
+
+impl<const KIND: RestrictionKind, Id: Into<DefId> + Copy> Restriction<KIND, Id> {
+    /// Returns `true` if the behavior is allowed/unrestricted in the given module. A value of
+    /// `false` indicates that the behavior is prohibited.
+    pub fn is_allowed_in(self, module: DefId, tcx: TyCtxt<'_>) -> bool {
+        let restricted_to = match self {
+            Restriction::Unrestricted => return true,
+            Restriction::Restricted(module, _) => module,
+        };
+
+        tcx.is_descendant_of(module, restricted_to.into())
+    }
+
+    /// Obtain the [`Span`] of the restriction. If unrestricted, an empty span is returned.
+    pub fn span(&self) -> Span {
+        match self {
+            Restriction::Unrestricted => rustc_span::DUMMY_SP,
+            Restriction::Restricted(_, span) => *span,
+        }
+    }
+
+    /// Obtain the path of the restriction. If unrestricted, an empty string is returned.
+    pub fn restriction_path(&self, tcx: TyCtxt<'_>, krate: rustc_span::def_id::CrateNum) -> String {
+        let Restriction::Restricted(def_id, _) = self else {
+            return String::new();
+        };
+
+        let def_id: DefId = (*def_id).into();
+
+        if krate == def_id.krate {
+            tcx.def_path_str(def_id)
+        } else {
+            tcx.crate_name(def_id.krate).to_ident_string()
+        }
+    }
+
+    /// Obtain the stricter of the two restrictions. If the two restrictions are the same, returns
+    /// `left`. Panics if the restrictions do not reference the same crate.
+    pub fn stricter_of(left: Self, right: Self, tcx: TyCtxt<'_>) -> Self {
+        match (left, right) {
+            (Restriction::Unrestricted, Restriction::Unrestricted) => Restriction::Unrestricted,
+            (Restriction::Unrestricted, Restriction::Restricted(..)) => right,
+            (Restriction::Restricted(..), Restriction::Unrestricted) => left,
+            (Restriction::Restricted(left_did, _), Restriction::Restricted(right_did, _)) => {
+                let left_did = left_did.into();
+                let right_did = right_did.into();
+
+                if left_did.krate != right_did.krate {
+                    bug!("stricter_of: left and right restriction do not reference the same crate");
+                }
+
+                if tcx.is_descendant_of(left_did, right_did) { left } else { right }
+            }
+        }
+    }
+
+    /// Obtain the strictest of the provided restrictions. If multiple restrictions are the same,
+    /// the first is returned. Panics if all restrictions do not reference the same crate.
+    pub fn strictest_of(iter: impl Iterator<Item = Self>, tcx: TyCtxt<'_>) -> Self {
+        iter.fold(Restriction::Unrestricted, |left, right| Self::stricter_of(left, right, tcx))
+    }
+
+    pub fn map_id<OutId>(self, f: impl FnOnce(Id) -> OutId) -> Restriction<KIND, OutId> {
+        match self {
+            Restriction::Unrestricted => Restriction::Unrestricted,
+            Restriction::Restricted(id, span) => Restriction::Restricted(f(id), span),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, HashStable, TyEncodable, TyDecodable)]

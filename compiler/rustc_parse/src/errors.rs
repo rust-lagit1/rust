@@ -812,13 +812,31 @@ pub(crate) struct MismatchedClosingDelimiter {
 }
 
 #[derive(Diagnostic)]
-#[diag(parse_incorrect_visibility_restriction, code = "E0704")]
+#[diag(parse_incorrect_restriction, code = "E0704")]
 #[help]
-pub(crate) struct IncorrectVisibilityRestriction {
+pub(crate) struct IncorrectRestriction {
     #[primary_span]
-    #[suggestion(code = "in {inner_str}", applicability = "machine-applicable")]
+    #[suggestion(code = "in {path}", applicability = "machine-applicable")]
     pub span: Span,
-    pub inner_str: String,
+    pub path: String,
+    pub keyword: &'static str,
+}
+
+#[derive(Diagnostic)]
+#[diag(parse_restriction_missing_path, code = "E0704")]
+#[help]
+pub(crate) struct RestrictionMissingPath {
+    #[primary_span]
+    #[suggestion(code = "{keyword}(crate)", applicability = "maybe-incorrect")]
+    pub span: Span,
+    pub keyword: &'static str,
+}
+
+#[derive(Diagnostic)]
+#[diag(parse_impl_restriction_on_trait_alias)]
+pub(crate) struct ImplRestrictionOnTraitAlias {
+    #[primary_span]
+    pub span: Span,
 }
 
 #[derive(Diagnostic)]

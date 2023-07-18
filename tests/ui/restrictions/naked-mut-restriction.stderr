@@ -1,0 +1,14 @@
+error[E0704]: incorrect mut restriction
+  --> $DIR/naked-mut-restriction.rs:5:9
+   |
+LL |     pub mut x: u32,
+   |         ^^^ help: make this mutable only to the current crate: `mut(crate)`
+   |
+   = help: some possible mut restrictions are:
+           `mut(crate)`: mutable only in the current crate
+           `mut(super)`: mutable only in the current module's parent
+           `mut(in path::to::module)`: mutable only in the specified path
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0704`.

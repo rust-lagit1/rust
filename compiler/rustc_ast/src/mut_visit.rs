@@ -278,6 +278,13 @@ pub trait MutVisitor: Sized {
         noop_visit_vis(vis, self);
     }
 
+    fn visit_restriction<Kind: crate::RestrictionKind>(
+        &mut self,
+        restriction: &mut Restriction<Kind>,
+    ) {
+        noop_visit_restriction(restriction, self);
+    }
+
     fn visit_id(&mut self, _id: &mut NodeId) {
         // Do nothing.
     }
@@ -990,9 +997,10 @@ pub fn noop_flat_map_field_def<T: MutVisitor>(
     mut fd: FieldDef,
     visitor: &mut T,
 ) -> SmallVec<[FieldDef; 1]> {
-    let FieldDef { span, ident, vis, id, ty, attrs, is_placeholder: _ } = &mut fd;
+    let FieldDef { span, ident, vis, mut_restriction, id, ty, attrs, is_placeholder: _ } = &mut fd;
     visitor.visit_span(span);
     visit_opt(ident, |ident| visitor.visit_ident(ident));
+    visitor.visit_restriction(mut_restriction);
     visitor.visit_vis(vis);
     visitor.visit_id(id);
     visitor.visit_ty(ty);
@@ -1092,7 +1100,15 @@ pub fn noop_visit_item_kind<T: MutVisitor>(kind: &mut ItemKind, vis: &mut T) {
             vis.visit_ty(self_ty);
             items.flat_map_in_place(|item| vis.flat_map_impl_item(item));
         }
-        ItemKind::Trait(box Trait { unsafety, is_auto: _, generics, bounds, items }) => {
+        ItemKind::Trait(box Trait {
+            impl_restriction,
+            unsafety,
+            is_auto: _,
+            generics,
+            bounds,
+            items,
+        }) => {
+            vis.visit_restriction(impl_restriction);
             visit_unsafety(unsafety, vis);
             vis.visit_generics(generics);
             visit_bounds(bounds, vis);
@@ -1552,6 +1568,17 @@ pub fn noop_visit_vis<T: MutVisitor>(visibility: &mut Visibility, vis: &mut T) {
         }
     }
     vis.visit_span(&mut visibility.span);
+}
+
+pub fn noop_visit_restriction<T: MutVisitor, Kind: crate::RestrictionKind>(
+    restriction: &mut Restriction<Kind>,
+    vis: &mut T,
+) {
+    if let RestrictionLevel::Restricted { path, id, shorthand: _ } = &mut restriction.level {
+        vis.visit_path(path);
+        vis.visit_id(id);
+    }
+    vis.visit_span(&mut restriction.span);
 }
 
 /// Some value for the AST node that is valid but possibly meaningless.

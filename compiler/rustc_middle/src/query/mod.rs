@@ -1695,6 +1695,15 @@ rustc_queries! {
         feedable
     }
 
+    query impl_restriction(def_id: DefId) -> ty::ImplRestriction {
+        desc { |tcx| "computing impl restriction for `{}`", tcx.def_path_str(def_id) }
+        separate_provide_extern
+    }
+
+    query check_impl_restriction(_: ()) {
+        desc { "checking impl restrictions" }
+    }
+
     query inhabited_predicate_adt(key: DefId) -> ty::inhabitedness::InhabitedPredicate<'tcx> {
         desc { "computing the uninhabited predicate of `{:?}`", key }
     }
@@ -1702,6 +1711,23 @@ rustc_queries! {
     /// Do not call this query directly: invoke `Ty::inhabited_predicate` instead.
     query inhabited_predicate_type(key: Ty<'tcx>) -> ty::inhabitedness::InhabitedPredicate<'tcx> {
         desc { "computing the uninhabited predicate of `{}`", key }
+    }
+
+    query mut_restriction(def_id: DefId) -> ty::MutRestriction {
+        desc { |tcx| "computing mut restriction for `{}`", tcx.def_path_str(def_id) }
+        separate_provide_extern
+    }
+
+    query check_mut_restriction(def_id: LocalDefId) {
+        desc { "checking mut restrictions" }
+    }
+
+    query adt_expression_restriction(variant_def_id: DefId) -> ty::MutRestriction {
+        desc {
+            "computing where `{}` can be constructed via an ADT expression",
+            tcx.def_path_str(variant_def_id)
+        }
+        cache_on_disk_if { true }
     }
 
     query dep_kind(_: CrateNum) -> CrateDepKind {
