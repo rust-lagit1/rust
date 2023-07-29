@@ -1249,6 +1249,7 @@ pub const fn default_lib_output() -> CrateType {
 
 fn default_configuration(sess: &Session) -> Cfg {
     // NOTE: This should be kept in sync with `CheckCfg::fill_well_known` below.
+    // FIXME: what exactly sync there?
     let end = &sess.target.endian;
     let arch = &sess.target.arch;
     let wordsz = sess.target.pointer_width.to_string();

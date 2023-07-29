@@ -1741,6 +1741,7 @@ fn assemble_candidates_from_impls<'cx, 'tcx>(
         };
 
         let eligible = match &impl_source {
+            // tidy-ticket-assemble_candidates_from_impls-UserDefined
             ImplSource::UserDefined(impl_data) => {
                 // We have to be careful when projecting out of an
                 // impl because of specialization. If we are not in
@@ -1791,6 +1792,8 @@ fn assemble_candidates_from_impls<'cx, 'tcx>(
                     }
                 }
             }
+            // tidy-ticket-assemble_candidates_from_impls-UserDefined
+
             ImplSource::Builtin(BuiltinImplSource::Misc, _) => {
                 // While a builtin impl may be known to exist, the associated type may not yet
                 // be known. Any type with multiple potential associated types is therefore

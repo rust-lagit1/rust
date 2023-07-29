@@ -653,6 +653,7 @@ impl<'tcx> TyCtxt<'tcx> {
             && !self.is_foreign_item(def_id)
     }
 
+    // tidy-ticket-thread_local_ptr_ty
     /// Returns the type a reference to the thread local takes in MIR.
     pub fn thread_local_ptr_ty(self, def_id: DefId) -> Ty<'tcx> {
         let static_ty = self.type_of(def_id).instantiate_identity();
@@ -665,6 +666,7 @@ impl<'tcx> TyCtxt<'tcx> {
             Ty::new_imm_ref(self, self.lifetimes.re_static, static_ty)
         }
     }
+    // tidy-ticket-thread_local_ptr_ty
 
     /// Get the type of the pointer to the static that we use in MIR.
     pub fn static_ptr_ty(self, def_id: DefId) -> Ty<'tcx> {
@@ -674,7 +676,9 @@ impl<'tcx> TyCtxt<'tcx> {
             self.type_of(def_id).instantiate_identity(),
         );
 
+        // tidy-ticket-static_ptr_ty
         // Make sure that accesses to unsafe statics end up using raw pointers.
+        // FIXME: should it said sync with thread_local_ptr_ty?
         // For thread-locals, this needs to be kept in sync with `Rvalue::ty`.
         if self.is_mutable_static(def_id) {
             Ty::new_mut_ptr(self, static_ty)
@@ -683,6 +687,7 @@ impl<'tcx> TyCtxt<'tcx> {
         } else {
             Ty::new_imm_ref(self, self.lifetimes.re_erased, static_ty)
         }
+        // tidy-ticket-static_ptr_ty
     }
 
     /// Return the set of types that should be taken into account when checking

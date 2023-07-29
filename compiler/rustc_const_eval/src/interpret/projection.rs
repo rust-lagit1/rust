@@ -167,6 +167,7 @@ where
                 None => {
                     // For unsized types with an extern type tail we perform no adjustments.
                     // NOTE: keep this in sync with `PlaceRef::project_field` in the codegen backend.
+                    // FIXME: that one? compiler/rustc_codegen_ssa/src/mir/place.rs
                     assert!(matches!(base_meta, MemPlaceMeta::None));
                     (base_meta, offset)
                 }

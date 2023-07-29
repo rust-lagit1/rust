@@ -206,10 +206,12 @@ pub fn check_crate(tcx: TyCtxt<'_>) -> Result<(), ErrorGuaranteed> {
         tcx.hir().try_par_for_each_module(|module| tcx.ensure().check_mod_type_wf(module))
     });
 
+    // tidy-ticket-sess-time-item_types_checking
     // NOTE: This is copy/pasted in librustdoc/core.rs and should be kept in sync.
     tcx.sess.time("item_types_checking", || {
         tcx.hir().for_each_module(|module| tcx.ensure().check_mod_item_types(module))
     });
+    // tidy-ticket-sess-time-item_types_checking
 
     // HACK: `check_mod_type_wf` may spuriously emit errors due to `delay_span_bug`, even if those errors
     // only actually get emitted in `check_mod_item_types`.

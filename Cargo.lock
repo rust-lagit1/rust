@@ -5463,6 +5463,7 @@ dependencies = [
  "cargo_metadata 0.15.4",
  "ignore",
  "lazy_static",
+ "md-5",
  "miropt-test-tools",
  "regex",
  "semver",

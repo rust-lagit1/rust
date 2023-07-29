@@ -213,6 +213,7 @@ pub(in crate::solve) fn instantiate_constituent_tys_for_copy_clone_trait<'tcx>(
     }
 }
 
+// tidy-ticket-extract_tupled_inputs_and_output_from_callable
 // Returns a binder of the tupled inputs types and output type from a builtin callable type.
 pub(in crate::solve) fn extract_tupled_inputs_and_output_from_callable<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -234,6 +235,7 @@ pub(in crate::solve) fn extract_tupled_inputs_and_output_from_callable<'tcx>(
                 Err(NoSolution)
             }
         }
+
         // keep this in sync with assemble_fn_pointer_candidates until the old solver is removed.
         ty::FnPtr(sig) => {
             if sig.is_fn_trait_compatible() {
@@ -291,6 +293,7 @@ pub(in crate::solve) fn extract_tupled_inputs_and_output_from_callable<'tcx>(
         }
     }
 }
+// tidy-ticket-extract_tupled_inputs_and_output_from_callable
 
 /// Assemble a list of predicates that would be present on a theoretical
 /// user impl for an object type. These predicates must be checked any time

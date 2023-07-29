@@ -319,7 +319,7 @@ pub(crate) fn run_global_ctxt(
         tcx.hir().for_each_module(|module| tcx.ensure().collect_mod_item_types(module))
     });
 
-    // NOTE: These are copy/pasted from typeck/lib.rs and should be kept in sync with those changes.
+    // NOTE: This is copy/pasted from rustc_hir_analysis/src/lib.rs and should be kept in sync with those changes.
     let _ = tcx.sess.time("wf_checking", || {
         tcx.hir().try_par_for_each_module(|module| tcx.ensure().check_mod_type_wf(module))
     });

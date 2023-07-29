@@ -290,6 +290,7 @@ impl<'cx, 'a> Context<'cx, 'a> {
             }
             // Expressions that are not worth or can not be captured.
             //
+            // tidy-ticket-all-expr-kinds
             // Full list instead of `_` to catch possible future inclusions and to
             // sync with the `rfc-2011-nicer-assert-messages/all-expr-kinds.rs` test.
             ExprKind::Assign(_, _, _)
@@ -321,6 +322,7 @@ impl<'cx, 'a> Context<'cx, 'a> {
             | ExprKind::Yeet(_)
             | ExprKind::Become(_)
             | ExprKind::Yield(_) => {}
+            // tidy-ticket-all-expr-kinds
         }
     }
 

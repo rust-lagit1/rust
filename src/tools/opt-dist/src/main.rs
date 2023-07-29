@@ -406,10 +406,10 @@ fn copy_rustc_perf(env: &Environment, dir: &Utf8Path) -> anyhow::Result<()> {
 fn download_rustc_perf(env: &Environment) -> anyhow::Result<()> {
     reset_directory(&env.rustc_perf_dir())?;
 
-    // FIXME: add some mechanism for synchronization of this commit SHA with
-    // Linux (which builds rustc-perf in a Dockerfile)
+    // tidy-ticket-perf-commit
     // rustc-perf version from 2023-10-22
     const PERF_COMMIT: &str = "4f313add609f43e928e98132358e8426ed3969ae";
+    // tidy-ticket-perf-commit
 
     let url = format!("https://ci-mirrors.rust-lang.org/rustc/rustc-perf-{PERF_COMMIT}.zip");
     let client = reqwest::blocking::Client::builder()

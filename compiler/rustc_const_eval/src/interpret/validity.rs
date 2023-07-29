@@ -511,6 +511,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
                 Ok(true)
             }
             ty::Float(_) | ty::Int(_) | ty::Uint(_) => {
+                // tidy-ticket-try_visit_primitive
                 // NOTE: Keep this in sync with the array optimization for int/float
                 // types below!
                 self.read_scalar(
@@ -522,6 +523,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValidityVisitor<'rt, 'mir, '
                     },
                 )?;
                 Ok(true)
+                // tidy-ticket-try_visit_primitive
             }
             ty::RawPtr(..) => {
                 let place =
@@ -784,6 +786,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                     }
                 };
 
+                // tidy-ticket-visit_value
                 // Optimization: we just check the entire range at once.
                 // NOTE: Keep this in sync with the handling of integer and float
                 // types above, in `visit_primitive`.
@@ -820,6 +823,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                         }
                     }
                 }
+                // tidy-ticket-visit_value
             }
             // Fast path for arrays and slices of ZSTs. We only need to check a single ZST element
             // of an array and not all of them, because there's only a single value of a specific
