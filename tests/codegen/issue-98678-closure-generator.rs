@@ -11,7 +11,12 @@
 // MSVC: ![[#FILE:]] = !DIFile({{.*}}filename:{{.*}}\\codegen\\issue-98678-closure-generator.rs{{".*}})
 
 pub fn foo() {
-    // NONMSVC: !DICompositeType({{.*"[{]}}generator_env#0{{[}]".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 2]],
-    // MSVC-DAG: !DICompositeType({{.*".*foo::}}generator_env$0>{{".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 1]],
+    // NONMSVC: !DICompositeType({{.*"}}{closure_env#0}{{".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 2]],
+    // MSVC-DAG: !DICompositeType({{.*"}}closure_env$0{{".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 1]],
+    let closure = |x| x;
+    closure(0);
+
+    // NONMSVC: !DICompositeType({{.*"[{]}}generator_env#1{{[}]".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 2]],
+    // MSVC-DAG: !DICompositeType({{.*".*foo::}}generator_env$1>{{".*}}file: ![[#FILE]]{{.*}}line: [[# @LINE + 1]],
     let generator = || yield 1;
 }

@@ -1185,7 +1185,7 @@ fn build_closure_env_di_node<'ll, 'tcx>(
             Stub::Struct,
             unique_type_id,
             &type_name,
-            None,
+            Some(file_metadata_from_def_id(cx, Some(def_id))),
             cx.size_and_align_of(closure_env_type),
             Some(containing_scope),
             DIFlags::FlagZero,
