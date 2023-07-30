@@ -1,6 +1,9 @@
-use rustc_codegen_ssa::debuginfo::{
-    type_names::{compute_debuginfo_type_name, cpp_like_debuginfo},
-    wants_c_like_enum_debuginfo,
+use rustc_codegen_ssa::{
+    debuginfo::{
+        type_names::{compute_debuginfo_type_name, cpp_like_debuginfo},
+        wants_c_like_enum_debuginfo,
+    },
+    traits::MiscMethods,
 };
 use rustc_hir::def::CtorKind;
 use rustc_index::IndexSlice;
@@ -26,8 +29,10 @@ use crate::{
             build_field_di_node, build_generic_type_param_di_nodes, file_metadata_from_def_id,
             type_di_node,
             type_map::{self, Stub},
+            unknown_file_metadata,
         },
         utils::{create_DIArray, get_namespace_for_item, DIB},
+        UNKNOWN_LINE_NUMBER,
     },
     llvm::{
         self,
@@ -86,6 +91,11 @@ fn build_c_style_enum_di_node<'ll, 'tcx>(
     enum_type_and_layout: TyAndLayout<'tcx>,
 ) -> DINodeCreationResult<'ll> {
     let containing_scope = get_namespace_for_item(cx, enum_adt_def.did());
+    let enum_adt_def_id = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        Some(enum_adt_def.did())
+    } else {
+        None
+    };
     DINodeCreationResult {
         di_node: build_enumeration_type_di_node(
             cx,
@@ -95,7 +105,7 @@ fn build_c_style_enum_di_node<'ll, 'tcx>(
                 let name = Cow::from(enum_adt_def.variant(variant_index).name.as_str());
                 (name, discr.val)
             }),
-            enum_adt_def.did(),
+            enum_adt_def_id,
             containing_scope,
         ),
         already_stored_in_typemap: false,
@@ -156,7 +166,7 @@ fn build_enumeration_type_di_node<'ll, 'tcx>(
     type_name: &str,
     base_type: Ty<'tcx>,
     enumerators: impl Iterator<Item = (Cow<'tcx, str>, u128)>,
-    def_id: rustc_span::def_id::DefId,
+    def_id: Option<rustc_span::def_id::DefId>,
     containing_scope: &'ll DIType,
 ) -> &'ll DIType {
     let is_unsigned = match base_type.kind() {
@@ -180,7 +190,12 @@ fn build_enumeration_type_di_node<'ll, 'tcx>(
         })
         .collect();
 
-    let (file_metadata, line_number) = file_metadata_from_def_id(cx, Some(def_id));
+    let (file_metadata, line_number) =
+        if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+            file_metadata_from_def_id(cx, def_id)
+        } else {
+            (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
+        };
 
     unsafe {
         llvm::LLVMRustDIBuilderCreateEnumerationType(
@@ -260,6 +275,12 @@ fn build_enum_variant_struct_type_di_node<'ll, 'tcx>(
 ) -> &'ll DIType {
     debug_assert_eq!(variant_layout.ty, enum_type_and_layout.ty);
 
+    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        Some(file_metadata_from_def_id(cx, Some(variant_def.def_id)))
+    } else {
+        None
+    };
+
     type_map::build_type_with_children(
         cx,
         type_map::stub(
@@ -271,7 +292,7 @@ fn build_enum_variant_struct_type_di_node<'ll, 'tcx>(
                 variant_index,
             ),
             variant_def.name.as_str(),
-            Some(file_metadata_from_def_id(cx, Some(variant_def.def_id))),
+            def_location,
             // NOTE: We use size and align of enum_type, not from variant_layout:
             size_and_align_of(enum_type_and_layout),
             Some(enum_type_di_node),

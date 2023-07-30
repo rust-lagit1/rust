@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use libc::c_uint;
 use rustc_codegen_ssa::{
     debuginfo::{type_names::compute_debuginfo_type_name, wants_c_like_enum_debuginfo},
-    traits::ConstMethods,
+    traits::{ConstMethods, MiscMethods},
 };
 
 use rustc_index::IndexVec;
@@ -206,6 +206,12 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
 
     debug_assert!(!wants_c_like_enum_debuginfo(enum_type_and_layout));
 
+    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        Some(file_metadata_from_def_id(cx, Some(enum_adt_def.did())))
+    } else {
+        None
+    };
+
     type_map::build_type_with_children(
         cx,
         type_map::stub(
@@ -213,7 +219,7 @@ pub(super) fn build_enum_type_di_node<'ll, 'tcx>(
             type_map::Stub::Union,
             unique_type_id,
             &enum_type_name,
-            Some(file_metadata_from_def_id(cx, Some(enum_adt_def.did()))),
+            def_location,
             cx.size_and_align_of(enum_type),
             NO_SCOPE_METADATA,
             visibility_di_flags(cx, enum_adt_def.did(), enum_adt_def.did()),
@@ -277,8 +283,13 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
     unique_type_id: UniqueTypeId<'tcx>,
 ) -> DINodeCreationResult<'ll> {
     let coroutine_type = unique_type_id.expect_ty();
-    let &ty::Coroutine(coroutine_def_id, _, _) = coroutine_type.kind() else {
-        bug!("build_coroutine_di_node() called with non-coroutine type: `{:?}`", coroutine_type)
+    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        let &ty::Coroutine(coroutine_def_id, _) = coroutine_type.kind() else {
+            bug!("build_coroutine_di_node() called with non-coroutine type: `{:?}`", coroutine_type)
+        };
+        Some(file_metadata_from_def_id(cx, Some(coroutine_def_id)))
+    } else {
+        None
     };
     let coroutine_type_and_layout = cx.layout_of(coroutine_type);
     let coroutine_type_name = compute_debuginfo_type_name(cx.tcx, coroutine_type, false);
@@ -292,7 +303,7 @@ pub(super) fn build_coroutine_di_node<'ll, 'tcx>(
             type_map::Stub::Union,
             unique_type_id,
             &coroutine_type_name,
-            Some(file_metadata_from_def_id(cx, Some(coroutine_def_id))),
+            def_location,
             size_and_align_of(coroutine_type_and_layout),
             NO_SCOPE_METADATA,
             DIFlags::FlagZero,
@@ -340,6 +351,12 @@ fn build_single_variant_union_fields<'ll, 'tcx>(
     let tag_base_type_di_node = type_di_node(cx, tag_base_type);
     let tag_base_type_align = cx.align_of(tag_base_type);
 
+    let enum_adt_def_id = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        Some(enum_adt_def.did())
+    } else {
+        None
+    };
+
     let variant_names_type_di_node = build_variant_names_type_di_node(
         cx,
         enum_type_di_node,
@@ -347,7 +364,7 @@ fn build_single_variant_union_fields<'ll, 'tcx>(
             variant_index,
             Cow::from(enum_adt_def.variant(variant_index).name.as_str()),
         )),
-        enum_adt_def.did(),
+        enum_adt_def_id,
     );
 
     let variant_struct_type_wrapper_di_node = build_variant_struct_wrapper_type_di_node(
@@ -405,6 +422,12 @@ fn build_union_fields_for_enum<'ll, 'tcx>(
 ) -> SmallVec<&'ll DIType> {
     let tag_base_type = super::tag_base_type(cx, enum_type_and_layout);
 
+    let enum_adt_def_id = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        Some(enum_adt_def.did())
+    } else {
+        None
+    };
+
     let variant_names_type_di_node = build_variant_names_type_di_node(
         cx,
         enum_type_di_node,
@@ -412,7 +435,7 @@ fn build_union_fields_for_enum<'ll, 'tcx>(
             let variant_name = Cow::from(enum_adt_def.variant(variant_index).name.as_str());
             (variant_index, variant_name)
         }),
-        enum_adt_def.did(),
+        enum_adt_def_id,
     );
     let visibility_flags = visibility_di_flags(cx, enum_adt_def.did(), enum_adt_def.did());
 
@@ -470,7 +493,7 @@ fn build_variant_names_type_di_node<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     containing_scope: &'ll DIType,
     variants: impl Iterator<Item = (VariantIdx, Cow<'tcx, str>)>,
-    enum_def_id: rustc_span::def_id::DefId,
+    enum_def_id: Option<rustc_span::def_id::DefId>,
 ) -> &'ll DIType {
     // Create an enumerator for each variant.
     super::build_enumeration_type_di_node(
@@ -711,7 +734,11 @@ fn build_union_fields_for_direct_tag_coroutine<'ll, 'tcx>(
         variant_range
             .clone()
             .map(|variant_index| (variant_index, CoroutineArgs::variant_name(variant_index))),
-        coroutine_def_id,
+        if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+            Some(coroutine_def_id)
+        } else {
+            None
+        },
     );
 
     let discriminants: IndexVec<VariantIdx, DiscrResult> = {
@@ -804,7 +831,11 @@ fn build_union_fields_for_direct_tag_enum_or_coroutine<'ll, 'tcx>(
             tag_base_type_di_node,
             tag_base_type,
             variant_member_info.discr,
-            variant_member_info.source_info,
+            if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+                variant_member_info.source_info
+            } else {
+                None
+            },
         );
 
         // We use LLVMRustDIBuilderCreateMemberType() member type directly because
