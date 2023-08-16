@@ -19,6 +19,8 @@
 #![warn(rustc::internal)]
 #![allow(clippy::collapsible_if, clippy::collapsible_else_if)]
 #![allow(rustc::potential_query_instability)]
+#![deny(rustc::untranslatable_diagnostic)]
+#![deny(rustc::diagnostic_outside_of_impl)]
 
 extern crate thin_vec;
 #[macro_use]
@@ -43,6 +45,7 @@ extern crate rustc_driver;
 extern crate rustc_errors;
 extern crate rustc_expand;
 extern crate rustc_feature;
+extern crate rustc_fluent_macro;
 extern crate rustc_hir;
 extern crate rustc_hir_analysis;
 extern crate rustc_hir_pretty;
@@ -74,14 +77,17 @@ use std::env::{self, VarError};
 use std::io::{self, IsTerminal};
 use std::process;
 
+use errors::{CouldntGenerateDocumentation, FailedToCreateOrModifyFile};
 use rustc_driver::abort_on_err;
-use rustc_errors::ErrorGuaranteed;
+use rustc_errors::{DiagnosticMessage, ErrorGuaranteed, SubdiagnosticMessage};
+use rustc_fluent_macro::fluent_messages;
 use rustc_interface::interface;
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{make_crate_type_option, ErrorOutputType, RustcOptGroup};
 use rustc_session::{getopts, EarlyErrorHandler};
 
 use crate::clean::utils::DOC_RUST_LANG_ORG_CHANNEL;
+use crate::errors::CompilationFailed;
 
 /// A macro to create a FxHashMap.
 ///
@@ -107,6 +113,7 @@ mod core;
 mod docfs;
 mod doctest;
 mod error;
+mod errors;
 mod externalfiles;
 mod fold;
 mod formats;
@@ -121,6 +128,8 @@ mod theme;
 mod visit;
 mod visit_ast;
 mod visit_lib;
+
+fluent_messages! { "./messages.ftl" }
 
 pub fn main() {
     // See docs in https://github.com/rust-lang/rust/blob/master/compiler/rustc/src/main.rs
@@ -676,6 +685,8 @@ fn usage(argv0: &str) {
 /// A result type used by several functions under `main()`.
 type MainResult = Result<(), ErrorGuaranteed>;
 
+#[allow(rustc::untranslatable_diagnostic)]
+#[allow(rustc::diagnostic_outside_of_impl)]
 fn wrap_return(diag: &rustc_errors::Handler, res: Result<(), String>) -> MainResult {
     match res {
         Ok(()) => diag.has_errors().map_or(Ok(()), Err),
@@ -695,13 +706,10 @@ fn run_renderer<'tcx, T: formats::FormatRenderer<'tcx>>(
     match formats::run_format::<T>(krate, renderopts, cache, tcx) {
         Ok(_) => tcx.sess.has_errors().map_or(Ok(()), Err),
         Err(e) => {
-            let mut msg =
-                tcx.sess.struct_err(format!("couldn't generate documentation: {}", e.error));
             let file = e.file.display().to_string();
-            if !file.is_empty() {
-                msg.note(format!("failed to create or modify \"{}\"", file));
-            }
-            Err(msg.emit())
+            let file =
+                if file.is_empty() { None } else { Some(FailedToCreateOrModifyFile { file }) };
+            Err(tcx.sess.emit_err(CouldntGenerateDocumentation { error: e.error, file }))
         }
     }
 }
@@ -810,7 +818,7 @@ fn main_args(handler: &mut EarlyErrorHandler, at_args: &[String]) -> MainResult 
         compiler.enter(|queries| {
             let mut gcx = abort_on_err(queries.global_ctxt(), sess);
             if sess.diagnostic().has_errors_or_lint_errors().is_some() {
-                sess.fatal("Compilation failed, aborting rustdoc");
+                sess.emit_fatal(CompilationFailed);
             }
 
             gcx.enter(|tcx| {
