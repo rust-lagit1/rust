@@ -707,6 +707,7 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         self_ty: Ty<'tcx>,
         bounds: &mut Bounds<'tcx>,
         speculative: bool,
+        _binder_predicates: &'tcx ty::List<ty::Clause<'tcx>>,
         only_self_bounds: OnlySelfBounds,
     ) -> GenericArgCountResult {
         let trait_def_id = trait_ref.trait_def_id().unwrap_or_else(|| FatalError.raise());

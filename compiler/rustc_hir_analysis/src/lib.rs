@@ -267,6 +267,8 @@ pub fn hir_trait_to_predicates<'tcx>(
         self_ty,
         &mut bounds,
         true,
+        // TODO: This is probably wrong!
+        ty::List::empty(),
         OnlySelfBounds(false),
     );
 
