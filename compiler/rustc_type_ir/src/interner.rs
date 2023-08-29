@@ -70,15 +70,15 @@ pub trait Interner: Sized {
     type PlaceholderRegion: Copy + Debug + Hash + Ord + PlaceholderLike;
 
     // Predicates
-    type Predicate: Copy + Debug + Hash + Eq;
-    type TraitPredicate: Copy + Debug + Hash + Eq;
-    type RegionOutlivesPredicate: Copy + Debug + Hash + Eq;
-    type TypeOutlivesPredicate: Copy + Debug + Hash + Eq;
-    type ProjectionPredicate: Copy + Debug + Hash + Eq;
-    type NormalizesTo: Copy + Debug + Hash + Eq;
-    type SubtypePredicate: Copy + Debug + Hash + Eq;
-    type CoercePredicate: Copy + Debug + Hash + Eq;
-    type ClosureKind: Copy + Debug + Hash + Eq;
+    type Predicate: Copy + Debug + Hash + Ord;
+    type TraitPredicate: Copy + Debug + Hash + Ord;
+    type RegionOutlivesPredicate: Copy + Debug + Hash + Ord;
+    type TypeOutlivesPredicate: Copy + Debug + Hash + Ord;
+    type ProjectionPredicate: Copy + Debug + Hash + Ord;
+    type NormalizesTo: Copy + Debug + Hash + Ord;
+    type SubtypePredicate: Copy + Debug + Hash + Ord;
+    type CoercePredicate: Copy + Debug + Hash + Ord;
+    type ClosureKind: Copy + Debug + Hash + Ord;
 
     fn mk_canonical_var_infos(self, infos: &[CanonicalVarInfo<Self>]) -> Self::CanonicalVars;
 

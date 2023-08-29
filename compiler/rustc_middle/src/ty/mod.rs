@@ -234,8 +234,8 @@ pub enum ImplSubject<'tcx> {
     Inherent(Ty<'tcx>),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable, HashStable, Debug)]
-#[derive(TypeFoldable, TypeVisitable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(HashStable, TypeFoldable, TypeVisitable, TyEncodable, TyDecodable)]
 pub enum ImplPolarity {
     /// `impl Trait for Type`
     Positive,
@@ -491,7 +491,7 @@ impl EarlyParamRegion {
 /// predicate which is emitted when a type is coerced to a trait object.
 ///
 /// Use this rather than `PredicateKind`, whenever possible.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, HashStable)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, HashStable)]
 #[rustc_pass_by_value]
 pub struct Predicate<'tcx>(
     Interned<'tcx, WithCachedTypeInfo<ty::Binder<'tcx, PredicateKind<'tcx>>>>,
@@ -591,7 +591,7 @@ impl rustc_errors::IntoDiagnosticArg for Clause<'_> {
 /// A subset of predicates which can be assumed by the trait solver. They show up in
 /// an item's where clauses, hence the name `Clause`, and may either be user-written
 /// (such as traits) or may be inserted during lowering.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, HashStable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, HashStable, PartialOrd, Ord)]
 #[rustc_pass_by_value]
 pub struct Clause<'tcx>(Interned<'tcx, WithCachedTypeInfo<ty::Binder<'tcx, PredicateKind<'tcx>>>>);
 
@@ -764,8 +764,8 @@ impl<'tcx> Clause<'tcx> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, TyEncodable, TyDecodable)]
-#[derive(HashStable, TypeFoldable, TypeVisitable, Lift)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(HashStable, TypeFoldable, TypeVisitable, Lift, TyEncodable, TyDecodable)]
 pub struct TraitPredicate<'tcx> {
     pub trait_ref: TraitRef<'tcx>,
 
@@ -823,8 +823,8 @@ pub type PolyTypeOutlivesPredicate<'tcx> = ty::Binder<'tcx, TypeOutlivesPredicat
 /// Encodes that `a` must be a subtype of `b`. The `a_is_expected` flag indicates
 /// whether the `a` type is the type that we should label as "expected" when
 /// presenting user diagnostics.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, TyEncodable, TyDecodable)]
-#[derive(HashStable, TypeFoldable, TypeVisitable, Lift)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(HashStable, TypeFoldable, TypeVisitable, Lift, TyEncodable, TyDecodable)]
 pub struct SubtypePredicate<'tcx> {
     pub a_is_expected: bool,
     pub a: Ty<'tcx>,
@@ -833,8 +833,8 @@ pub struct SubtypePredicate<'tcx> {
 pub type PolySubtypePredicate<'tcx> = ty::Binder<'tcx, SubtypePredicate<'tcx>>;
 
 /// Encodes that we have to coerce *from* the `a` type to the `b` type.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, TyEncodable, TyDecodable)]
-#[derive(HashStable, TypeFoldable, TypeVisitable, Lift)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(HashStable, TypeFoldable, TypeVisitable, Lift, TyEncodable, TyDecodable)]
 pub struct CoercePredicate<'tcx> {
     pub a: Ty<'tcx>,
     pub b: Ty<'tcx>,
@@ -1039,8 +1039,8 @@ impl From<ty::ConstVid> for TermVid {
 /// equality between arbitrary types. Processing an instance of
 /// Form #2 eventually yields one of these `ProjectionPredicate`
 /// instances to normalize the LHS.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable)]
-#[derive(HashStable, TypeFoldable, TypeVisitable, Lift)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(HashStable, TypeFoldable, TypeVisitable, Lift, TyEncodable, TyDecodable)]
 pub struct ProjectionPredicate<'tcx> {
     pub projection_ty: AliasTy<'tcx>,
     pub term: Term<'tcx>,
@@ -1102,8 +1102,8 @@ impl<'tcx> PolyProjectionPredicate<'tcx> {
 
 /// Used by the new solver. Unlike a `ProjectionPredicate` this can only be
 /// proven by actually normalizing `alias`.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable)]
-#[derive(HashStable, TypeFoldable, TypeVisitable, Lift)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(TyEncodable, TyDecodable, HashStable, TypeFoldable, TypeVisitable, Lift)]
 pub struct NormalizesTo<'tcx> {
     pub alias: AliasTy<'tcx>,
     pub term: Term<'tcx>,

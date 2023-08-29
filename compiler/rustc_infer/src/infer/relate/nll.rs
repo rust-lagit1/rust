@@ -266,6 +266,8 @@ where
     where
         T: ty::TypeFoldable<TyCtxt<'tcx>> + Copy,
     {
+        assert_eq!(binder.skip_binder_predicates(), ty::List::empty());
+
         if let Some(inner) = binder.no_bound_vars() {
             return inner;
         }
@@ -314,6 +316,8 @@ where
     where
         T: ty::TypeFoldable<TyCtxt<'tcx>> + Copy,
     {
+        assert_eq!(binder.skip_binder_predicates(), ty::List::empty());
+
         if let Some(inner) = binder.no_bound_vars() {
             return inner;
         }

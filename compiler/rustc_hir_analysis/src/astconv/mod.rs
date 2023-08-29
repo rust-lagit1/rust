@@ -707,7 +707,7 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         self_ty: Ty<'tcx>,
         bounds: &mut Bounds<'tcx>,
         speculative: bool,
-        _binder_predicates: &'tcx ty::List<ty::Clause<'tcx>>,
+        binder_predicates: &'tcx ty::List<ty::Clause<'tcx>>,
         only_self_bounds: OnlySelfBounds,
     ) -> GenericArgCountResult {
         let trait_def_id = trait_ref.trait_def_id().unwrap_or_else(|| FatalError.raise());
@@ -734,9 +734,10 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
 
         let assoc_bindings = self.create_assoc_bindings_for_generic_args(args);
 
-        let poly_trait_ref = ty::Binder::bind_with_vars(
+        let poly_trait_ref = ty::Binder::bind_with_vars_and_predicates(
             ty::TraitRef::new(tcx, trait_def_id, generic_args),
             bound_vars,
+            binder_predicates,
         );
 
         debug!(?poly_trait_ref, ?assoc_bindings);
