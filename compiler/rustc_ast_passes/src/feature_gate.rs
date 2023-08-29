@@ -164,10 +164,12 @@ impl<'a> PostExpansionVisitor<'a> {
             non_lt_param_spans,
             crate::fluent_generated::ast_passes_forbidden_non_lifetime_param
         );
-        for param in params {
-            if !param.bounds.is_empty() {
-                let spans: Vec<_> = param.bounds.iter().map(|b| b.span()).collect();
-                self.sess.emit_err(errors::ForbiddenLifetimeBound { spans });
+        if !self.features.non_lifetime_binders {
+            for param in params {
+                if !param.bounds.is_empty() {
+                    let spans: Vec<_> = param.bounds.iter().map(|b| b.span()).collect();
+                    self.sess.emit_err(errors::ForbiddenLifetimeBound { spans });
+                }
             }
         }
     }
