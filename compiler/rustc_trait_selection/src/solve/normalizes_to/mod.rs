@@ -116,8 +116,8 @@ impl<'tcx> assembly::GoalKind<'tcx> for NormalizesTo<'tcx> {
             if projection_pred.projection_def_id() == goal.predicate.def_id() {
                 let tcx = ecx.tcx();
                 ecx.probe_misc_candidate("assumption").enter(|ecx| {
-                    let assumption_projection_pred =
-                        ecx.instantiate_binder_with_infer(projection_pred);
+                    let (assumption_projection_pred, additional_goals) =
+                        ecx.instantiate_binder_and_predicates_with_infer(projection_pred);
                     ecx.eq(
                         goal.param_env,
                         goal.predicate.alias,
@@ -132,7 +132,7 @@ impl<'tcx> assembly::GoalKind<'tcx> for NormalizesTo<'tcx> {
                             .instantiate_own(tcx, goal.predicate.alias.args)
                             .map(|(pred, _)| goal.with(tcx, pred)),
                     );
-
+                    ecx.add_goals(additional_goals.iter().map(|pred| goal.with(tcx, pred)));
                     then(ecx)
                 })
             } else {
