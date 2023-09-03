@@ -2011,6 +2011,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         hir::GenericBound::Trait(
             hir::PolyTraitRef {
                 bound_generic_params: &[],
+                binder_predicates: &[],
                 trait_ref: hir::TraitRef {
                     path: self.make_lang_item_path(
                         trait_lang_item,
@@ -2201,10 +2202,28 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         itctx: &ImplTraitContext,
         constness: ast::Const,
     ) -> hir::PolyTraitRef<'hir> {
+        let binder_predicates =
+            self.arena.alloc_from_iter(p.bound_generic_params.iter().filter_map(|param| {
+                self.lower_generic_bound_predicate(
+                    param.ident,
+                    param.id,
+                    &param.kind,
+                    &param.bounds,
+                    param.colon_span,
+                    p.span,
+                    &ImplTraitContext::Disallowed(ImplTraitPosition::Generic),
+                    hir::PredicateOrigin::GenericParam,
+                )
+            }));
         let bound_generic_params =
             self.lower_lifetime_binder(p.trait_ref.ref_id, &p.bound_generic_params);
         let trait_ref = self.lower_trait_ref(constness, &p.trait_ref, itctx);
-        hir::PolyTraitRef { bound_generic_params, trait_ref, span: self.lower_span(p.span) }
+        hir::PolyTraitRef {
+            bound_generic_params,
+            binder_predicates,
+            trait_ref,
+            span: self.lower_span(p.span),
+        }
     }
 
     fn lower_mt(&mut self, mt: &MutTy, itctx: &ImplTraitContext) -> hir::MutTy<'hir> {
@@ -2510,6 +2529,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                     Res::Def(DefKind::Trait | DefKind::TraitAlias, _) => {
                         let principal = hir::PolyTraitRef {
                             bound_generic_params: &[],
+                            binder_predicates: &[],
                             trait_ref: hir::TraitRef { path, hir_ref_id: hir_id },
                             span: self.lower_span(span),
                         };
