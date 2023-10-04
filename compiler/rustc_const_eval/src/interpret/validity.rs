@@ -789,7 +789,7 @@ impl<'rt, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> ValueVisitor<'mir, 'tcx, M>
                 // tidy-ticket-visit_value
                 // Optimization: we just check the entire range at once.
                 // NOTE: Keep this in sync with the handling of integer and float
-                // types above, in `visit_primitive`.
+                // types above, in `try_visit_primitive`.
                 // No need for an alignment check here, this is not an actual memory access.
                 let alloc = self.ecx.get_ptr_alloc(mplace.ptr(), size)?.expect("we already excluded size 0");
 
