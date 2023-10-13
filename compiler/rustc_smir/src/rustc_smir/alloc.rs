@@ -59,8 +59,7 @@ pub fn try_new_allocation<'tcx>(
                 .align;
             new_empty_allocation(align.abi)
         }
-        ConstValue::Slice { data, meta } => {
-            let alloc_id = tables.tcx.reserve_and_set_memory_alloc(data);
+        ConstValue::Slice { alloc_id, meta, phantom: _ } => {
             let ptr = Pointer::new(alloc_id.into(), rustc_target::abi::Size::ZERO);
             let scalar_ptr = rustc_middle::mir::interpret::Scalar::from_pointer(ptr, &tables.tcx);
             let scalar_meta =

@@ -60,3 +60,19 @@
       }
   }
   
+  ALLOC0 (size: 1, align: 1) {
+      44                                              │ D
+  }
+  
+  ALLOC1 (size: 1, align: 1) {
+      43                                              │ C
+  }
+  
+  ALLOC2 (size: 6, align: 1) {
+      42 28 69 33 32 29                               │ B(i32)
+  }
+  
+  ALLOC3 (size: 6, align: 1) {
+      41 28 69 33 32 29                               │ A(i32)
+  }
+  

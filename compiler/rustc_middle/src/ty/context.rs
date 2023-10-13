@@ -72,7 +72,7 @@ use rustc_type_ir::TyKind::*;
 use rustc_type_ir::WithCachedTypeInfo;
 use rustc_type_ir::{CollectAndApply, Interner, TypeFlags};
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -866,7 +866,7 @@ impl<'tcx> TyCtxt<'tcx> {
     }
 
     /// Allocates a read-only byte or string literal for `mir::interpret`.
-    pub fn allocate_bytes(self, bytes: &[u8]) -> interpret::AllocId {
+    pub fn allocate_bytes<'a>(self, bytes: impl Into<Cow<'a, [u8]>>) -> interpret::AllocId {
         // Create an allocation that just contains these bytes.
         let alloc = interpret::Allocation::from_bytes_byte_aligned_immutable(bytes);
         let alloc = self.mk_const_alloc(alloc);

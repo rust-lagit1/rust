@@ -1360,11 +1360,7 @@ pub fn write_allocations<'tcx>(
             }
             ConstValue::Scalar(interpret::Scalar::Int { .. }) => Either::Right(std::iter::empty()),
             ConstValue::ZeroSized => Either::Right(std::iter::empty()),
-            ConstValue::Slice { .. } => {
-                // `u8`/`str` slices, shouldn't contain pointers that we want to print.
-                Either::Right(std::iter::empty())
-            }
-            ConstValue::Indirect { alloc_id, .. } => {
+            ConstValue::Slice { alloc_id, .. } | ConstValue::Indirect { alloc_id, .. } => {
                 // FIXME: we don't actually want to print all of these, since some are printed nicely directly as values inline in MIR.
                 // Really we'd want `pretty_print_const_value` to decide which allocations to print, instead of having a separate visitor.
                 Either::Left(std::iter::once(alloc_id))
