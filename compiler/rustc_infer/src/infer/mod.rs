@@ -1470,7 +1470,11 @@ impl<'tcx> InferCtxt<'tcx> {
     where
         T: TypeFoldable<TyCtxt<'tcx>> + Copy,
     {
-        assert_eq!(value.skip_binder_predicates(), ty::List::empty());
+        if !value.skip_binder_with_predicates().1.is_empty() {
+            self.tcx
+                .sess
+                .span_delayed_bug(DUMMY_SP, "binder instantiated with infer ignoring predicates");
+        }
 
         if let Some(inner) = value.no_bound_vars() {
             return inner;

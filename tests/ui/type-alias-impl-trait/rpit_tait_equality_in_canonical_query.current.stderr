@@ -5,7 +5,7 @@ error: internal compiler error: {OpaqueTypeKey { def_id: DefId(get_rpit::{opaque
    = 
            
 
-error: internal compiler error: error performing ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: UserFacing }, value: ProvePredicate { predicate: Binder { value: ProjectionPredicate(AliasTy { args: [FnDef(DefId(get_rpit), []), ()], def_id: DefId(ops::function::FnOnce::Output) }, Term::Ty(Alias(Opaque, AliasTy { args: [], def_id: DefId(Opaque::{opaque#0}) }))), bound_vars: [] } } }
+error: internal compiler error: error performing ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: UserFacing }, value: ProvePredicate { predicate: Binder { value: ProjectionPredicate(AliasTy { args: [FnDef(DefId(get_rpit), []), ()], def_id: DefId(ops::function::FnOnce::Output) }, Term::Ty(Alias(Opaque, AliasTy { args: [], def_id: DefId(Opaque::{opaque#0}) }))), bound_vars: [], bound_predicates: [] } } }
   --> $DIR/rpit_tait_equality_in_canonical_query.rs:28:5
    |
 LL |     query(get_rpit);

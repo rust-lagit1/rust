@@ -1,3 +1,5 @@
+// compile-flags: -Znext-solver
+
 // Tests to make sure that we reject polymorphic dyn trait.
 
 #![feature(non_lifetime_binders)]

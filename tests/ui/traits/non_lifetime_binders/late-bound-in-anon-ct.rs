@@ -1,3 +1,5 @@
+// compile-flags: -Znext-solver
+
 #![feature(non_lifetime_binders, generic_const_exprs)]
 //~^ WARN the feature `non_lifetime_binders` is incomplete
 //~| WARN the feature `generic_const_exprs` is incomplete

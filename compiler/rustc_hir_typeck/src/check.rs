@@ -67,7 +67,7 @@ pub(super) fn check_fn<'a, 'tcx>(
                 fcx.require_type_is_sized(yield_ty, span, traits::SizedYieldType);
                 yield_ty
             }
-            // HACK(-Ztrait-solver=next): In the *old* trait solver, we must eagerly
+            // HACK(-Znext-solver): In the *old* trait solver, we must eagerly
             // guide inference on the yield type so that we can handle `AsyncIterator`
             // in this block in projection correctly. In the new trait solver, it is
             // not a problem.

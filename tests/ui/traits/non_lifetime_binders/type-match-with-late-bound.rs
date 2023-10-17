@@ -1,3 +1,4 @@
+// compile-flags: -Znext-solver
 // edition:2021
 // known-bug: unknown
 

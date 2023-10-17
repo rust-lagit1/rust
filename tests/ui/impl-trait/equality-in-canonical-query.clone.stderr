@@ -5,7 +5,7 @@ error: internal compiler error: {OpaqueTypeKey { def_id: DefId(rpit::{opaque#0})
    = 
            
 
-error: internal compiler error: error performing ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: UserFacing }, value: ProvePredicate { predicate: Binder { value: ProjectionPredicate(AliasTy { args: [FnDef(DefId(rpit), []), ()], def_id: DefId(ops::function::FnOnce::Output) }, Term::Ty(Alias(Opaque, AliasTy { args: [], def_id: DefId(foo::{opaque#0}) }))), bound_vars: [] } } }
+error: internal compiler error: error performing ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: UserFacing }, value: ProvePredicate { predicate: Binder { value: ProjectionPredicate(AliasTy { args: [FnDef(DefId(rpit), []), ()], def_id: DefId(ops::function::FnOnce::Output) }, Term::Ty(Alias(Opaque, AliasTy { args: [], def_id: DefId(foo::{opaque#0}) }))), bound_vars: [], bound_predicates: [] } } }
   --> $DIR/equality-in-canonical-query.rs:19:5
    |
 LL |     same_output(foo, rpit);

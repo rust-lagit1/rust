@@ -1,3 +1,5 @@
+// compile-flags: -Znext-solver
+
 // Error reporting for where `for<T> T: Trait` doesn't hold
 
 #![feature(non_lifetime_binders)]

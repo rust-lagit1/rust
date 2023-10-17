@@ -1,3 +1,4 @@
+// compile-flags: -Znext-solver
 // revisions: no yes
 //[yes] check-pass
 

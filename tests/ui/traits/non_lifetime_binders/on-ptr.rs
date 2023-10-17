@@ -1,3 +1,5 @@
+// compile-flags: -Znext-solver
+
 // Tests to make sure that we reject polymorphic fn ptrs.
 
 #![feature(non_lifetime_binders)]
