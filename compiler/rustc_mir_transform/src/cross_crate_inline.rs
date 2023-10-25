@@ -62,10 +62,18 @@ fn cross_crate_inlinable(tcx: TyCtxt<'_>, def_id: LocalDefId) -> bool {
     };
 
     let mir = tcx.optimized_mir(def_id);
-    let mut checker =
-        CostChecker { tcx, callee_body: mir, calls: 0, statements: 0, landing_pads: 0, resumes: 0 };
+    let mut checker = CostChecker {
+        tcx,
+        callee_body: mir,
+        asserts: 0,
+        calls: 0,
+        statements: 0,
+        landing_pads: 0,
+        resumes: 0,
+    };
     checker.visit_body(mir);
     checker.calls == 0
+        && checker.asserts <= 1
         && checker.resumes == 0
         && checker.landing_pads == 0
         && checker.statements <= threshold
@@ -75,6 +83,7 @@ struct CostChecker<'b, 'tcx> {
     tcx: TyCtxt<'tcx>,
     callee_body: &'b Body<'tcx>,
     calls: usize,
+    asserts: usize,
     statements: usize,
     landing_pads: usize,
     resumes: usize,
@@ -111,7 +120,7 @@ impl<'tcx> Visitor<'tcx> for CostChecker<'_, 'tcx> {
                 }
             }
             TerminatorKind::Assert { unwind, .. } => {
-                self.calls += 1;
+                self.asserts += 1;
                 if let UnwindAction::Cleanup(_) = unwind {
                     self.landing_pads += 1;
                 }
