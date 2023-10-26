@@ -70,9 +70,9 @@ fn check_entry(entry: &ListEntry<'_>, group_idx: usize, bad: &mut bool, root_pat
         if *bad == false {
             tidy_error!(
                 bad,
-                "Mismatched hashes for tidy watcher found.\n\
-                Check src/tools/tidy/src/watcher.rs, find tag/hash in TIDY_WATCH_LIST list \
-                and verify that sources for provided group of tags in sync. If they in sync, update hash."
+                "The code blocks tagged with tidy watcher has changed.\n\
+                 It's likely that code blocks with the following tags need to be changed too. Check src/tools/tidy/src/watcher.rs, find tag/hash in TIDY_WATCH_LIST list \
+                and verify that sources for provided group of tags in sync. Once that done, run tidy again and update hashes in TIDY_WATCH_LIST with provided actual hashes."
             )
         }
         tidy_error!(
