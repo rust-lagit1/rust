@@ -113,7 +113,7 @@ const TIDY_WATCH_LIST: &[&[ListEntry<'_>]] = &[
     ),
 
     add_group!(
-        ("compiler/rustc_builtin_macros/src/assert/context.rs", "81bd6f37797c22fce5c85a4b590b3856", "tidy-ticket-all-expr-kinds"),
+        ("compiler/rustc_builtin_macros/src/assert/context.rs", "de6cc928308947a05a373a355e036f68", "tidy-ticket-all-expr-kinds"),
         ("tests/ui/macros/rfc-2011-nicer-assert-messages/all-expr-kinds.rs", "78ce54cc25baeac3ae07c876db25180c", "tidy-ticket-all-expr-kinds")
     ),
 
@@ -139,8 +139,8 @@ const TIDY_WATCH_LIST: &[&[ListEntry<'_>]] = &[
     ),
 
     add_group!(
-        ("compiler/rustc_mir_build/src/thir/pattern/deconstruct_pat.rs", "d1a434bafc015848c46810c0e6ff61f0", "tidy-ticket-arity"),
-        ("compiler/rustc_mir_build/src/thir/pattern/deconstruct_pat.rs", "00863cab21bf1838262998f53bbcee7c", "tidy-ticket-wildcards")
+        ("compiler/rustc_mir_build/src/thir/pattern/deconstruct_pat.rs", "c17706947fc814aa5648972a5b3dc143", "tidy-ticket-arity"),
+        ("compiler/rustc_mir_build/src/thir/pattern/deconstruct_pat.rs", "7ce77b84c142c22530b047703ef209f0", "tidy-ticket-wildcards")
     ),
 
     add_group!(
@@ -155,7 +155,7 @@ const TIDY_WATCH_LIST: &[&[ListEntry<'_>]] = &[
 
     add_group!(
         ("compiler/rustc_trait_selection/src/solve/assembly/structural_traits.rs", "6b4ce7c9aa0e799618d53926fb3e9684", "tidy-ticket-extract_tupled_inputs_and_output_from_callable"),
-        ("compiler/rustc_trait_selection/src/traits/select/candidate_assembly.rs", "e9a77bba86a02702af65b2713af47394", "tidy-ticket-assemble_fn_pointer_candidates")
+        ("compiler/rustc_trait_selection/src/traits/select/candidate_assembly.rs", "f1085622f189fc5ec2786e4abff67915", "tidy-ticket-assemble_fn_pointer_candidates")
     ),
 
     add_group!(
@@ -170,7 +170,7 @@ const TIDY_WATCH_LIST: &[&[ListEntry<'_>]] = &[
 
     add_group!(
         ("compiler/rustc_hir_analysis/src/lib.rs", "842e23fb65caf3a96681686131093316", "tidy-ticket-sess-time-item_types_checking"),
-        ("src/librustdoc/core.rs", "d11d64105aa952bbf3c0c2f211135c43", "tidy-ticket-sess-time-item_types_checking")
+        ("src/librustdoc/core.rs", "85d9dd0cbb94fd521e2d15a8ed38a75f", "tidy-ticket-sess-time-item_types_checking")
     ),
 
     add_group!(

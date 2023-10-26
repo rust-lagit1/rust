@@ -216,7 +216,7 @@ fn rematch_impl<'tcx>(
     Ok(Some(ImplSource::UserDefined(ImplSourceUserDefinedData { impl_def_id, args, nested })))
 }
 
-// tidy-ticket-rematch_unsize
+// tidy-keep-sync-with=tidy-ticket-rematch_unsize
 /// The `Unsize` trait is particularly important to coercion, so we try rematch it.
 /// NOTE: This must stay in sync with `consider_builtin_unsize_candidate` in trait
 /// goal assembly in the solver, both for soundness and in order to avoid ICEs.
@@ -378,7 +378,7 @@ fn rematch_unsize<'tcx>(
         }
     }
 }
-// tidy-ticket-rematch_unsize
+// tidy-keep-sync-with=tidy-ticket-rematch_unsize
 
 fn structurally_normalize<'tcx>(
     ty: Ty<'tcx>,

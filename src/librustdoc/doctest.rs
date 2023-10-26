@@ -279,7 +279,7 @@ impl DirState {
     }
 }
 
-// tidy-ticket-UnusedExterns
+// tidy-keep-sync-with=tidy-ticket-UnusedExterns
 // NOTE: Keep this in sync with the equivalent structs in rustc
 // and cargo.
 // We could unify this struct the one in rustc but they have different
@@ -291,7 +291,7 @@ struct UnusedExterns {
     /// List of unused externs by their names.
     unused_extern_names: Vec<String>,
 }
-// tidy-ticket-UnusedExterns
+// tidy-keep-sync-with=tidy-ticket-UnusedExterns
 
 fn add_exe_suffix(input: String, target: &TargetTriple) -> String {
     let exe_suffix = match target {

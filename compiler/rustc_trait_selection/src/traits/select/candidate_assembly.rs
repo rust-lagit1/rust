@@ -304,7 +304,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         }
     }
 
-    // tidy-ticket-assemble_fn_pointer_candidates
+    // tidy-keep-sync-with=tidy-ticket-assemble_fn_pointer_candidates
     /// Implements one of the `Fn()` family for a fn pointer.
     fn assemble_fn_pointer_candidates(
         &mut self,
@@ -327,7 +327,6 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 candidates.ambiguous = true; // Could wind up being a fn() type.
             }
 
-            // tidy-ticket-extract_tupled_inputs_and_output_from_callable-FnPtr
             // Provide an impl, but only for suitable `fn` pointers.
             ty::FnPtr(sig) => {
                 if sig.is_fn_trait_compatible() {
@@ -348,7 +347,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             _ => {}
         }
     }
-    // tidy-ticket-assemble_fn_pointer_candidates
+    // tidy-keep-sync-with=tidy-ticket-assemble_fn_pointer_candidates
 
     /// Searches for impls that might apply to `obligation`.
     #[instrument(level = "debug", skip(self, candidates))]

@@ -95,7 +95,7 @@ fn resolve_associated_item<'tcx>(
     // Now that we know which impl is being used, we can dispatch to
     // the actual function:
     Ok(match vtbl {
-        // tidy-ticket-resolve_associated_item-UserDefined
+        // tidy-keep-sync-with=tidy-ticket-resolve_associated_item-UserDefined
         traits::ImplSource::UserDefined(impl_data) => {
             debug!(
                 "resolving ImplSource::UserDefined: {:?}, {:?}, {:?}, {:?}",
@@ -194,7 +194,7 @@ fn resolve_associated_item<'tcx>(
 
             Some(ty::Instance::new(leaf_def.item.def_id, args))
         }
-        // tidy-ticket-resolve_associated_item-UserDefined
+        // tidy-keep-sync-with=tidy-ticket-resolve_associated_item-UserDefined
         traits::ImplSource::Builtin(BuiltinImplSource::Object { vtable_base }, _) => {
             traits::get_vtable_index_of_object_method(tcx, *vtable_base, trait_item_id).map(
                 |index| Instance {

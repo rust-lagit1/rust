@@ -822,7 +822,7 @@ fn ptr_metadata_bounds() {
         let _ = static_assert_expected_bounds_for_metadata::<<T as Pointee>::Metadata>;
     }
 
-    // tidy-ticket-static_assert_expected_bounds_for_metadata
+    // tidy-keep-sync-with=tidy-ticket-static_assert_expected_bounds_for_metadata
     // FIXME: should be core::hash::hash?
     fn static_assert_expected_bounds_for_metadata<Meta>()
     where
@@ -830,7 +830,7 @@ fn ptr_metadata_bounds() {
         Meta: Copy + Send + Sync + Ord + std::hash::Hash + Unpin,
     {
     }
-    // tidy-ticket-static_assert_expected_bounds_for_metadata
+    // tidy-keep-sync-with=tidy-ticket-static_assert_expected_bounds_for_metadata
 }
 
 #[test]

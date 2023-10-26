@@ -57,10 +57,10 @@ COPY host-x86_64/dist-x86_64-linux/build-clang.sh /tmp/
 RUN ./build-clang.sh
 ENV CC=clang CXX=clang++
 
-# tidy-ticket-perf-commit
+# tidy-keep-sync-with=tidy-ticket-perf-commit
 # rustc-perf version from 2023-10-22
 ENV PERF_COMMIT 4f313add609f43e928e98132358e8426ed3969ae
-# tidy-ticket-perf-commit
+# tidy-keep-sync-with=tidy-ticket-perf-commit
 
 RUN curl -LS -o perf.zip https://ci-mirrors.rust-lang.org/rustc/rustc-perf-$PERF_COMMIT.zip && \
     unzip perf.zip && \

@@ -703,7 +703,7 @@ impl<'tcx> Constructor<'tcx> {
         }
     }
 
-    // tidy-ticket-arity
+    // tidy-keep-sync-with=tidy-ticket-arity
     /// The number of fields for this constructor. This must be kept in sync with
     /// `Fields::wildcards`.
     pub(super) fn arity(&self, pcx: &PatCtxt<'_, '_, 'tcx>) -> usize {
@@ -737,7 +737,7 @@ impl<'tcx> Constructor<'tcx> {
             Or => bug!("The `Or` constructor doesn't have a fixed arity"),
         }
     }
-    // tidy-ticket-arity
+    // tidy-keep-sync-with=tidy-ticket-arity
 
     /// Some constructors (namely `Wildcard`, `IntRange` and `Slice`) actually stand for a set of
     /// actual constructors (like variants, integers or fixed-sized slices). When specializing for
@@ -1307,7 +1307,7 @@ impl<'p, 'tcx> Fields<'p, 'tcx> {
         })
     }
 
-    // tidy-ticket-wildcards
+    // tidy-keep-sync-with=tidy-ticket-wildcards
     /// Creates a new list of wildcard fields for a given constructor. The result must have a
     /// length of `constructor.arity()`.
     #[instrument(level = "trace")]
@@ -1354,7 +1354,7 @@ impl<'p, 'tcx> Fields<'p, 'tcx> {
         debug!(?ret);
         ret
     }
-    // tidy-ticket-wildcards
+    // tidy-keep-sync-with=tidy-ticket-wildcards
 
     /// Returns the list of patterns.
     pub(super) fn iter_patterns<'a>(

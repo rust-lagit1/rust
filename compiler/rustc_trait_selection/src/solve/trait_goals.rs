@@ -463,7 +463,7 @@ impl<'tcx> assembly::GoalKind<'tcx> for TraitPredicate<'tcx> {
         ecx.evaluate_added_goals_and_make_canonical_response(certainty)
     }
 
-    // tidy-ticket-consider_builtin_unsize_candidate
+    // tidy-keep-sync-with=tidy-ticket-consider_builtin_unsize_candidate
     fn consider_unsize_to_dyn_candidate(
         ecx: &mut EvalCtxt<'_, 'tcx>,
         goal: Goal<'tcx, Self>,
@@ -504,7 +504,7 @@ impl<'tcx> assembly::GoalKind<'tcx> for TraitPredicate<'tcx> {
             ecx.evaluate_added_goals_and_make_canonical_response(Certainty::Yes)
         })
     }
-    // tidy-ticket-consider_builtin_unsize_candidate
+    // tidy-keep-sync-with=tidy-ticket-consider_builtin_unsize_candidate
 
     /// ```ignore (builtin impl example)
     /// trait Trait {

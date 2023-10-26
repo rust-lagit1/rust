@@ -125,7 +125,7 @@ bitflags::bitflags! {
     }
 }
 
-// tidy-ticket-self-profile-events
+// tidy-keep-sync-with=tidy-ticket-self-profile-events
 // keep this in sync with the `-Z self-profile-events` help message in rustc_session/options.rs
 const EVENT_FILTERS_BY_NAME: &[(&str, EventFilter)] = &[
     ("none", EventFilter::empty()),
@@ -143,7 +143,7 @@ const EVENT_FILTERS_BY_NAME: &[(&str, EventFilter)] = &[
     ("incr-result-hashing", EventFilter::INCR_RESULT_HASHING),
     ("artifact-sizes", EventFilter::ARTIFACT_SIZES),
 ];
-// tidy-ticket-self-profile-events
+// tidy-keep-sync-with=tidy-ticket-self-profile-events
 
 /// Something that uniquely identifies a query invocation.
 pub struct QueryInvocationId(pub u32);

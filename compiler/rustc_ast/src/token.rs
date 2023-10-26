@@ -104,7 +104,7 @@ impl Lit {
         }
     }
 
-    // tidy-ticket-ast-from_token
+    // tidy-keep-sync-with=tidy-ticket-ast-from_token
     /// Keep this in sync with `Token::can_begin_literal_or_bool` excluding unary negation.
     pub fn from_token(token: &Token) -> Option<Lit> {
         match token.uninterpolate().kind {
@@ -119,7 +119,7 @@ impl Lit {
             _ => None,
         }
     }
-    // tidy-ticket-ast-from_token
+    // tidy-keep-sync-with=tidy-ticket-ast-from_token
 }
 
 impl fmt::Display for Lit {
@@ -573,7 +573,7 @@ impl Token {
     ///
     /// In other words, would this token be a valid start of `parse_literal_maybe_minus`?
     ///
-    // tidy-ticket-ast-can_begin_literal_maybe_minus
+    // tidy-keep-sync-with=tidy-ticket-ast-can_begin_literal_maybe_minus
     /// Keep this in sync with and `Lit::from_token`, excluding unary negation.
     pub fn can_begin_literal_maybe_minus(&self) -> bool {
         match self.uninterpolate().kind {
@@ -593,7 +593,7 @@ impl Token {
             _ => false,
         }
     }
-    // tidy-ticket-ast-can_begin_literal_maybe_minus
+    // tidy-keep-sync-with=tidy-ticket-ast-can_begin_literal_maybe_minus
 
     /// A convenience function for matching on identifiers during parsing.
     /// Turns interpolated identifier (`$i: ident`) or lifetime (`$l: lifetime`) token
