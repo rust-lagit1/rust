@@ -1491,8 +1491,8 @@ impl fmt::Debug for Literal {
     }
 }
 
-/// Tracked access to environment variables.
-#[unstable(feature = "proc_macro_tracked_env", issue = "99515")]
+#[unstable(feature = "proc_macro_tracked_env", issue = "74690")]
+/// Tracked access to env variables.
 pub mod tracked_env {
     use std::env::{self, VarError};
     use std::ffi::OsStr;
@@ -1502,7 +1502,7 @@ pub mod tracked_env {
     /// compilation, and will be able to rerun the build when the value of that variable changes.
     /// Besides the dependency tracking this function should be equivalent to `env::var` from the
     /// standard library, except that the argument must be UTF-8.
-    #[unstable(feature = "proc_macro_tracked_env", issue = "99515")]
+    #[unstable(feature = "proc_macro_tracked_env", issue = "74690")]
     pub fn var<K: AsRef<OsStr> + AsRef<str>>(key: K) -> Result<String, VarError> {
         let key: &str = key.as_ref();
         let value = env::var(key);
@@ -1512,15 +1512,23 @@ pub mod tracked_env {
 }
 
 /// Tracked access to additional files.
-#[unstable(feature = "track_path", issue = "99515")]
+#[unstable(feature = "proc_macro_tracked_path", issue = "99515")]
 pub mod tracked_path {
+    use std::path::{Path, PathBuf};
 
-    /// Track a file explicitly.
+    /// Track a file as if it was a dependency.
+    ///
+    /// The file is located relative to the current file where the proc-macro
+    /// is used (similarly to how modules are found). The provided path is
+    /// interpreted in a platform-specific way at compile time. So, for
+    /// instance, an invocation with a Windows path
+    /// containing backslashes `\` would not compile correctly on Unix.
+    ///
+    /// Errors if the provided `Path` cannot be encoded as a `str`
     ///
     /// Commonly used for tracking asset preprocessing.
-    #[unstable(feature = "track_path", issue = "99515")]
-    pub fn path<P: AsRef<str>>(path: P) {
-        let path: &str = path.as_ref();
+    pub fn path<P: AsRef<Path>>(path: P) {
+        let path = PathBuf::from(path.as_ref());
         crate::bridge::client::FreeFunctions::track_path(path);
     }
 }
