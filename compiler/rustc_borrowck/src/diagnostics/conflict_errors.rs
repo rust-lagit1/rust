@@ -3004,7 +3004,6 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
                         }
                         ProjectionElem::ConstantIndex { .. }
                         | ProjectionElem::Subslice { .. }
-                        | ProjectionElem::Subtype(_)
                         | ProjectionElem::Index(_) => kind,
                     },
                     place_ty.projection_ty(tcx, elem),

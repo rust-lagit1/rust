@@ -712,9 +712,6 @@ impl<'a, 'b, 'tcx> TypeVerifier<'a, 'b, 'tcx> {
                 }
                 PlaceTy::from_ty(fty)
             }
-            ProjectionElem::Subtype(_) => {
-                bug!("ProjectionElem::Subtype shouldn't exist in borrowck")
-            }
             ProjectionElem::OpaqueCast(ty) => {
                 let ty = self.sanitize_type(place, ty);
                 let ty = self.cx.normalize(ty, location);
@@ -2577,9 +2574,6 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                 | ProjectionElem::ConstantIndex { .. }
                 | ProjectionElem::Subslice { .. } => {
                     // other field access
-                }
-                ProjectionElem::Subtype(_) => {
-                    bug!("ProjectionElem::Subtype shouldn't exist in borrowck")
                 }
             }
         }
