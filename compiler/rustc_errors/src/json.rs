@@ -327,6 +327,8 @@ struct FutureIncompatReport<'a> {
     future_incompat_report: Vec<FutureBreakageItem<'a>>,
 }
 
+// tidy-keep-sync-with=tidy-ticket-UnusedExterns
+// FIXME: where it located in cargo?
 // NOTE: Keep this in sync with the equivalent structs in rustdoc's
 // doctest component (as well as cargo).
 // We could unify this struct the one in rustdoc but they have different
@@ -338,6 +340,7 @@ struct UnusedExterns<'a, 'b, 'c> {
     /// List of unused externs by their names.
     unused_extern_names: &'b [&'c str],
 }
+// tidy-keep-sync-with=tidy-ticket-UnusedExterns
 
 impl Diagnostic {
     fn from_errors_diagnostic(diag: &crate::Diagnostic, je: &JsonEmitter) -> Diagnostic {

@@ -827,6 +827,7 @@ impl<'tcx> Constructor<'tcx> {
         }
     }
 
+    // tidy-keep-sync-with=tidy-ticket-arity
     /// The number of fields for this constructor. This must be kept in sync with
     /// `Fields::wildcards`.
     pub(super) fn arity(&self, pcx: &PatCtxt<'_, '_, 'tcx>) -> usize {
@@ -860,6 +861,7 @@ impl<'tcx> Constructor<'tcx> {
             Or => bug!("The `Or` constructor doesn't have a fixed arity"),
         }
     }
+    // tidy-keep-sync-with=tidy-ticket-arity
 
     /// Returns whether `self` is covered by `other`, i.e. whether `self` is a subset of `other`.
     /// For the simple cases, this is simply checking for equality. For the "grouped" constructors,
@@ -1338,6 +1340,7 @@ impl<'p, 'tcx> Fields<'p, 'tcx> {
         })
     }
 
+    // tidy-keep-sync-with=tidy-ticket-wildcards
     /// Creates a new list of wildcard fields for a given constructor. The result must have a
     /// length of `constructor.arity()`.
     #[instrument(level = "trace")]
@@ -1384,6 +1387,7 @@ impl<'p, 'tcx> Fields<'p, 'tcx> {
         debug!(?ret);
         ret
     }
+    // tidy-keep-sync-with=tidy-ticket-wildcards
 
     /// Returns the list of patterns.
     pub(super) fn iter_patterns<'a>(
