@@ -539,7 +539,8 @@ rustc_queries! {
         desc { |tcx| "promoting constants in MIR for `{}`", tcx.def_path_str(key) }
     }
 
-    query closure_typeinfo(key: LocalDefId) -> ty::ClosureTypeInfo<'tcx> {
+    query closure_typeinfo(key: LocalDefId) -> &'tcx ty::ClosureTypeInfo<'tcx> {
+        arena_cache
         desc {
             |tcx| "finding symbols for captures of closure `{}`",
             tcx.def_path_str(key)
