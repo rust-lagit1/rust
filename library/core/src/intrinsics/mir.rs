@@ -245,6 +245,29 @@
 //!  - [`Call`] has an associated function as well. The third argument of this function is a normal
 //!    function call expression, for example `my_other_function(a, 5)`.
 //!
+//! #### Debuginfo
+//!
+//!  - A debuginfo name can be given to a local using `debug my_name => contents;`.
+//!    For `contents`, we use the same syntax as operands, to support both places and constants.
+//!
+//! ```rust
+//! #![allow(internal_features)]
+//! #![feature(core_intrinsics, custom_mir)]
+//!
+//! use core::intrinsics::mir::*;
+//!
+//! #[custom_mir(dialect = "built")]
+//! fn debuginfo(option: Option<&i32>) {
+//!     mir!(
+//!         debug option => option;
+//!         debug projection => *Field::<&i32>(Variant(option, 1), 0);
+//!         debug constant => 5_usize;
+//!         {
+//!             Return()
+//!         }
+//!     )
+//! }
+//! ```
 
 #![unstable(
     feature = "custom_mir",
