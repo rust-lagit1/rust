@@ -151,6 +151,13 @@ impl Step for Std {
         let target = self.target;
         let compiler = self.compiler;
 
+        // We already have std ready to be used for stage 0.
+        if compiler.stage == 0 {
+            builder.ensure(StdLink::from_std(self, compiler));
+
+            return;
+        }
+
         // When using `download-rustc`, we already have artifacts for the host available. Don't
         // recompile them.
         if builder.download_rustc() && target == builder.build.build
@@ -618,18 +625,16 @@ impl Step for StdLink {
             (libdir, hostdir)
         };
 
-        add_to_sysroot(builder, &libdir, &hostdir, &libstd_stamp(builder, compiler, target));
+        let is_downloaded_beta_stage0 = builder
+            .build
+            .config
+            .initial_rustc
+            .starts_with(builder.out.join(&compiler.host.triple).join("stage0/bin"));
 
         // Special case for stage0, to make `rustup toolchain link` and `x dist --stage 0`
         // work for stage0-sysroot. We only do this if the stage0 compiler comes from beta,
         // and is not set to a custom path.
-        if compiler.stage == 0
-            && builder
-                .build
-                .config
-                .initial_rustc
-                .starts_with(builder.out.join(compiler.host.triple).join("stage0/bin"))
-        {
+        if compiler.stage == 0 && is_downloaded_beta_stage0 {
             // Copy bin files from stage0/bin to stage0-sysroot/bin
             let sysroot = builder.out.join(compiler.host.triple).join("stage0-sysroot");
 
@@ -640,17 +645,8 @@ impl Step for StdLink {
             builder.cp_link_r(&stage0_bin_dir, &sysroot_bin_dir);
 
             // Copy all *.so files from stage0/lib to stage0-sysroot/lib
-            let stage0_lib_dir = builder.out.join(host).join("stage0/lib");
-            if let Ok(files) = fs::read_dir(stage0_lib_dir) {
-                for file in files {
-                    let file = t!(file);
-                    let path = file.path();
-                    if path.is_file() && is_dylib(&file.file_name().into_string().unwrap()) {
-                        builder
-                            .copy_link(&path, &sysroot.join("lib").join(path.file_name().unwrap()));
-                    }
-                }
-            }
+            let stage0_lib_dir = builder.out.join(&host).join("stage0/lib");
+            builder.cp_r(&stage0_lib_dir, &sysroot.join("lib"));
 
             // Copy codegen-backends from stage0
             let sysroot_codegen_backends = builder.sysroot_codegen_backends(compiler);
@@ -664,6 +660,11 @@ impl Step for StdLink {
             if stage0_codegen_backends.exists() {
                 builder.cp_link_r(&stage0_codegen_backends, &sysroot_codegen_backends);
             }
+        } else if compiler.stage == 0 {
+            let sysroot = builder.out.join(&compiler.host.triple).join("stage0-sysroot");
+            builder.cp_r(&builder.initial_sysroot.join("lib"), &sysroot.join("lib"));
+        } else {
+            add_to_sysroot(builder, &libdir, &hostdir, &libstd_stamp(builder, compiler, target));
         }
     }
 }
