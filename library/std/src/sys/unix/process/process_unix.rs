@@ -352,6 +352,10 @@ impl Command {
             cvt(libc::setpgid(0, pgroup))?;
         }
 
+        if self.get_setsid() {
+            cvt(libc::setsid())?;
+        }
+
         // emscripten has no signal support.
         #[cfg(not(target_os = "emscripten"))]
         {
@@ -553,6 +557,7 @@ impl Command {
         };
 
         let pgroup = self.get_pgroup();
+        let setsid = self.get_setsid();
 
         // Safety: -1 indicates we don't have a pidfd.
         let mut p = unsafe { Process::new(0, -1) };
@@ -638,6 +643,10 @@ impl Command {
                     default_set.as_ptr(),
                 ))?;
                 flags |= libc::POSIX_SPAWN_SETSIGDEF;
+            }
+
+            if setsid {
+                flags |= libc::POSIX_SPAWN_SETSID;
             }
 
             cvt_nz(libc::posix_spawnattr_setflags(attrs.0.as_mut_ptr(), flags as _))?;
