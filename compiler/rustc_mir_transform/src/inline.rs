@@ -318,6 +318,7 @@ impl<'tcx> Inliner<'tcx> {
             | InstanceDef::ClosureOnceShim { .. }
             | InstanceDef::DropGlue(..)
             | InstanceDef::CloneShim(..)
+            | InstanceDef::CloneCopyShim(..)
             | InstanceDef::ThreadLocalShim(..)
             | InstanceDef::FnPtrAddrShim(..) => return Ok(()),
         }
