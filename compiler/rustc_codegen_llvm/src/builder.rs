@@ -197,6 +197,36 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         }
     }
 
+    fn cond_br_with_cold_br(
+        &mut self,
+        cond: &'ll Value,
+        then_llbb: Self::BasicBlock,
+        else_llbb: Self::BasicBlock,
+        cold_br: Option<bool>,
+    ) {
+        // emit the branch instruction
+        let n = unsafe {
+            llvm::LLVMBuildCondBr(self.llbuilder, cond, then_llbb, else_llbb)
+        };
+
+        // if one of the branches is cold, emit metadata with branch weights
+        if let Some(cold_br) = cold_br {
+            unsafe {
+                let s = "branch_weights";
+                let v = [
+                    llvm::LLVMMDStringInContext(self.cx.llcx, s.as_ptr() as *const c_char, s.len() as c_uint),
+                    self.cx.const_u32(if cold_br { 1 } else { 2000 }), // 'then' branch weight
+                    self.cx.const_u32(if cold_br { 2000 } else { 1 }), // 'else' branch weight
+                ];
+                llvm::LLVMSetMetadata(
+                    n,
+                    llvm::MD_prof as c_uint,
+                    llvm::LLVMMDNodeInContext(self.cx.llcx, v.as_ptr(), v.len() as c_uint),
+                );
+            }
+        }
+    }
+
     fn switch(
         &mut self,
         v: &'ll Value,

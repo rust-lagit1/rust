@@ -327,18 +327,27 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let (test_value, target) = target_iter.next().unwrap();
             let lltrue = helper.llbb_with_cleanup(self, target);
             let llfalse = helper.llbb_with_cleanup(self, targets.otherwise());
+            let cold_br = targets.cold_target().and_then(|t| {
+                if t == 0 { Some(true) } else { Some(false) }
+            });
+
             if switch_ty == bx.tcx().types.bool {
                 // Don't generate trivial icmps when switching on bool.
                 match test_value {
-                    0 => bx.cond_br(discr.immediate(), llfalse, lltrue),
-                    1 => bx.cond_br(discr.immediate(), lltrue, llfalse),
+                    0 => {
+                        let cold_br = cold_br.and_then(|t| Some(!t));
+                        bx.cond_br_with_cold_br(discr.immediate(), llfalse, lltrue, cold_br);
+                    },
+                    1 => {
+                        bx.cond_br_with_cold_br(discr.immediate(), lltrue, llfalse, cold_br)
+                    },
                     _ => bug!(),
                 }
             } else {
                 let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
                 let llval = bx.const_uint_big(switch_llty, test_value);
                 let cmp = bx.icmp(IntPredicate::IntEQ, discr.immediate(), llval);
-                bx.cond_br(cmp, lltrue, llfalse);
+                bx.cond_br_with_cold_br(cmp, lltrue, llfalse, cold_br);
             }
         } else if self.cx.sess().opts.optimize == OptLevel::No
             && target_iter.len() == 2

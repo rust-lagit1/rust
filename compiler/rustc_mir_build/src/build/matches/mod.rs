@@ -23,6 +23,7 @@ use rustc_span::symbol::Symbol;
 use rustc_span::{BytePos, Pos, Span};
 use rustc_target::abi::VariantIdx;
 use smallvec::{smallvec, SmallVec};
+use thin_vec::ThinVec;
 
 // helper functions, broken out by category:
 mod simplify;
@@ -40,6 +41,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         temp_scope_override: Option<region::Scope>,
         break_scope: region::Scope,
         variable_source_info: SourceInfo,
+        cold_branch: Option<bool>,
     ) -> BlockAnd<()> {
         let this = self;
         let expr = &this.thir[expr_id];
@@ -53,6 +55,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
+                    match cold_branch { Some(false) => Some(false), _ => None }
                 ));
 
                 let rhs_then_block = unpack!(this.then_else_break(
@@ -61,6 +64,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
+                    cold_branch,
                 ));
 
                 rhs_then_block.unit()
@@ -75,6 +79,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             temp_scope_override,
                             local_scope,
                             variable_source_info,
+                            match cold_branch { Some(true) => Some(true), _ => None }
                         )
                     });
                 let rhs_success_block = unpack!(this.then_else_break(
@@ -83,6 +88,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
+                    cold_branch,
                 ));
                 this.cfg.goto(lhs_success_block, variable_source_info, rhs_success_block);
                 rhs_success_block.unit()
@@ -102,6 +108,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             temp_scope_override,
                             local_scope,
                             variable_source_info,
+                            cold_branch.and_then(|b| Some(!b)),
                         )
                     });
                 this.break_for_else(success_block, break_scope, variable_source_info);
@@ -116,6 +123,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         temp_scope_override,
                         break_scope,
                         variable_source_info,
+                        cold_branch,
                     )
                 })
             }
@@ -125,6 +133,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 temp_scope_override,
                 break_scope,
                 variable_source_info,
+                cold_branch,
             ),
             ExprKind::Let { expr, ref pat } => this.lower_let_expr(
                 block,
@@ -144,7 +153,12 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
                 let then_block = this.cfg.start_new_block();
                 let else_block = this.cfg.start_new_block();
-                let term = TerminatorKind::if_(operand, then_block, else_block);
+                let term = TerminatorKind::if_with_cold_br(
+                    operand,
+                    then_block,
+                    else_block,
+                    cold_branch
+                );
 
                 let source_info = this.source_info(expr_span);
                 this.cfg.terminate(block, source_info, term);
@@ -278,8 +292,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             .map(|arm| {
                 let arm = &self.thir[arm];
                 let arm_has_guard = arm.guard.is_some();
+                let arm_is_cold = arm.is_cold;
                 let arm_candidate =
-                    Candidate::new(scrutinee.clone(), &arm.pattern, arm_has_guard, self);
+                    Candidate::new(scrutinee.clone(), &arm.pattern, arm_has_guard, arm_is_cold, self);
                 (arm, arm_candidate)
             })
             .collect()
@@ -638,7 +653,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         initializer: PlaceBuilder<'tcx>,
         set_match_place: bool,
     ) -> BlockAnd<()> {
-        let mut candidate = Candidate::new(initializer.clone(), irrefutable_pat, false, self);
+        let mut candidate = Candidate::new(initializer.clone(), irrefutable_pat, false, false, self);
         let fake_borrow_temps = self.lower_match_tree(
             block,
             irrefutable_pat.span,
@@ -909,6 +924,9 @@ struct Candidate<'pat, 'tcx> {
     /// Whether this `Candidate` has a guard.
     has_guard: bool,
 
+    /// Whether this 'Candidate' comes from a cold arm.
+    is_cold: bool,
+
     /// All of these must be satisfied...
     match_pairs: SmallVec<[MatchPair<'pat, 'tcx>; 1]>,
 
@@ -935,11 +953,13 @@ impl<'tcx, 'pat> Candidate<'pat, 'tcx> {
         place: PlaceBuilder<'tcx>,
         pattern: &'pat Pat<'tcx>,
         has_guard: bool,
+        is_cold: bool,
         cx: &Builder<'_, 'tcx>,
     ) -> Self {
         Candidate {
             span: pattern.span,
             has_guard,
+            is_cold,
             match_pairs: smallvec![MatchPair::new(place, pattern, cx)],
             bindings: Vec::new(),
             ascriptions: Vec::new(),
@@ -1459,7 +1479,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         debug!("candidate={:#?}\npats={:#?}", candidate, pats);
         let mut or_candidates: Vec<_> = pats
             .iter()
-            .map(|pat| Candidate::new(place.clone(), pat, candidate.has_guard, self))
+            .map(|pat| Candidate::new(place.clone(), pat, candidate.has_guard, candidate.is_cold, self))
             .collect();
         let mut or_candidate_refs: Vec<_> = or_candidates.iter_mut().collect();
         let otherwise = if candidate.otherwise_block.is_some() {
@@ -1707,6 +1727,36 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         debug!("tested_candidates: {}", total_candidate_count - candidates.len());
         debug!("untested_candidates: {}", candidates.len());
 
+        // Find cold targets.
+        let mut cold_targets: ThinVec<usize> = ThinVec::new();
+
+        let is_otherwise_target_cold =
+            candidates.len() > 0 &&
+            candidates.iter().all(|c| c.is_cold);// && c.match_pairs.is_empty());
+        if  is_otherwise_target_cold {
+            cold_targets.push(target_candidates.len());
+        }
+
+        for (target, candidates) in target_candidates.iter().enumerate() {
+            let cold =
+                // If all candidates for this target are cold, then the target is cold.
+                (
+                    candidates.len() > 0 &&
+                    candidates.iter().all(|c| c.is_cold) //&& c.match_pairs.is_empty())
+                ) ||
+                // This should really only happen for 'bool', because the switch for bool
+                // always has two targets. One of the targets may be without candidates,
+                // and therefore equivalent to the 'otherwise' target.
+                (
+                    candidates.len() == 0 &&
+                    is_otherwise_target_cold
+                );
+
+            if cold {
+                cold_targets.push(target);
+            }
+        }
+
         // The block that we should branch to if none of the
         // `target_candidates` match. This is either the block where we
         // start matching the untested candidates if there are any,
@@ -1751,7 +1801,15 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             );
         }
 
-        self.perform_test(span, scrutinee_span, block, &match_place, &test, target_blocks);
+        self.perform_test(
+            span,
+            scrutinee_span,
+            block,
+            &match_place,
+            &test,
+            target_blocks,
+            cold_targets
+        );
     }
 
     /// Determine the fake borrows that are needed from a set of places that
@@ -1849,9 +1907,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         let expr_span = self.thir[expr_id].span;
         let expr_place_builder = unpack!(block = self.lower_scrutinee(block, expr_id, expr_span));
         let wildcard = Pat::wildcard_from_ty(pat.ty);
-        let mut guard_candidate = Candidate::new(expr_place_builder.clone(), pat, false, self);
+        let mut guard_candidate = Candidate::new(expr_place_builder.clone(), pat, false, false, self);
         let mut otherwise_candidate =
-            Candidate::new(expr_place_builder.clone(), &wildcard, false, self);
+            Candidate::new(expr_place_builder.clone(), &wildcard, false, false, self);
         let fake_borrow_temps = self.lower_match_tree(
             block,
             pat.span,
@@ -2043,6 +2101,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             None,
                             match_scope,
                             this.source_info(arm.span),
+                            if candidate.is_cold { Some(false) } else { None },
                         )
                     }
                     Guard::IfLet(ref pat, s) => {
@@ -2350,8 +2409,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         let (matching, failure) = self.in_if_then_scope(*let_else_scope, else_block_span, |this| {
             let scrutinee = unpack!(block = this.lower_scrutinee(block, init_id, initializer_span));
             let pat = Pat { ty: pattern.ty, span: else_block_span, kind: PatKind::Wild };
-            let mut wildcard = Candidate::new(scrutinee.clone(), &pat, false, this);
-            let mut candidate = Candidate::new(scrutinee.clone(), pattern, false, this);
+            let mut wildcard = Candidate::new(scrutinee.clone(), &pat, false, false, this);
+            let mut candidate = Candidate::new(scrutinee.clone(), pattern, false, false, this);
             let fake_borrow_temps = this.lower_match_tree(
                 block,
                 initializer_span,

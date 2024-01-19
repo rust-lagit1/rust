@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 use super::TerminatorKind;
 use rustc_macros::HashStable;
 use std::slice;
+use thin_vec::{thin_vec, ThinVec};
 
 use super::*;
 
@@ -16,13 +17,36 @@ impl SwitchTargets {
     pub fn new(targets: impl Iterator<Item = (u128, BasicBlock)>, otherwise: BasicBlock) -> Self {
         let (values, mut targets): (SmallVec<_>, SmallVec<_>) = targets.unzip();
         targets.push(otherwise);
-        Self { values, targets }
+        Self { values, targets, cold_targets: ThinVec::new() }
     }
 
     /// Builds a switch targets definition that jumps to `then` if the tested value equals `value`,
     /// and to `else_` if not.
     pub fn static_if(value: u128, then: BasicBlock, else_: BasicBlock) -> Self {
-        Self { values: smallvec![value], targets: smallvec![then, else_] }
+        Self {
+            values: smallvec![value],
+            targets: smallvec![then, else_],
+            cold_targets: ThinVec::new(),
+        }
+    }
+
+    /// Builds a switch targets definition that jumps to `then` if the tested value equals `value`,
+    /// and to `else_` if not.
+    /// If cold_br is some bool value, the given outcome is considered cold (i.e., unlikely).
+    pub fn static_if_with_cold_br(
+        value: u128,
+        then: BasicBlock,
+        else_: BasicBlock,
+        cold_br: Option<bool>,
+    ) -> Self {
+        Self {
+            values: smallvec![value],
+            targets: smallvec![then, else_],
+            cold_targets: match cold_br {
+                Some(br) => thin_vec![if br { 0 } else { 1 }],
+                None => ThinVec::new(),
+            },
+        }
     }
 
     /// Inverse of `SwitchTargets::static_if`.
@@ -31,6 +55,14 @@ impl SwitchTargets {
             && let &[then, else_] = &self.targets[..]
         {
             Some((value, then, else_))
+        } else {
+            None
+        }
+    }
+
+    pub fn cold_target(&self) -> Option<usize> {
+        if self.cold_targets.len() == 1 {
+            Some(self.cold_targets[0])
         } else {
             None
         }
@@ -350,6 +382,22 @@ impl<'tcx> Terminator<'tcx> {
 impl<'tcx> TerminatorKind<'tcx> {
     pub fn if_(cond: Operand<'tcx>, t: BasicBlock, f: BasicBlock) -> TerminatorKind<'tcx> {
         TerminatorKind::SwitchInt { discr: cond, targets: SwitchTargets::static_if(0, f, t) }
+    }
+
+    pub fn if_with_cold_br(
+        cond: Operand<'tcx>,
+        t: BasicBlock,
+        f: BasicBlock,
+        cold_branch: Option<bool>,
+     ) -> TerminatorKind<'tcx> {
+        TerminatorKind::SwitchInt {
+            discr: cond,
+            targets: SwitchTargets::static_if_with_cold_br(
+                0, f, t,
+                // we compare to zero, so have to invert the branch
+                cold_branch.and_then(|b| Some(!b))
+            ),
+        }
     }
 
     pub fn successors(&self) -> Successors<'_> {

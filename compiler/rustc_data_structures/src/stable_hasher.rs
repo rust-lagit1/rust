@@ -2,6 +2,7 @@ use crate::sip128::SipHasher128;
 use rustc_index::bit_set::{self, BitSet};
 use rustc_index::{Idx, IndexSlice, IndexVec};
 use smallvec::SmallVec;
+use thin_vec::ThinVec;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
@@ -454,6 +455,16 @@ where
 impl<A, const N: usize, CTX> HashStable<CTX> for SmallVec<[A; N]>
 where
     A: HashStable<CTX>,
+{
+    #[inline]
+    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
+        self[..].hash_stable(ctx, hasher);
+    }
+}
+
+impl<T, CTX> HashStable<CTX> for ThinVec<T>
+where
+    T: HashStable<CTX>,
 {
     #[inline]
     fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {

@@ -22,6 +22,7 @@ use rustc_span::Span;
 use rustc_target::abi::VariantIdx;
 
 use std::cmp::Ordering;
+use thin_vec::ThinVec;
 
 impl<'a, 'tcx> Builder<'a, 'tcx> {
     /// Identifies what test is needed to decide if `match_pair` is applicable.
@@ -156,6 +157,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         place_builder: &PlaceBuilder<'tcx>,
         test: &Test<'tcx>,
         target_blocks: Vec<BasicBlock>,
+        cold_targets: ThinVec<usize>,
     ) {
         let place = place_builder.to_place(self);
         let place_ty = place.ty(&self.local_decls, self.tcx);
@@ -211,15 +213,24 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             TestKind::SwitchInt { switch_ty, ref options } => {
                 let terminator = if *switch_ty.kind() == ty::Bool {
                     assert!(!options.is_empty() && options.len() <= 2);
+                    let mut cold_br = [false; 2];
+                    let cold_br = if cold_targets.is_empty() {
+                        None
+                    } else {
+                        for i in cold_targets.iter() {
+                            if *i < 2 { cold_br[*i] = true; }
+                        }
+                        if cold_br[0] != cold_br[1] { Some(cold_br[0]) } else { None }
+                    };
                     let [first_bb, second_bb] = *target_blocks else {
                         bug!("`TestKind::SwitchInt` on `bool` should have two targets")
                     };
-                    let (true_bb, false_bb) = match options[0] {
-                        1 => (first_bb, second_bb),
-                        0 => (second_bb, first_bb),
+                    let (true_bb, false_bb, cold_br) = match options[0] {
+                        1 => (first_bb, second_bb, cold_br),
+                        0 => (second_bb, first_bb, cold_br.and_then(|x| Some(!x))),
                         v => span_bug!(test.span, "expected boolean value but got {:?}", v),
                     };
-                    TerminatorKind::if_(Operand::Copy(place), true_bb, false_bb)
+                    TerminatorKind::if_with_cold_br(Operand::Copy(place), true_bb, false_bb, cold_br)
                 } else {
                     // The switch may be inexhaustive so we have a catch all block
                     debug_assert_eq!(options.len() + 1, target_blocks.len());
