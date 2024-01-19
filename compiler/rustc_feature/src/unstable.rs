@@ -210,7 +210,7 @@ declare_features! (
     /// Allows the `multiple_supertrait_upcastable` lint.
     (unstable, multiple_supertrait_upcastable, "1.69.0", None),
     /// Allow negative trait bounds. This is an internal-only feature for testing the trait solver!
-    (incomplete, negative_bounds, "1.71.0", None),
+    (internal, negative_bounds, "1.71.0", None),
     /// Allows using `#[omit_gdb_pretty_printer_section]`.
     (internal, omit_gdb_pretty_printer_section, "1.5.0", None),
     /// Allows using `#[prelude_import]` on glob `use` items.
@@ -450,7 +450,7 @@ declare_features! (
     (unstable, doc_masked, "1.21.0", Some(44027)),
     /// Allows `dyn* Trait` objects.
     (incomplete, dyn_star, "1.65.0", Some(102425)),
-    // Uses generic effect parameters for ~const bounds
+    /// Uses generic effect parameters for ~const bounds
     (unstable, effects, "1.72.0", Some(102090)),
     /// Allows `X..Y` patterns.
     (unstable, exclusive_range_pattern, "1.11.0", Some(37854)),

@@ -34,6 +34,12 @@ use std::borrow::Borrow;
 use std::mem;
 
 impl<'a, 'tcx> Builder<'a, 'tcx> {
+    /// Lowers a condition in a way that ensures that variables bound in any let
+    /// expressions are definitely initialized in the if body.
+    ///
+    /// If `declare_bindings` is false then variables created in `let`
+    /// expressions will not be declared. This is for if let guards on arms with
+    /// an or pattern, where the guard is lowered multiple times.
     pub(crate) fn then_else_break(
         &mut self,
         mut block: BasicBlock,
@@ -41,6 +47,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         temp_scope_override: Option<region::Scope>,
         break_scope: region::Scope,
         variable_source_info: SourceInfo,
+        declare_bindings: bool,
         cold_branch: Option<bool>,
     ) -> BlockAnd<()> {
         let this = self;
@@ -55,7 +62,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
-                    match cold_branch { Some(false) => Some(false), _ => None }
+                    declare_bindings,
+                    match cold_branch { Some(false) => Some(false), _ => None },
                 ));
 
                 let rhs_then_block = unpack!(this.then_else_break(
@@ -64,6 +72,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
+                    declare_bindings,
                     cold_branch,
                 ));
 
@@ -79,7 +88,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             temp_scope_override,
                             local_scope,
                             variable_source_info,
-                            match cold_branch { Some(true) => Some(true), _ => None }
+                            true,
+                            match cold_branch { Some(true) => Some(true), _ => None },
                         )
                     });
                 let rhs_success_block = unpack!(this.then_else_break(
@@ -88,6 +98,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     temp_scope_override,
                     break_scope,
                     variable_source_info,
+                    true,
                     cold_branch,
                 ));
                 this.cfg.goto(lhs_success_block, variable_source_info, rhs_success_block);
@@ -108,6 +119,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             temp_scope_override,
                             local_scope,
                             variable_source_info,
+                            true,
                             cold_branch.and_then(|b| Some(!b)),
                         )
                     });
@@ -123,6 +135,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         temp_scope_override,
                         break_scope,
                         variable_source_info,
+                        declare_bindings,
                         cold_branch,
                     )
                 })
@@ -133,6 +146,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 temp_scope_override,
                 break_scope,
                 variable_source_info,
+                declare_bindings,
                 cold_branch,
             ),
             ExprKind::Let { expr, ref pat } => this.lower_let_expr(
@@ -142,7 +156,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 break_scope,
                 Some(variable_source_info.scope),
                 variable_source_info.span,
-                true,
+                declare_bindings,
             ),
             _ => {
                 let temp_scope = temp_scope_override.unwrap_or_else(|| this.local_scope());
@@ -432,7 +446,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         None,
                         arm.span,
                         &arm.pattern,
-                        arm.guard.as_ref(),
+                        arm.guard,
                         opt_scrutinee_place,
                     );
 
@@ -724,7 +738,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         mut visibility_scope: Option<SourceScope>,
         scope_span: Span,
         pattern: &Pat<'tcx>,
-        guard: Option<&Guard<'tcx>>,
+        guard: Option<ExprId>,
         opt_match_place: Option<(Option<&Place<'tcx>>, Span)>,
     ) -> Option<SourceScope> {
         self.visit_primary_bindings(
@@ -752,11 +766,38 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 );
             },
         );
-        if let Some(Guard::IfLet(guard_pat, _)) = guard {
-            // FIXME: pass a proper `opt_match_place`
-            self.declare_bindings(visibility_scope, scope_span, guard_pat, None, None);
+        if let Some(guard_expr) = guard {
+            self.declare_guard_bindings(guard_expr, scope_span, visibility_scope);
         }
         visibility_scope
+    }
+
+    /// Declare bindings in a guard. This has to be done when declaring bindings
+    /// for an arm to ensure that or patterns only have one version of each
+    /// variable.
+    pub(crate) fn declare_guard_bindings(
+        &mut self,
+        guard_expr: ExprId,
+        scope_span: Span,
+        visibility_scope: Option<SourceScope>,
+    ) {
+        match self.thir.exprs[guard_expr].kind {
+            ExprKind::Let { expr: _, pat: ref guard_pat } => {
+                // FIXME: pass a proper `opt_match_place`
+                self.declare_bindings(visibility_scope, scope_span, guard_pat, None, None);
+            }
+            ExprKind::Scope { value, .. } => {
+                self.declare_guard_bindings(value, scope_span, visibility_scope);
+            }
+            ExprKind::Use { source } => {
+                self.declare_guard_bindings(source, scope_span, visibility_scope);
+            }
+            ExprKind::LogicalOp { op: LogicalOp::And, lhs, rhs } => {
+                self.declare_guard_bindings(lhs, scope_span, visibility_scope);
+                self.declare_guard_bindings(rhs, scope_span, visibility_scope);
+            }
+            _ => {}
+        }
     }
 
     pub(crate) fn storage_live_binding(
@@ -2067,7 +2108,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         //    * So we eagerly create the reference for the arm and then take a
         //      reference to that.
         if let Some((arm, match_scope)) = arm_match_scope
-            && let Some(guard) = &arm.guard
+            && let Some(guard) = arm.guard
         {
             let tcx = self.tcx;
             let bindings = parent_bindings
@@ -2092,22 +2133,17 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             let mut guard_span = rustc_span::DUMMY_SP;
 
             let (post_guard_block, otherwise_post_guard_block) =
-                self.in_if_then_scope(match_scope, guard_span, |this| match *guard {
-                    Guard::If(e) => {
-                        guard_span = this.thir[e].span;
-                        this.then_else_break(
-                            block,
-                            e,
-                            None,
-                            match_scope,
-                            this.source_info(arm.span),
-                            if candidate.is_cold { Some(false) } else { None },
-                        )
-                    }
-                    Guard::IfLet(ref pat, s) => {
-                        guard_span = this.thir[s].span;
-                        this.lower_let_expr(block, s, pat, match_scope, None, arm.span, false)
-                    }
+                self.in_if_then_scope(match_scope, guard_span, |this| {
+                    guard_span = this.thir[guard].span;
+                    this.then_else_break(
+                        block,
+                        guard,
+                        None,
+                        match_scope,
+                        this.source_info(arm.span),
+                        false,
+                        if candidate.is_cold { Some(false) } else { None },
+                    )
                 });
 
             let source_info = self.source_info(guard_span);

@@ -220,6 +220,8 @@ pub enum MacroCallKind {
     },
     Attr {
         ast_id: AstId<ast::Item>,
+        // FIXME: This is being interned, subtrees can very quickly differ just slightly causing
+        // leakage problems here
         attr_args: Option<Arc<tt::Subtree>>,
         /// Syntactical index of the invoking `#[attribute]`.
         ///
@@ -316,6 +318,7 @@ pub trait MacroFileIdExt {
     fn expansion_level(self, db: &dyn ExpandDatabase) -> u32;
     /// If this is a macro call, returns the syntax node of the call.
     fn call_node(self, db: &dyn ExpandDatabase) -> InFile<SyntaxNode>;
+    fn parent(self, db: &dyn ExpandDatabase) -> HirFileId;
 
     fn expansion_info(self, db: &dyn ExpandDatabase) -> ExpansionInfo;
 
@@ -350,6 +353,9 @@ impl MacroFileIdExt for MacroFileId {
                 HirFileIdRepr::MacroFile(it) => it,
             };
         }
+    }
+    fn parent(self, db: &dyn ExpandDatabase) -> HirFileId {
+        self.macro_call_id.lookup(db).kind.file_id()
     }
 
     /// Return expansion information if it is a macro-expansion file

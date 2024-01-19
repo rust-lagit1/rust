@@ -35,7 +35,9 @@ use rustc_middle::ty::{
     OpaqueHiddenType, OpaqueTypeKey, RegionVid, Ty, TyCtxt, UserType, UserTypeAnnotationIndex,
 };
 use rustc_middle::ty::{GenericArgsRef, UserArgs};
+use rustc_mir_dataflow::points::DenseLocationMap;
 use rustc_span::def_id::CRATE_DEF_ID;
+use rustc_span::source_map::Spanned;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, DUMMY_SP};
 use rustc_target::abi::{FieldIdx, FIRST_VARIANT};
@@ -58,9 +60,7 @@ use crate::{
     location::LocationTable,
     member_constraints::MemberConstraintSet,
     path_utils,
-    region_infer::values::{
-        LivenessValues, PlaceholderIndex, PlaceholderIndices, RegionValueElements,
-    },
+    region_infer::values::{LivenessValues, PlaceholderIndex, PlaceholderIndices},
     region_infer::TypeTest,
     type_check::free_region_relations::{CreateResult, UniversalRegionRelations},
     universal_regions::{DefiningTy, UniversalRegions},
@@ -133,7 +133,7 @@ pub(crate) fn type_check<'mir, 'tcx>(
     all_facts: &mut Option<AllFacts>,
     flow_inits: &mut ResultsCursor<'mir, 'tcx, MaybeInitializedPlaces<'mir, 'tcx>>,
     move_data: &MoveData<'tcx>,
-    elements: &Rc<RegionValueElements>,
+    elements: &Rc<DenseLocationMap>,
     upvars: &[&ty::CapturedPlace<'tcx>],
     use_polonius: bool,
 ) -> MirTypeckResults<'tcx> {
@@ -406,6 +406,16 @@ impl<'a, 'b, 'tcx> Visitor<'tcx> for TypeVerifier<'a, 'b, 'tcx> {
                     instantiated_predicates,
                     locations,
                 );
+
+                assert!(!matches!(
+                    tcx.impl_of_method(def_id).map(|imp| tcx.def_kind(imp)),
+                    Some(DefKind::Impl { of_trait: true })
+                ));
+                self.cx.prove_predicates(
+                    args.types().map(|ty| ty::ClauseKind::WellFormed(ty.into())),
+                    locations,
+                    ConstraintCategory::Boring,
+                );
             }
         }
     }
@@ -545,7 +555,7 @@ impl<'a, 'b, 'tcx> TypeVerifier<'a, 'b, 'tcx> {
         let all_facts = &mut None;
         let mut constraints = Default::default();
         let mut liveness_constraints =
-            LivenessValues::new(Rc::new(RegionValueElements::new(promoted_body)));
+            LivenessValues::new(Rc::new(DenseLocationMap::new(promoted_body)));
         // Don't try to add borrow_region facts for the promoted MIR
 
         let mut swap_constraints = |this: &mut Self| {
@@ -1359,7 +1369,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
             TerminatorKind::Call { func, args, destination, call_source, target, .. } => {
                 self.check_operand(func, term_location);
                 for arg in args {
-                    self.check_operand(arg, term_location);
+                    self.check_operand(&arg.node, term_location);
                 }
 
                 let func_ty = func.ty(body, tcx);
@@ -1450,13 +1460,13 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                     }
                 }
             }
-            TerminatorKind::Yield { value, .. } => {
+            TerminatorKind::Yield { value, resume_arg, .. } => {
                 self.check_operand(value, term_location);
 
-                let value_ty = value.ty(body, tcx);
                 match body.yield_ty() {
                     None => span_mirbug!(self, term, "yield in non-coroutine"),
                     Some(ty) => {
+                        let value_ty = value.ty(body, tcx);
                         if let Err(terr) = self.sub_types(
                             value_ty,
                             ty,
@@ -1468,6 +1478,28 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                                 term,
                                 "type of yield value is {:?}, but the yield type is {:?}: {:?}",
                                 value_ty,
+                                ty,
+                                terr
+                            );
+                        }
+                    }
+                }
+
+                match body.resume_ty() {
+                    None => span_mirbug!(self, term, "yield in non-coroutine"),
+                    Some(ty) => {
+                        let resume_ty = resume_arg.ty(body, tcx);
+                        if let Err(terr) = self.sub_types(
+                            ty,
+                            resume_ty.ty,
+                            term_location.to_locations(),
+                            ConstraintCategory::Yield,
+                        ) {
+                            span_mirbug!(
+                                self,
+                                term,
+                                "type of resume place is {:?}, but the resume type is {:?}: {:?}",
+                                resume_ty,
                                 ty,
                                 terr
                             );
@@ -1558,7 +1590,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
         term: &Terminator<'tcx>,
         func: &Operand<'tcx>,
         sig: &ty::FnSig<'tcx>,
-        args: &[Operand<'tcx>],
+        args: &[Spanned<Operand<'tcx>>],
         term_location: Location,
         call_source: CallSource,
     ) {
@@ -1571,7 +1603,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
             if self.tcx().is_intrinsic(def_id) {
                 match self.tcx().item_name(def_id) {
                     sym::simd_shuffle => {
-                        if !matches!(args[2], Operand::Constant(_)) {
+                        if !matches!(args[2], Spanned { node: Operand::Constant(_), .. }) {
                             self.tcx()
                                 .dcx()
                                 .emit_err(SimdShuffleLastConst { span: term.source_info.span });
@@ -1584,7 +1616,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
         debug!(?func_ty);
 
         for (n, (fn_arg, op_arg)) in iter::zip(sig.inputs(), args).enumerate() {
-            let op_arg_ty = op_arg.ty(body, self.tcx());
+            let op_arg_ty = op_arg.node.ty(body, self.tcx());
 
             let op_arg_ty = self.normalize(op_arg_ty, term_location);
             let category = if call_source.from_hir_call() {

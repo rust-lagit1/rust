@@ -565,6 +565,8 @@ pub struct ConstBoundTraitObject {
     pub span: Span,
 }
 
+// FIXME(effects): Consider making the note/reason the message of the diagnostic.
+// FIXME(effects): Provide structured suggestions (e.g., add `const` / `#[const_trait]` here).
 #[derive(Diagnostic)]
 #[diag(ast_passes_tilde_const_disallowed)]
 pub struct TildeConstDisallowed {
@@ -595,6 +597,21 @@ pub enum TildeConstReason {
     },
     #[note(ast_passes_impl)]
     Impl {
+        #[primary_span]
+        span: Span,
+    },
+    #[note(ast_passes_trait_assoc_ty)]
+    TraitAssocTy {
+        #[primary_span]
+        span: Span,
+    },
+    #[note(ast_passes_trait_impl_assoc_ty)]
+    TraitImplAssocTy {
+        #[primary_span]
+        span: Span,
+    },
+    #[note(ast_passes_inherent_assoc_ty)]
+    InherentAssocTy {
         #[primary_span]
         span: Span,
     },
@@ -725,8 +742,8 @@ impl AddToDiagnostic for StableFeature {
             rustc_errors::SubdiagnosticMessage,
         ) -> rustc_errors::SubdiagnosticMessage,
     {
-        diag.set_arg("name", self.name);
-        diag.set_arg("since", self.since);
+        diag.arg("name", self.name);
+        diag.arg("since", self.since);
         diag.help(fluent::ast_passes_stable_since);
     }
 }
@@ -759,6 +776,13 @@ pub struct NegativeBoundUnsupported {
 #[derive(Diagnostic)]
 #[diag(ast_passes_constraint_on_negative_bound)]
 pub struct ConstraintOnNegativeBound {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(ast_passes_negative_bound_with_parenthetical_notation)]
+pub struct NegativeBoundWithParentheticalNotation {
     #[primary_span]
     pub span: Span,
 }

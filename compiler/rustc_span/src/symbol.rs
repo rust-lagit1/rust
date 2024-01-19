@@ -4,10 +4,11 @@
 
 use rustc_arena::DroplessArena;
 use rustc_data_structures::fx::FxIndexSet;
-use rustc_data_structures::stable_hasher::{HashStable, StableHasher, ToStableHashKey};
+use rustc_data_structures::stable_hasher::{
+    HashStable, StableCompare, StableHasher, ToStableHashKey,
+};
 use rustc_data_structures::sync::Lock;
 use rustc_macros::HashStable_Generic;
-use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -101,6 +102,7 @@ symbols! {
         Gen:                "gen",
         MacroRules:         "macro_rules",
         Raw:                "raw",
+        Reuse:              "reuse",
         Union:              "union",
         Yeet:               "yeet",
     }
@@ -747,6 +749,7 @@ symbols! {
         extern_in_paths,
         extern_prelude,
         extern_types,
+        external,
         external_doc,
         f,
         f16c_target_feature,
@@ -1809,6 +1812,7 @@ symbols! {
         xmm_reg,
         yeet_desugar_details,
         yeet_expr,
+        yes,
         yield_expr,
         ymm_reg,
         zmm_reg,
@@ -2076,19 +2080,6 @@ impl ToString for Symbol {
     }
 }
 
-impl<S: Encoder> Encodable<S> for Symbol {
-    default fn encode(&self, s: &mut S) {
-        s.emit_str(self.as_str());
-    }
-}
-
-impl<D: Decoder> Decodable<D> for Symbol {
-    #[inline]
-    default fn decode(d: &mut D) -> Symbol {
-        Symbol::intern(d.read_str())
-    }
-}
-
 impl<CTX> HashStable<CTX> for Symbol {
     #[inline]
     fn hash_stable(&self, hcx: &mut CTX, hasher: &mut StableHasher) {
@@ -2101,6 +2092,14 @@ impl<CTX> ToStableHashKey<CTX> for Symbol {
     #[inline]
     fn to_stable_hash_key(&self, _: &CTX) -> String {
         self.as_str().to_string()
+    }
+}
+
+impl StableCompare for Symbol {
+    const CAN_USE_UNSTABLE_SORT: bool = true;
+
+    fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_str().cmp(other.as_str())
     }
 }
 

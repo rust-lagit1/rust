@@ -14,6 +14,8 @@ use crate::{
     ted, NodeOrToken, SmolStr, SyntaxElement, SyntaxToken, TokenText, T,
 };
 
+use super::{RangeItem, RangeOp};
+
 impl ast::Lifetime {
     pub fn text(&self) -> TokenText<'_> {
         text_of_first_token(self.syntax())
@@ -283,23 +285,21 @@ impl ast::Path {
         self.first_qualifier_or_self().segment()
     }
 
-    // FIXME: Check usages of Self::segments, they might be wrong because of the logic of the bloew function
-    pub fn segments_of_this_path_only_rev(&self) -> impl Iterator<Item = ast::PathSegment> + Clone {
-        self.qualifiers_and_self().filter_map(|it| it.segment())
-    }
-
     pub fn segments(&self) -> impl Iterator<Item = ast::PathSegment> + Clone {
-        successors(self.first_segment(), |p| {
-            p.parent_path().parent_path().and_then(|p| p.segment())
+        let path_range = self.syntax().text_range();
+        successors(self.first_segment(), move |p| {
+            p.parent_path().parent_path().and_then(|p| {
+                if path_range.contains_range(p.syntax().text_range()) {
+                    p.segment()
+                } else {
+                    None
+                }
+            })
         })
     }
 
     pub fn qualifiers(&self) -> impl Iterator<Item = ast::Path> + Clone {
         successors(self.qualifier(), |p| p.qualifier())
-    }
-
-    pub fn qualifiers_and_self(&self) -> impl Iterator<Item = ast::Path> + Clone {
-        successors(Some(self.clone()), |p| p.qualifier())
     }
 
     pub fn top_path(&self) -> ast::Path {
@@ -875,8 +875,10 @@ impl ast::Module {
     }
 }
 
-impl ast::RangePat {
-    pub fn start(&self) -> Option<ast::Pat> {
+impl RangeItem for ast::RangePat {
+    type Bound = ast::Pat;
+
+    fn start(&self) -> Option<ast::Pat> {
         self.syntax()
             .children_with_tokens()
             .take_while(|it| !(it.kind() == T![..] || it.kind() == T![..=]))
@@ -884,12 +886,36 @@ impl ast::RangePat {
             .find_map(ast::Pat::cast)
     }
 
-    pub fn end(&self) -> Option<ast::Pat> {
+    fn end(&self) -> Option<ast::Pat> {
         self.syntax()
             .children_with_tokens()
             .skip_while(|it| !(it.kind() == T![..] || it.kind() == T![..=]))
             .filter_map(|it| it.into_node())
             .find_map(ast::Pat::cast)
+    }
+
+    fn op_token(&self) -> Option<SyntaxToken> {
+        self.syntax().children_with_tokens().find_map(|it| {
+            let token = it.into_token()?;
+
+            match token.kind() {
+                T![..] => Some(token),
+                T![..=] => Some(token),
+                _ => None,
+            }
+        })
+    }
+
+    fn op_kind(&self) -> Option<RangeOp> {
+        self.syntax().children_with_tokens().find_map(|it| {
+            let token = it.into_token()?;
+
+            match token.kind() {
+                T![..] => Some(RangeOp::Exclusive),
+                T![..=] => Some(RangeOp::Inclusive),
+                _ => None,
+            }
+        })
     }
 }
 

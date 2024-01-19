@@ -14,17 +14,14 @@ use rustc_data_structures::flock;
 use rustc_data_structures::fx::{FxHashMap, FxIndexSet};
 use rustc_data_structures::jobserver::{self, Client};
 use rustc_data_structures::profiling::{SelfProfiler, SelfProfilerRef};
-use rustc_data_structures::sync::{
-    AtomicU64, DynSend, DynSync, Lock, Lrc, OneThread, Ordering::SeqCst,
-};
-use rustc_errors::annotate_snippet_emitter_writer::AnnotateSnippetEmitterWriter;
-use rustc_errors::emitter::{DynEmitter, EmitterWriter, HumanReadableErrorType};
+use rustc_data_structures::sync::{AtomicU64, DynSend, DynSync, Lock, Lrc, OneThread};
+use rustc_errors::annotate_snippet_emitter_writer::AnnotateSnippetEmitter;
+use rustc_errors::emitter::{DynEmitter, HumanEmitter, HumanReadableErrorType};
 use rustc_errors::json::JsonEmitter;
 use rustc_errors::registry::Registry;
 use rustc_errors::{
-    error_code, fallback_fluent_bundle, DiagCtxt, DiagnosticBuilder, DiagnosticId,
-    DiagnosticMessage, ErrorGuaranteed, FatalAbort, FluentBundle, IntoDiagnostic,
-    LazyFallbackBundle, TerminalUrl,
+    error_code, fallback_fluent_bundle, DiagCtxt, DiagnosticBuilder, DiagnosticMessage,
+    ErrorGuaranteed, FatalAbort, FluentBundle, IntoDiagnostic, LazyFallbackBundle, TerminalUrl,
 };
 use rustc_macros::HashStable_Generic;
 pub use rustc_span::def_id::StableCrateId;
@@ -44,7 +41,7 @@ use std::fmt;
 use std::ops::{Div, Mul};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{atomic::AtomicBool, atomic::Ordering::SeqCst, Arc};
 
 struct OptimizationFuel {
     /// If `-zfuel=crate=n` is specified, initially set to `n`, otherwise `0`.
@@ -265,7 +262,7 @@ impl Session {
         if !unleashed_features.is_empty() {
             let mut must_err = false;
             // Create a diagnostic pointing at where things got unleashed.
-            self.dcx().emit_warning(errors::SkippingConstChecks {
+            self.dcx().emit_warn(errors::SkippingConstChecks {
                 unleashed_features: unleashed_features
                     .iter()
                     .map(|(span, gate)| {
@@ -320,7 +317,7 @@ impl Session {
         if err.code.is_none() {
             err.code(error_code!(E0658));
         }
-        add_feature_diagnostics(&mut err, &self.parse_sess, feature);
+        add_feature_diagnostics(&mut err, self, feature);
         err
     }
 
@@ -343,10 +340,7 @@ impl Session {
         if self.dcx().err_count() == old_count {
             Ok(result)
         } else {
-            Err(self.dcx().span_delayed_bug(
-                rustc_span::DUMMY_SP,
-                "`self.err_count()` changed but an error was not emitted",
-            ))
+            Err(self.dcx().delayed_bug("`self.err_count()` changed but an error was not emitted"))
         }
     }
 
@@ -576,7 +570,7 @@ impl Session {
                         // We only call `msg` in case we can actually emit warnings.
                         // Otherwise, this could cause a `good_path_delayed_bug` to
                         // trigger (issue #79546).
-                        self.dcx().emit_warning(errors::OptimisationFuelExhausted { msg: msg() });
+                        self.dcx().emit_warn(errors::OptimisationFuelExhausted { msg: msg() });
                     }
                     fuel.out_of_fuel = true;
                 } else if fuel.remaining > 0 {
@@ -911,7 +905,7 @@ impl Session {
         CodegenUnits::Default(16)
     }
 
-    pub fn teach(&self, code: &DiagnosticId) -> bool {
+    pub fn teach(&self, code: &str) -> bool {
         self.opts.unstable_opts.teach && self.dcx().must_teach(code)
     }
 
@@ -1000,7 +994,7 @@ fn default_emitter(
             let (short, color_config) = kind.unzip();
 
             if let HumanReadableErrorType::AnnotateSnippet(_) = kind {
-                let emitter = AnnotateSnippetEmitterWriter::new(
+                let emitter = AnnotateSnippetEmitter::new(
                     Some(source_map),
                     bundle,
                     fallback_bundle,
@@ -1009,7 +1003,7 @@ fn default_emitter(
                 );
                 Box::new(emitter.ui_testing(sopts.unstable_opts.ui_testing))
             } else {
-                let emitter = EmitterWriter::stderr(color_config, fallback_bundle)
+                let emitter = HumanEmitter::stderr(color_config, fallback_bundle)
                     .fluent_bundle(bundle)
                     .sm(Some(source_map))
                     .short_message(short)
@@ -1131,7 +1125,7 @@ pub fn build_session(
         match profiler {
             Ok(profiler) => Some(Arc::new(profiler)),
             Err(e) => {
-                dcx.emit_warning(errors::FailedToCreateProfiler { err: e.to_string() });
+                dcx.emit_warn(errors::FailedToCreateProfiler { err: e.to_string() });
                 None
             }
         }
@@ -1343,7 +1337,7 @@ fn validate_commandline_args_with_session_available(sess: &Session) {
 
     if sess.opts.unstable_opts.stack_protector != StackProtector::None {
         if !sess.target.options.supports_stack_protector {
-            sess.dcx().emit_warning(errors::StackProtectorNotSupportedForTarget {
+            sess.dcx().emit_warn(errors::StackProtectorNotSupportedForTarget {
                 stack_protector: sess.opts.unstable_opts.stack_protector,
                 target_triple: &sess.opts.target_triple,
             });
@@ -1449,7 +1443,7 @@ impl EarlyDiagCtxt {
     #[allow(rustc::untranslatable_diagnostic)]
     #[allow(rustc::diagnostic_outside_of_impl)]
     pub fn early_note(&self, msg: impl Into<DiagnosticMessage>) {
-        self.dcx.struct_note(msg).emit()
+        self.dcx.note(msg)
     }
 
     #[allow(rustc::untranslatable_diagnostic)]
@@ -1462,13 +1456,13 @@ impl EarlyDiagCtxt {
     #[allow(rustc::diagnostic_outside_of_impl)]
     #[must_use = "ErrorGuaranteed must be returned from `run_compiler` in order to exit with a non-zero status code"]
     pub fn early_err(&self, msg: impl Into<DiagnosticMessage>) -> ErrorGuaranteed {
-        self.dcx.struct_err(msg).emit()
+        self.dcx.err(msg)
     }
 
     #[allow(rustc::untranslatable_diagnostic)]
     #[allow(rustc::diagnostic_outside_of_impl)]
     pub fn early_fatal(&self, msg: impl Into<DiagnosticMessage>) -> ! {
-        self.dcx.struct_fatal(msg).emit()
+        self.dcx.fatal(msg)
     }
 
     #[allow(rustc::untranslatable_diagnostic)]
@@ -1483,7 +1477,7 @@ impl EarlyDiagCtxt {
     #[allow(rustc::untranslatable_diagnostic)]
     #[allow(rustc::diagnostic_outside_of_impl)]
     pub fn early_warn(&self, msg: impl Into<DiagnosticMessage>) {
-        self.dcx.struct_warn(msg).emit()
+        self.dcx.warn(msg)
     }
 
     pub fn initialize_checked_jobserver(&self) {
@@ -1491,7 +1485,10 @@ impl EarlyDiagCtxt {
         jobserver::initialize_checked(|err| {
             #[allow(rustc::untranslatable_diagnostic)]
             #[allow(rustc::diagnostic_outside_of_impl)]
-            self.dcx.struct_warn(err).note("the build environment is likely misconfigured").emit()
+            self.dcx
+                .struct_warn(err)
+                .with_note("the build environment is likely misconfigured")
+                .emit()
         });
     }
 }
@@ -1504,7 +1501,7 @@ fn mk_emitter(output: ErrorOutputType) -> Box<DynEmitter> {
     let emitter: Box<DynEmitter> = match output {
         config::ErrorOutputType::HumanReadable(kind) => {
             let (short, color_config) = kind.unzip();
-            Box::new(EmitterWriter::stderr(color_config, fallback_bundle).short_message(short))
+            Box::new(HumanEmitter::stderr(color_config, fallback_bundle).short_message(short))
         }
         config::ErrorOutputType::Json { pretty, json_rendered } => Box::new(JsonEmitter::basic(
             pretty,

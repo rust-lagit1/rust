@@ -99,7 +99,10 @@ pub use crate::{
     },
     join_lines::JoinLinesConfig,
     markup::Markup,
-    moniker::{MonikerDescriptorKind, MonikerKind, MonikerResult, PackageInformation},
+    moniker::{
+        MonikerDescriptorKind, MonikerKind, MonikerResult, PackageInformation,
+        SymbolInformationKind,
+    },
     move_item::Direction,
     navigation_target::{NavigationTarget, UpmappingResult},
     prime_caches::ParallelPrimeCachesProgress,
@@ -168,7 +171,7 @@ impl AnalysisHost {
     }
 
     pub fn update_lru_capacity(&mut self, lru_capacity: Option<usize>) {
-        self.db.update_parse_query_lru_capacity(lru_capacity);
+        self.db.update_base_query_lru_capacities(lru_capacity);
     }
 
     pub fn update_lru_capacities(&mut self, lru_capacities: &FxHashMap<Box<str>, usize>) {
@@ -411,11 +414,12 @@ impl Analysis {
     }
 
     /// Fuzzy searches for a symbol.
-    pub fn symbol_search(&self, query: Query) -> Cancellable<Vec<NavigationTarget>> {
+    pub fn symbol_search(&self, query: Query, limit: usize) -> Cancellable<Vec<NavigationTarget>> {
         self.with_db(|db| {
             symbol_index::world_symbols(db, query)
                 .into_iter() // xx: should we make this a par iter?
                 .filter_map(|s| s.try_to_nav(db))
+                .take(limit)
                 .map(UpmappingResult::call_site)
                 .collect::<Vec<_>>()
         })

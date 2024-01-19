@@ -1,7 +1,9 @@
+// ignore-tidy-filelength
+
 use either::Either;
 use rustc_data_structures::captures::Captures;
 use rustc_data_structures::fx::FxIndexSet;
-use rustc_errors::{struct_span_err, Applicability, Diagnostic, DiagnosticBuilder, MultiSpan};
+use rustc_errors::{struct_span_code_err, Applicability, Diagnostic, DiagnosticBuilder, MultiSpan};
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{walk_block, walk_expr, Visitor};
@@ -550,8 +552,12 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
         };
 
         let used = desired_action.as_general_verb_in_past_tense();
-        let mut err =
-            struct_span_err!(self.dcx(), span, E0381, "{used} binding {desc}{isnt_initialized}");
+        let mut err = struct_span_code_err!(
+            self.dcx(),
+            span,
+            E0381,
+            "{used} binding {desc}{isnt_initialized}"
+        );
         use_spans.var_path_only_subdiag(&mut err, desired_action);
 
         if let InitializationRequiringAction::PartialAssignment
@@ -1251,7 +1257,10 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
                     return None;
                 };
                 debug!("checking call args for uses of inner_param: {:?}", args);
-                args.contains(&Operand::Move(inner_param)).then_some((loc, term))
+                args.iter()
+                    .map(|a| &a.node)
+                    .any(|a| a == &Operand::Move(inner_param))
+                    .then_some((loc, term))
             })
         else {
             debug!("no uses of inner_param found as a by-move call arg");
@@ -2218,15 +2227,12 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
             drop_span, borrow_span
         );
 
-        let mut err = self.thread_local_value_does_not_live_long_enough(borrow_span);
-
-        err.span_label(
-            borrow_span,
-            "thread-local variables cannot be borrowed beyond the end of the function",
-        );
-        err.span_label(drop_span, "end of enclosing function is here");
-
-        err
+        self.thread_local_value_does_not_live_long_enough(borrow_span)
+            .with_span_label(
+                borrow_span,
+                "thread-local variables cannot be borrowed beyond the end of the function",
+            )
+            .with_span_label(drop_span, "end of enclosing function is here")
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -3239,7 +3245,8 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
                         assigned_to, args
                     );
                     for operand in args {
-                        let (Operand::Copy(assigned_from) | Operand::Move(assigned_from)) = operand
+                        let (Operand::Copy(assigned_from) | Operand::Move(assigned_from)) =
+                            &operand.node
                         else {
                             continue;
                         };
@@ -3590,7 +3597,7 @@ impl<'b, 'v> Visitor<'v> for ConditionVisitor<'b> {
                                 ));
                             } else if let Some(guard) = &arm.guard {
                                 self.errors.push((
-                                    arm.pat.span.to(guard.body().span),
+                                    arm.pat.span.to(guard.span),
                                     format!(
                                         "if this pattern and condition are matched, {} is not \
                                          initialized",
