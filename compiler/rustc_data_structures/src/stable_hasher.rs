@@ -2,11 +2,11 @@ use crate::sip128::SipHasher128;
 use rustc_index::bit_set::{self, BitSet};
 use rustc_index::{Idx, IndexSlice, IndexVec};
 use smallvec::SmallVec;
-use thin_vec::ThinVec;
 use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem;
+use thin_vec::ThinVec;
 
 #[cfg(test)]
 mod tests;

@@ -327,9 +327,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let (test_value, target) = target_iter.next().unwrap();
             let lltrue = helper.llbb_with_cleanup(self, target);
             let llfalse = helper.llbb_with_cleanup(self, targets.otherwise());
-            let cold_br = targets.cold_target().and_then(|t| {
-                if t == 0 { Some(true) } else { Some(false) }
-            });
+            let cold_br =
+                targets.cold_target().and_then(|t| if t == 0 { Some(true) } else { Some(false) });
 
             if switch_ty == bx.tcx().types.bool {
                 // Don't generate trivial icmps when switching on bool.
@@ -337,10 +336,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     0 => {
                         let cold_br = cold_br.and_then(|t| Some(!t));
                         bx.cond_br_with_cold_br(discr.immediate(), llfalse, lltrue, cold_br);
-                    },
-                    1 => {
-                        bx.cond_br_with_cold_br(discr.immediate(), lltrue, llfalse, cold_br)
-                    },
+                    }
+                    1 => bx.cond_br_with_cold_br(discr.immediate(), lltrue, llfalse, cold_br),
                     _ => bug!(),
                 }
             } else {

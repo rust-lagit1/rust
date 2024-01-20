@@ -61,12 +61,9 @@ impl SwitchTargets {
         }
     }
 
+    // If this switch has exactly one target, returns it.
     pub fn cold_target(&self) -> Option<usize> {
-        if self.cold_targets.len() == 1 {
-            Some(self.cold_targets[0])
-        } else {
-            None
-        }
+        if self.cold_targets.len() == 1 { Some(self.cold_targets[0]) } else { None }
     }
 
     /// Returns the fallback target that is jumped to when none of the values match the operand.
@@ -402,13 +399,15 @@ impl<'tcx> TerminatorKind<'tcx> {
         t: BasicBlock,
         f: BasicBlock,
         cold_branch: Option<bool>,
-     ) -> TerminatorKind<'tcx> {
+    ) -> TerminatorKind<'tcx> {
         TerminatorKind::SwitchInt {
             discr: cond,
             targets: SwitchTargets::static_if_with_cold_br(
-                0, f, t,
+                0,
+                f,
+                t,
                 // we compare to zero, so have to invert the branch
-                cold_branch.and_then(|b| Some(!b))
+                cold_branch.and_then(|b| Some(!b)),
             ),
         }
     }

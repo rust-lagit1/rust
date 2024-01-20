@@ -63,7 +63,10 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     break_scope,
                     variable_source_info,
                     declare_bindings,
-                    match cold_branch { Some(false) => Some(false), _ => None },
+                    match cold_branch {
+                        Some(false) => Some(false),
+                        _ => None,
+                    },
                 ));
 
                 let rhs_then_block = unpack!(this.then_else_break(
@@ -89,7 +92,10 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             local_scope,
                             variable_source_info,
                             true,
-                            match cold_branch { Some(true) => Some(true), _ => None },
+                            match cold_branch {
+                                Some(true) => Some(true),
+                                _ => None,
+                            },
                         )
                     });
                 let rhs_success_block = unpack!(this.then_else_break(
@@ -167,12 +173,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
                 let then_block = this.cfg.start_new_block();
                 let else_block = this.cfg.start_new_block();
-                let term = TerminatorKind::if_with_cold_br(
-                    operand,
-                    then_block,
-                    else_block,
-                    cold_branch
-                );
+                let term =
+                    TerminatorKind::if_with_cold_br(operand, then_block, else_block, cold_branch);
 
                 let source_info = this.source_info(expr_span);
                 this.cfg.terminate(block, source_info, term);
@@ -307,8 +309,13 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 let arm = &self.thir[arm];
                 let arm_has_guard = arm.guard.is_some();
                 let arm_is_cold = arm.is_cold;
-                let arm_candidate =
-                    Candidate::new(scrutinee.clone(), &arm.pattern, arm_has_guard, arm_is_cold, self);
+                let arm_candidate = Candidate::new(
+                    scrutinee.clone(),
+                    &arm.pattern,
+                    arm_has_guard,
+                    arm_is_cold,
+                    self,
+                );
                 (arm, arm_candidate)
             })
             .collect()
@@ -667,7 +674,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         initializer: PlaceBuilder<'tcx>,
         set_match_place: bool,
     ) -> BlockAnd<()> {
-        let mut candidate = Candidate::new(initializer.clone(), irrefutable_pat, false, false, self);
+        let mut candidate =
+            Candidate::new(initializer.clone(), irrefutable_pat, false, false, self);
         let fake_borrow_temps = self.lower_match_tree(
             block,
             irrefutable_pat.span,
@@ -1520,7 +1528,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         debug!("candidate={:#?}\npats={:#?}", candidate, pats);
         let mut or_candidates: Vec<_> = pats
             .iter()
-            .map(|pat| Candidate::new(place.clone(), pat, candidate.has_guard, candidate.is_cold, self))
+            .map(|pat| {
+                Candidate::new(place.clone(), pat, candidate.has_guard, candidate.is_cold, self)
+            })
             .collect();
         let mut or_candidate_refs: Vec<_> = or_candidates.iter_mut().collect();
         let otherwise = if candidate.otherwise_block.is_some() {
@@ -1771,10 +1781,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         // Find cold targets.
         let mut cold_targets: ThinVec<usize> = ThinVec::new();
 
-        let is_otherwise_target_cold =
-            candidates.len() > 0 &&
-            candidates.iter().all(|c| c.is_cold);// && c.match_pairs.is_empty());
-        if  is_otherwise_target_cold {
+        let is_otherwise_target_cold = candidates.len() > 0 && candidates.iter().all(|c| c.is_cold);
+        if is_otherwise_target_cold {
             cold_targets.push(target_candidates.len());
         }
 
@@ -1849,7 +1857,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             &match_place,
             &test,
             target_blocks,
-            cold_targets
+            cold_targets,
         );
     }
 
@@ -1948,7 +1956,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         let expr_span = self.thir[expr_id].span;
         let expr_place_builder = unpack!(block = self.lower_scrutinee(block, expr_id, expr_span));
         let wildcard = Pat::wildcard_from_ty(pat.ty);
-        let mut guard_candidate = Candidate::new(expr_place_builder.clone(), pat, false, false, self);
+        let mut guard_candidate =
+            Candidate::new(expr_place_builder.clone(), pat, false, false, self);
         let mut otherwise_candidate =
             Candidate::new(expr_place_builder.clone(), &wildcard, false, false, self);
         let fake_borrow_temps = self.lower_match_tree(

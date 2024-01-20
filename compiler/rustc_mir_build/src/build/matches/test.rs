@@ -219,7 +219,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         None
                     } else {
                         for i in cold_targets.iter() {
-                            if *i < 2 { cold_br[*i] = true; }
+                            if *i < 2 {
+                                cold_br[*i] = true;
+                            }
                         }
                         if cold_br[0] != cold_br[1] { Some(cold_br[0]) } else { None }
                     };
@@ -231,7 +233,12 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         0 => (second_bb, first_bb, cold_br.and_then(|x| Some(!x))),
                         v => span_bug!(test.span, "expected boolean value but got {:?}", v),
                     };
-                    TerminatorKind::if_with_cold_br(Operand::Copy(place), true_bb, false_bb, cold_br)
+                    TerminatorKind::if_with_cold_br(
+                        Operand::Copy(place),
+                        true_bb,
+                        false_bb,
+                        cold_br,
+                    )
                 } else {
                     // The switch may be inexhaustive so we have a catch all block
                     debug_assert_eq!(options.len() + 1, target_blocks.len());
