@@ -748,7 +748,12 @@ impl<'a, 'tcx> Visitor<'tcx> for TypeChecker<'a, 'tcx> {
                     format!("invalid empty projection in debuginfo for {:?}", debuginfo.name),
                 );
             }
-            if projection.iter().any(|p| !matches!(p, PlaceElem::Field(..))) {
+            if !projection.iter().all(|p| {
+                matches!(
+                    p,
+                    PlaceElem::Field(..) | PlaceElem::Deref | PlaceElem::ConstantIndex { .. }
+                )
+            }) {
                 self.fail(
                     START_BLOCK.start_location(),
                     format!(

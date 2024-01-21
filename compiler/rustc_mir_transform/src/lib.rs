@@ -61,7 +61,6 @@ mod remove_place_mention;
 mod add_subtyping_projections;
 pub mod cleanup_post_borrowck;
 mod const_debuginfo;
-mod const_goto;
 mod const_prop;
 mod const_prop_lint;
 mod copy_prop;
@@ -94,7 +93,6 @@ mod lower_slice_len;
 mod match_branches;
 mod multiple_return_terminators;
 mod normalize_array_len;
-mod nrvo;
 mod prettify;
 mod promote_consts;
 mod ref_prop;
@@ -105,7 +103,6 @@ mod remove_unneeded_drops;
 mod remove_zsts;
 mod required_consts;
 mod reveal_all;
-mod separate_const_switch;
 mod shim;
 mod ssa;
 // This pass is public to allow external drivers to perform MIR cleanup
@@ -569,7 +566,7 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &check_alignment::CheckAlignment,
             // Before inlining: trim down MIR with passes to reduce inlining work.
 
-            // Has to be done before inlining, otherwise actual call will be almost always inlined.
+            // has to be done before inlining, otherwise actual call will be almost always inlined.
             // Also simple, so can just do first
             &lower_slice_len::LowerSliceLenCalls,
             // Perform inlining, which may add a lot of code.
@@ -586,36 +583,52 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             // Inlining may have introduced a lot of redundant code and a large move pattern.
             // Now, we need to shrink the generated MIR.
 
-            // Has to run after `slice::len` lowering
-            &normalize_array_len::NormalizeArrayLen,
-            &const_goto::ConstGoto,
+            // Replace deref of borrow with direct uses.
             &ref_prop::ReferencePropagation,
-            &sroa::ScalarReplacementOfAggregates,
+            // Remove dead stores to help SSA-based analyses.
+            &dead_store_elimination::DeadStoreElimination::Initial,
+            // Deduplicate computations.
+            &gvn::GVN::Initial,
+            // GVN may have moved constant assignments in terminators.
+            &simplify_branches::SimplifyConstCondition::AfterGVN,
+            // Use const-prop results in debuginfo, to remove some locals' uses.
+            &const_debuginfo::ConstDebugInfo,
+            // Replace `if x == constant { true/false } else { false/true }` by `Eq/Ne(x, constant)`.
             &match_branches::MatchBranchSimplification,
             // inst combine is after MatchBranchSimplification to clean up Ne(_1, false)
-            &multiple_return_terminators::MultipleReturnTerminators,
             &instsimplify::InstSimplify,
+            &o1(simplify::SimplifyCfg::AfterGVN),
+            // Turn non-aliasing places into locals.
+            // Helps `DeadStoreElimination` to remove them and `CopyProp` to merge them.
+            &simplify::SimplifyLocals::BeforeSROA,
+            &sroa::ScalarReplacementOfAggregates,
+            // Compute `Len` when it comes from an unsizing cast.
+            &normalize_array_len::NormalizeArrayLen,
+            // Perform a first round of constant propagation.
             &simplify::SimplifyLocals::BeforeConstProp,
-            &dead_store_elimination::DeadStoreElimination::Initial,
-            &gvn::GVN,
-            &simplify::SimplifyLocals::AfterGVN,
-            // Perform `SeparateConstSwitch` after SSA-based analyses, as cloning blocks may
-            // destroy the SSA property. It should still happen before const-propagation, so the
-            // latter pass will leverage the created opportunities.
-            &separate_const_switch::SeparateConstSwitch,
-            &dataflow_const_prop::DataflowConstProp,
-            &const_debuginfo::ConstDebugInfo,
-            &o1(simplify_branches::SimplifyConstCondition::AfterConstProp),
-            &jump_threading::JumpThreading,
-            &early_otherwise_branch::EarlyOtherwiseBranch,
+            // Turn `SwitchInt(Eq(x, constant))` into `SwitchInt(x)`.
+            // Runs after ConstProp to increase probability to have constants.
             &simplify_comparison_integral::SimplifyComparisonIntegral,
-            &dest_prop::DestinationPropagation,
-            &o1(simplify_branches::SimplifyConstCondition::Final),
+            &o1(simplify::SimplifyCfg::AfterConstProp),
+            &early_otherwise_branch::EarlyOtherwiseBranch,
+            // Merge locals that just copy each another.
+            &copy_prop::CopyProp,
+            // Thread jumps when possible. Note that no SSA-based pass should happen
+            // post-jump-threading, as this pass clones blocks and demotes SSA locals.
+            &jump_threading::JumpThreading,
+            &dataflow_const_prop::DataflowConstProp,
+            &simplify_branches::SimplifyConstCondition::Final,
+            // Jump threading may have created dead stores, notably enums which discriminant we
+            // don't read any more. Remove them.
+            &dead_store_elimination::DeadStoreElimination::AfterJumpThreading,
+            // Jump threading may have created wrap-upwrap sequences in enums. Remove those.
+            &gvn::GVN::Final,
             &o1(remove_noop_landing_pads::RemoveNoopLandingPads),
             &o1(simplify::SimplifyCfg::Final),
-            &copy_prop::CopyProp,
+            &simplify::SimplifyLocals::BeforeDestProp,
+            &dest_prop::DestinationPropagation,
+            // Attempt to promote call operands from copies to moves.
             &dead_store_elimination::DeadStoreElimination::Final,
-            &nrvo::RenameReturnPlace,
             &simplify::SimplifyLocals::Final,
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
