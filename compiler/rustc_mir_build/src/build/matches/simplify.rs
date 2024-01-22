@@ -127,7 +127,13 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
     ) -> Vec<Candidate<'pat, 'tcx>> {
         pats.iter()
             .map(|box pat| {
-                let mut candidate = Candidate::new(place.clone(), pat, candidate.has_guard, self);
+                let mut candidate = Candidate::new(
+                    place.clone(),
+                    pat,
+                    candidate.has_guard,
+                    candidate.is_cold,
+                    self,
+                );
                 self.simplify_candidate(&mut candidate);
                 candidate
             })

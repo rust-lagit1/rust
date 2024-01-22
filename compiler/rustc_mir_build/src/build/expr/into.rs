@@ -85,6 +85,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                                         condition_scope,
                                         source_info,
                                         true,
+                                        None,
                                     ));
 
                                     this.expr_into_dest(destination, then_blk, then)
@@ -176,6 +177,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             condition_scope,
                             source_info,
                             true,
+                            None,
                         )
                     });
                 let (short_circuit, continuation, constant) = match op {

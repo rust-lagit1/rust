@@ -4210,6 +4210,7 @@ dependencies = [
  "rustc_target",
  "rustc_trait_selection",
  "smallvec",
+ "thin-vec",
  "tracing",
 ]
 

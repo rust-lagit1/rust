@@ -6,6 +6,7 @@ use std::fmt;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem;
+use thin_vec::ThinVec;
 
 #[cfg(test)]
 mod tests;
@@ -492,6 +493,16 @@ where
 impl<A, const N: usize, CTX> HashStable<CTX> for SmallVec<[A; N]>
 where
     A: HashStable<CTX>,
+{
+    #[inline]
+    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
+        self[..].hash_stable(ctx, hasher);
+    }
+}
+
+impl<T, CTX> HashStable<CTX> for ThinVec<T>
+where
+    T: HashStable<CTX>,
 {
     #[inline]
     fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
