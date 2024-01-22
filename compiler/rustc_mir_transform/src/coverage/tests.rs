@@ -153,7 +153,7 @@ impl<'tcx> MockBlocks<'tcx> {
     fn switchint(&mut self, some_from_block: Option<BasicBlock>) -> BasicBlock {
         let switchint_kind = TerminatorKind::SwitchInt {
             discr: Operand::Move(Place::from(self.new_temp())),
-            targets: SwitchTargets::static_if(0, TEMP_BLOCK, TEMP_BLOCK),
+            targets: SwitchTargets::static_if(0, TEMP_BLOCK, TEMP_BLOCK, None),
         };
         self.add_block_from(some_from_block, switchint_kind)
     }

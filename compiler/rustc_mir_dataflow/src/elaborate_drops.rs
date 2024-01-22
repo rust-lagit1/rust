@@ -733,7 +733,7 @@ where
             is_cleanup: unwind.is_cleanup(),
             terminator: Some(Terminator {
                 source_info: self.source_info,
-                kind: TerminatorKind::if_(move_(can_go), succ, drop_block),
+                kind: TerminatorKind::if_(move_(can_go), succ, drop_block, None),
             }),
         };
         let loop_block = self.elaborator.patch().new_block(loop_block);
@@ -954,7 +954,7 @@ where
             DropStyle::Static => on_set,
             DropStyle::Conditional | DropStyle::Open => {
                 let flag = self.elaborator.get_drop_flag(self.path).unwrap();
-                let term = TerminatorKind::if_(flag, on_set, on_unset);
+                let term = TerminatorKind::if_(flag, on_set, on_unset, None);
                 self.new_block(unwind, term)
             }
         }

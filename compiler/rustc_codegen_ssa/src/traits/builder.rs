@@ -63,12 +63,6 @@ pub trait BuilderMethods<'a, 'tcx>:
         cond: Self::Value,
         then_llbb: Self::BasicBlock,
         else_llbb: Self::BasicBlock,
-    );
-    fn cond_br_with_cold_br(
-        &mut self,
-        cond: Self::Value,
-        then_llbb: Self::BasicBlock,
-        else_llbb: Self::BasicBlock,
         cold_br: Option<bool>,
     );
     fn switch(

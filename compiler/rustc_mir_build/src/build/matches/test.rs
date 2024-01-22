@@ -233,12 +233,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         0 => (second_bb, first_bb, cold_br.and_then(|x| Some(!x))),
                         v => span_bug!(test.span, "expected boolean value but got {:?}", v),
                     };
-                    TerminatorKind::if_with_cold_br(
-                        Operand::Copy(place),
-                        true_bb,
-                        false_bb,
-                        cold_br,
-                    )
+                    TerminatorKind::if_(Operand::Copy(place), true_bb, false_bb, cold_br)
                 } else {
                     // The switch may be inexhaustive so we have a catch all block
                     debug_assert_eq!(options.len() + 1, target_blocks.len());
@@ -419,7 +414,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         self.cfg.terminate(
             block,
             source_info,
-            TerminatorKind::if_(Operand::Move(result), success_block, fail_block),
+            TerminatorKind::if_(Operand::Move(result), success_block, fail_block, None),
         );
     }
 
@@ -562,7 +557,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         self.cfg.terminate(
             eq_block,
             source_info,
-            TerminatorKind::if_(Operand::Move(eq_result), success_block, fail_block),
+            TerminatorKind::if_(Operand::Move(eq_result), success_block, fail_block, None),
         );
     }
 

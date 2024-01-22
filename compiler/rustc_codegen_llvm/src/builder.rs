@@ -191,17 +191,6 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         cond: &'ll Value,
         then_llbb: &'ll BasicBlock,
         else_llbb: &'ll BasicBlock,
-    ) {
-        unsafe {
-            llvm::LLVMBuildCondBr(self.llbuilder, cond, then_llbb, else_llbb);
-        }
-    }
-
-    fn cond_br_with_cold_br(
-        &mut self,
-        cond: &'ll Value,
-        then_llbb: Self::BasicBlock,
-        else_llbb: Self::BasicBlock,
         cold_br: Option<bool>,
     ) {
         // emit the branch instruction
@@ -637,7 +626,7 @@ impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         let i = header_bx.phi(self.val_ty(zero), &[zero], &[self.llbb()]);
 
         let keep_going = header_bx.icmp(IntPredicate::IntULT, i, count);
-        header_bx.cond_br(keep_going, body_bb, next_bb);
+        header_bx.cond_br(keep_going, body_bb, next_bb, None);
 
         let mut body_bx = Self::build(self.cx, body_bb);
         let dest_elem = dest.project_index(&mut body_bx, i);
@@ -1588,7 +1577,7 @@ impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
             let cond = self.type_test(llfn, typeid_metadata);
             let bb_pass = self.append_sibling_block("type_test.pass");
             let bb_fail = self.append_sibling_block("type_test.fail");
-            self.cond_br(cond, bb_pass, bb_fail);
+            self.cond_br(cond, bb_pass, bb_fail, None);
 
             self.switch_to_block(bb_fail);
             self.abort();

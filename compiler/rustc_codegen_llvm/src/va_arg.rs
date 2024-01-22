@@ -119,7 +119,7 @@ fn emit_aapcs_va_arg<'ll, 'tcx>(
     // if the offset >= 0 then the value will be on the stack
     let mut reg_off_v = bx.load(bx.type_i32(), reg_off, offset_align);
     let use_stack = bx.icmp(IntPredicate::IntSGE, reg_off_v, zero);
-    bx.cond_br(use_stack, on_stack, maybe_reg);
+    bx.cond_br(use_stack, on_stack, maybe_reg, None);
 
     // The value at this point might be in a register, but there is a chance that
     // it could be on the stack so we have to update the offset and then check
@@ -137,7 +137,7 @@ fn emit_aapcs_va_arg<'ll, 'tcx>(
     // Check to see if we have overflowed the registers as a result of this.
     // If we have then we need to use the stack for this value
     let use_stack = bx.icmp(IntPredicate::IntSGT, new_reg_off_v, zero);
-    bx.cond_br(use_stack, on_stack, in_reg);
+    bx.cond_br(use_stack, on_stack, in_reg, None);
 
     bx.switch_to_block(in_reg);
     let top_type = bx.type_ptr();
@@ -203,7 +203,7 @@ fn emit_s390x_va_arg<'ll, 'tcx>(
     );
     let reg_count_v = bx.load(bx.type_i64(), reg_count, Align::from_bytes(8).unwrap());
     let use_regs = bx.icmp(IntPredicate::IntULT, reg_count_v, bx.const_u64(max_regs));
-    bx.cond_br(use_regs, in_reg, in_mem);
+    bx.cond_br(use_regs, in_reg, in_mem, None);
 
     // Emit code to load the value if it was passed in a register.
     bx.switch_to_block(in_reg);

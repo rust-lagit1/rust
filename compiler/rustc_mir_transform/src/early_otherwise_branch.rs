@@ -191,7 +191,7 @@ impl<'tcx> MirPass<'tcx> for EarlyOtherwiseBranch {
             let false_case = eq_bb;
             patch.patch_terminator(
                 parent,
-                TerminatorKind::if_(Operand::Move(Place::from(comp_temp)), true_case, false_case),
+                TerminatorKind::if_(Operand::Move(Place::from(comp_temp)), true_case, false_case, None),
             );
 
             // generate StorageDead for the second_discriminant_temp not in use anymore

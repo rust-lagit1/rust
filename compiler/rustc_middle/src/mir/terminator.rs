@@ -22,18 +22,8 @@ impl SwitchTargets {
 
     /// Builds a switch targets definition that jumps to `then` if the tested value equals `value`,
     /// and to `else_` if not.
-    pub fn static_if(value: u128, then: BasicBlock, else_: BasicBlock) -> Self {
-        Self {
-            values: smallvec![value],
-            targets: smallvec![then, else_],
-            cold_targets: ThinVec::new(),
-        }
-    }
-
-    /// Builds a switch targets definition that jumps to `then` if the tested value equals `value`,
-    /// and to `else_` if not.
     /// If cold_br is some bool value, the given outcome is considered cold (i.e., unlikely).
-    pub fn static_if_with_cold_br(
+    pub fn static_if(
         value: u128,
         then: BasicBlock,
         else_: BasicBlock,
@@ -61,7 +51,7 @@ impl SwitchTargets {
         }
     }
 
-    // If this switch has exactly one target, returns it.
+    // If this switch has exactly one cold target, returns it.
     pub fn cold_target(&self) -> Option<usize> {
         if self.cold_targets.len() == 1 { Some(self.cold_targets[0]) } else { None }
     }
@@ -390,11 +380,7 @@ impl<'tcx> Terminator<'tcx> {
 
 impl<'tcx> TerminatorKind<'tcx> {
     #[inline]
-    pub fn if_(cond: Operand<'tcx>, t: BasicBlock, f: BasicBlock) -> TerminatorKind<'tcx> {
-        TerminatorKind::SwitchInt { discr: cond, targets: SwitchTargets::static_if(0, f, t) }
-    }
-
-    pub fn if_with_cold_br(
+    pub fn if_(
         cond: Operand<'tcx>,
         t: BasicBlock,
         f: BasicBlock,
@@ -402,7 +388,7 @@ impl<'tcx> TerminatorKind<'tcx> {
     ) -> TerminatorKind<'tcx> {
         TerminatorKind::SwitchInt {
             discr: cond,
-            targets: SwitchTargets::static_if_with_cold_br(
+            targets: SwitchTargets::static_if(
                 0,
                 f,
                 t,

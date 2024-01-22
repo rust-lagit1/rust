@@ -335,16 +335,16 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 match test_value {
                     0 => {
                         let cold_br = cold_br.and_then(|t| Some(!t));
-                        bx.cond_br_with_cold_br(discr.immediate(), llfalse, lltrue, cold_br);
+                        bx.cond_br(discr.immediate(), llfalse, lltrue, cold_br);
                     }
-                    1 => bx.cond_br_with_cold_br(discr.immediate(), lltrue, llfalse, cold_br),
+                    1 => bx.cond_br(discr.immediate(), lltrue, llfalse, cold_br),
                     _ => bug!(),
                 }
             } else {
                 let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
                 let llval = bx.const_uint_big(switch_llty, test_value);
                 let cmp = bx.icmp(IntPredicate::IntEQ, discr.immediate(), llval);
-                bx.cond_br_with_cold_br(cmp, lltrue, llfalse, cold_br);
+                bx.cond_br(cmp, lltrue, llfalse, cold_br);
             }
         } else if self.cx.sess().opts.optimize == OptLevel::No
             && target_iter.len() == 2
@@ -369,7 +369,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
             let llval = bx.const_uint_big(switch_llty, test_value1);
             let cmp = bx.icmp(IntPredicate::IntEQ, discr.immediate(), llval);
-            bx.cond_br(cmp, ll1, ll2);
+            bx.cond_br(cmp, ll1, ll2, None);
         } else {
             bx.switch(
                 discr.immediate(),
@@ -601,9 +601,9 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let lltarget = helper.llbb_with_cleanup(self, target);
         let panic_block = bx.append_sibling_block("panic");
         if expected {
-            bx.cond_br(cond, lltarget, panic_block);
+            bx.cond_br(cond, lltarget, panic_block, None);
         } else {
-            bx.cond_br(cond, panic_block, lltarget);
+            bx.cond_br(cond, panic_block, lltarget, None);
         }
 
         // After this point, bx is the block for the call to panic.
