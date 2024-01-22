@@ -173,8 +173,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
                 let then_block = this.cfg.start_new_block();
                 let else_block = this.cfg.start_new_block();
-                let term =
-                    TerminatorKind::if_(operand, then_block, else_block, cold_branch);
+                let term = TerminatorKind::if_(operand, then_block, else_block, cold_branch);
 
                 let source_info = this.source_info(expr_span);
                 this.cfg.terminate(block, source_info, term);
