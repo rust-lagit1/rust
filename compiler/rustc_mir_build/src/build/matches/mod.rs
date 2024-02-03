@@ -62,7 +62,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 //     likely(lhs && rhs) => likely(lhs) && likely(rhs)
                 //     unlikely(lhs && rhs) => lhs && unlikely(rhs)
                 // Note that the `unlikely` propagation may be incorrect. With the information
-                // available, we can't tell which of the operands in unlikely.
+                // available, we can't tell which of the operands is unlikely.
 
                 let lhs_then_block = unpack!(this.then_else_break(
                     block,
@@ -96,7 +96,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 //     likely(lhs || rhs) => lhs || likely(rhs)
                 //     unlikely(lhs || rhs) => unlikely(lhs) && unlikely(rhs)
                 // Note that the `likely` propagation may be incorrect. With the information
-                // available, we can't tell which of the operands in likely.
+                // available, we can't tell which of the operands is likely.
 
                 let local_scope = this.local_scope();
                 let (lhs_success_block, failure_block) =
