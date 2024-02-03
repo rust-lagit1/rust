@@ -56,6 +56,14 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
         match expr.kind {
             ExprKind::LogicalOp { op: LogicalOp::And, lhs, rhs } => {
+                // cold_branch == true is equivalent to unlikely(lhs && rhs)
+                // cold_branch == false is equivalent to likely(lhs && rhs)
+                // We propagate the expectation to the lhs and rhs operands as follows:
+                //     likely(lhs && rhs) => likely(lhs) && likely(rhs)
+                //     unlikely(lhs && rhs) => lhs && unlikely(rhs)
+                // Note that the `unlikely` propagation may be incorrect. With the information
+                // available, we can't tell which of the operands in unlikely.
+
                 let lhs_then_block = unpack!(this.then_else_break(
                     block,
                     lhs,
@@ -64,8 +72,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     variable_source_info,
                     declare_bindings,
                     match cold_branch {
-                        Some(false) => Some(false),
-                        _ => None,
+                        Some(false) => Some(false), // propagate likely
+                        _ => None,                  // but not unlikely
                     },
                 ));
 
@@ -76,12 +84,20 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     break_scope,
                     variable_source_info,
                     declare_bindings,
-                    cold_branch,
+                    cold_branch, // propagate both likely and unlikely
                 ));
 
                 rhs_then_block.unit()
             }
             ExprKind::LogicalOp { op: LogicalOp::Or, lhs, rhs } => {
+                // cold_branch == true is equivalent to unlikely(lhs || rhs)
+                // cold_branch == false is equivalent to likely(lhs || rhs)
+                // We propagate the expectation to the lhs and rhs operands as follows:
+                //     likely(lhs || rhs) => lhs || likely(rhs)
+                //     unlikely(lhs || rhs) => unlikely(lhs) && unlikely(rhs)
+                // Note that the `likely` propagation may be incorrect. With the information
+                // available, we can't tell which of the operands in likely.
+
                 let local_scope = this.local_scope();
                 let (lhs_success_block, failure_block) =
                     this.in_if_then_scope(local_scope, expr_span, |this| {
@@ -93,8 +109,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             variable_source_info,
                             true,
                             match cold_branch {
-                                Some(true) => Some(true),
-                                _ => None,
+                                Some(true) => Some(true), // propagate unlikely
+                                _ => None,                // but not likely
                             },
                         )
                     });
@@ -105,7 +121,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     break_scope,
                     variable_source_info,
                     true,
-                    cold_branch,
+                    cold_branch, // propagate both likely and unlikely
                 ));
                 this.cfg.goto(lhs_success_block, variable_source_info, rhs_success_block);
                 rhs_success_block.unit()
@@ -126,7 +142,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             local_scope,
                             variable_source_info,
                             true,
-                            cold_branch.and_then(|b| Some(!b)),
+                            cold_branch.and_then(|b| Some(!b)), // propagate the opposite of likely/unlikely
                         )
                     });
                 this.break_for_else(success_block, break_scope, variable_source_info);
