@@ -316,6 +316,9 @@ lint_invalid_nan_comparisons_eq_ne = incorrect NaN comparison, NaN cannot be dir
 
 lint_invalid_nan_comparisons_lt_le_gt_ge = incorrect NaN comparison, NaN is not orderable
 
+lint_invalid_null_ptr_usages = calling this function with a null pointer is undefined behavior, even if the result of the function is unused, consider using a dangling pointer instead
+    .suggestion = use a dangling pointer instead
+
 lint_invalid_reference_casting_assign_to_ref = assigning to `&T` is undefined behavior, consider using an `UnsafeCell`
     .label = casting happend here
 
@@ -459,15 +462,6 @@ lint_path_statement_drop = path statement drops value
 
 lint_path_statement_no_effect = path statement with no effect
 
-lint_ptr_null_checks_fn_ptr = function pointers are not nullable, so checking them for null will always return false
-    .help = wrap the function pointer inside an `Option` and use `Option::is_none` to check for null pointer value
-    .label = expression has type `{$orig_ty}`
-
-lint_ptr_null_checks_fn_ret = returned pointer of `{$fn_name}` call is never null, so checking it for null will always return false
-
-lint_ptr_null_checks_ref = references are not nullable, so checking them for null will always return false
-    .label = expression has type `{$orig_ty}`
-
 lint_query_instability = using `{$query}` can result in unstable query results
     .note = if you believe this case to be fine, allow this lint and add a comment explaining your rationale
 
@@ -586,6 +580,15 @@ lint_unused_op = unused {$op} that must be used
     .suggestion = use `let _ = ...` to ignore the resulting value
 
 lint_unused_result = unused result of type `{$ty}`
+
+lint_useless_ptr_null_checks_fn_ptr = function pointers are not nullable, so checking them for null will always return false
+    .help = wrap the function pointer inside an `Option` and use `Option::is_none` to check for null pointer value
+    .label = expression has type `{$orig_ty}`
+
+lint_useless_ptr_null_checks_fn_ret = returned pointer of `{$fn_name}` call is never null, so checking it for null will always return false
+
+lint_useless_ptr_null_checks_ref = references are not nullable, so checking them for null will always return false
+    .label = expression has type `{$orig_ty}`
 
 lint_variant_size_differences =
     enum variant is more than three times larger ({$largest} bytes) than the next largest

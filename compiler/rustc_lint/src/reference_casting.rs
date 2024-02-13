@@ -151,7 +151,10 @@ fn is_cast_from_ref_to_mut_ptr<'tcx>(
     }
 }
 
-fn peel_casts<'tcx>(cx: &LateContext<'tcx>, mut e: &'tcx Expr<'tcx>) -> (&'tcx Expr<'tcx>, bool) {
+pub(super) fn peel_casts<'tcx>(
+    cx: &LateContext<'tcx>,
+    mut e: &'tcx Expr<'tcx>,
+) -> (&'tcx Expr<'tcx>, bool) {
     let mut gone_trough_unsafe_cell_raw_get = false;
 
     loop {

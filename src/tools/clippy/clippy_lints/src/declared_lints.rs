@@ -582,7 +582,6 @@ pub(crate) static LINTS: &[&crate::LintInfo] = &[
     crate::permissions_set_readonly_false::PERMISSIONS_SET_READONLY_FALSE_INFO,
     crate::precedence::PRECEDENCE_INFO,
     crate::ptr::CMP_NULL_INFO,
-    crate::ptr::INVALID_NULL_PTR_USAGE_INFO,
     crate::ptr::MUT_FROM_REF_INFO,
     crate::ptr::PTR_ARG_INFO,
     crate::ptr_offset_with_cast::PTR_OFFSET_WITH_CAST_INFO,

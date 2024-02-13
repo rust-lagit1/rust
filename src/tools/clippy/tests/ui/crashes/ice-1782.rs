@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code, unused_variables, invalid_null_ptr_usages)]
 #![allow(clippy::unnecessary_cast)]
 
 /// Should not trigger an ICE in `SpanlessEq` / `consts::constant`

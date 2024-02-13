@@ -2,10 +2,10 @@
 // normalize-stderr-test "(the raw bytes of the constant) \(size: [0-9]*, align: [0-9]*\)" -> "$1 (size: $$SIZE, align: $$ALIGN)"
 // normalize-stderr-test "([0-9a-f][0-9a-f] |╾─*A(LLOC)?[0-9]+(\+[a-z0-9]+)?(<imm>)?─*╼ )+ *│.*" -> "HEX_DUMP"
 
-#![feature(
-    slice_from_ptr_range,
-    const_slice_from_ptr_range,
-)]
+#![feature(slice_from_ptr_range, const_slice_from_ptr_range)]
+#![allow(invalid_null_ptr_usages)]
+
+
 use std::{
     mem::{size_of, MaybeUninit},
     ptr,
