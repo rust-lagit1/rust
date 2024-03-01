@@ -96,7 +96,7 @@ use rustc_codegen_ssa::base::codegen_crate;
 use rustc_codegen_ssa::back::write::{CodegenContext, FatLtoInput, ModuleConfig, TargetMachineFactoryFn};
 use rustc_codegen_ssa::back::lto::{LtoModuleCodegen, SerializedModule, ThinModule};
 use rustc_data_structures::fx::FxIndexMap;
-use rustc_data_structures::sync::IntoDynSyncSend;
+use rustc_data_structures::sync::{downcast_box_any_dyn_send, DynSend, IntoDynSyncSend};
 use rustc_codegen_ssa::traits::{CodegenBackend, ExtraBackendMethods, ThinBufferMethods, WriteBackendMethods};
 use rustc_errors::{ErrorGuaranteed, DiagCtxt};
 use rustc_metadata::EncodedMetadata;
@@ -210,16 +210,15 @@ impl CodegenBackend for GccCodegenBackend {
             |tcx, ()| gcc_util::global_gcc_features(tcx.sess, true)
     }
 
-    fn codegen_crate<'tcx>(&self, tcx: TyCtxt<'tcx>, metadata: EncodedMetadata, need_metadata_module: bool) -> Box<dyn Any> {
+    fn codegen_crate<'tcx>(&self, tcx: TyCtxt<'tcx>, metadata: EncodedMetadata, need_metadata_module: bool) -> Box<dyn Any + DynSend> {
         let target_cpu = target_cpu(tcx.sess);
         let res = codegen_crate(self.clone(), tcx, target_cpu.to_string(), metadata, need_metadata_module);
 
         Box::new(res)
     }
 
-    fn join_codegen(&self, ongoing_codegen: Box<dyn Any>, sess: &Session, _outputs: &OutputFilenames) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
-        ongoing_codegen
-            .downcast::<rustc_codegen_ssa::back::write::OngoingCodegen<GccCodegenBackend>>()
+    fn join_codegen(&self, ongoing_codegen: Box<dyn Any + DynSend>, sess: &Session, _outputs: &OutputFilenames) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
+        downcast_box_any_dyn_send::<rustc_codegen_ssa::back::write::OngoingCodegen<GccCodegenBackend>>( ongoing_codegen)
             .expect("Expected GccCodegenBackend's OngoingCodegen, found Box<Any>")
             .join(sess)
     }

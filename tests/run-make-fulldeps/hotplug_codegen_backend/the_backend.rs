@@ -16,6 +16,7 @@ extern crate rustc_target;
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_codegen_ssa::{CodegenResults, CrateInfo};
 use rustc_data_structures::fx::FxIndexMap;
+use rustc_data_structures::sync::{downcast_box_any_dyn_send, DynSend};
 use rustc_errors::ErrorGuaranteed;
 use rustc_metadata::EncodedMetadata;
 use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
@@ -27,14 +28,16 @@ use std::any::Any;
 struct TheBackend;
 
 impl CodegenBackend for TheBackend {
-    fn locale_resource(&self) -> &'static str { "" }
+    fn locale_resource(&self) -> &'static str {
+        ""
+    }
 
     fn codegen_crate<'a, 'tcx>(
         &self,
         tcx: TyCtxt<'tcx>,
         metadata: EncodedMetadata,
         _need_metadata_module: bool,
-    ) -> Box<dyn Any> {
+    ) -> Box<dyn Any + DynSend> {
         Box::new(CodegenResults {
             modules: vec![],
             allocator_module: None,
@@ -46,12 +49,11 @@ impl CodegenBackend for TheBackend {
 
     fn join_codegen(
         &self,
-        ongoing_codegen: Box<dyn Any>,
+        ongoing_codegen: Box<dyn Any + DynSend>,
         _sess: &Session,
         _outputs: &OutputFilenames,
     ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
-        let codegen_results = ongoing_codegen
-            .downcast::<CodegenResults>()
+        let codegen_results = downcast_box_any_dyn_send::<CodegenResults>(ongoing_codegen)
             .expect("in join_codegen: ongoing_codegen is not a CodegenResults");
         (*codegen_results, FxIndexMap::default())
     }
@@ -62,7 +64,10 @@ impl CodegenBackend for TheBackend {
         codegen_results: CodegenResults,
         outputs: &OutputFilenames,
     ) -> Result<(), ErrorGuaranteed> {
-        use rustc_session::{config::{CrateType, OutFileName}, output::out_filename};
+        use rustc_session::{
+            config::{CrateType, OutFileName},
+            output::out_filename,
+        };
         use std::io::Write;
         let crate_name = codegen_results.crate_info.local_crate_name;
         for &crate_type in sess.opts.crate_types.iter() {

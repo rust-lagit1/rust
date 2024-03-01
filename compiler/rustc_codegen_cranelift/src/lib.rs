@@ -30,14 +30,16 @@ extern crate rustc_target;
 extern crate rustc_driver;
 
 use std::any::Any;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::sync::Arc;
+use std::sync::RwLock;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_codegen_ssa::CodegenResults;
 use rustc_data_structures::profiling::SelfProfilerRef;
+use rustc_data_structures::sync::{downcast_box_any_dyn_send, DynSend};
 use rustc_errors::ErrorGuaranteed;
 use rustc_metadata::EncodedMetadata;
 use rustc_middle::dep_graph::{WorkProduct, WorkProductId};
@@ -165,7 +167,7 @@ impl CodegenCx {
 }
 
 pub struct CraneliftCodegenBackend {
-    pub config: RefCell<Option<BackendConfig>>,
+    pub config: RwLock<Option<BackendConfig>>,
 }
 
 impl CodegenBackend for CraneliftCodegenBackend {
@@ -183,7 +185,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
             }
         }
 
-        let mut config = self.config.borrow_mut();
+        let mut config = self.config.write().unwrap();
         if config.is_none() {
             let new_config = BackendConfig::from_opts(&sess.opts.cg.llvm_args)
                 .unwrap_or_else(|err| sess.dcx().fatal(err));
@@ -213,9 +215,9 @@ impl CodegenBackend for CraneliftCodegenBackend {
         tcx: TyCtxt<'_>,
         metadata: EncodedMetadata,
         need_metadata_module: bool,
-    ) -> Box<dyn Any> {
+    ) -> Box<dyn Any + DynSend> {
         tcx.dcx().abort_if_errors();
-        let config = self.config.borrow().clone().unwrap();
+        let config = self.config.read().unwrap().clone().unwrap();
         match config.codegen_mode {
             CodegenMode::Aot => driver::aot::run_aot(tcx, config, metadata, need_metadata_module),
             CodegenMode::Jit | CodegenMode::JitLazy => {
@@ -230,14 +232,13 @@ impl CodegenBackend for CraneliftCodegenBackend {
 
     fn join_codegen(
         &self,
-        ongoing_codegen: Box<dyn Any>,
+        ongoing_codegen: Box<dyn Any + DynSend>,
         sess: &Session,
         _outputs: &OutputFilenames,
     ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
-        ongoing_codegen
-            .downcast::<driver::aot::OngoingCodegen>()
+        downcast_box_any_dyn_send::<driver::aot::OngoingCodegen>(ongoing_codegen)
             .unwrap()
-            .join(sess, self.config.borrow().as_ref().unwrap())
+            .join(sess, self.config.read().unwrap().as_ref().unwrap())
     }
 
     fn link(
@@ -350,5 +351,5 @@ fn build_isa(sess: &Session, backend_config: &BackendConfig) -> Arc<dyn isa::Tar
 /// This is the entrypoint for a hot plugged rustc_codegen_cranelift
 #[no_mangle]
 pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
-    Box::new(CraneliftCodegenBackend { config: RefCell::new(None) })
+    Box::new(CraneliftCodegenBackend { config: RwLock::new(None) })
 }

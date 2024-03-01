@@ -44,6 +44,9 @@ pub use crate::marker::*;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 
+mod task;
+pub use task::{task, Task};
+
 mod lock;
 pub use lock::{Lock, LockGuard, Mode};
 

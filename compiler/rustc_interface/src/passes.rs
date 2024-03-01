@@ -8,7 +8,7 @@ use rustc_borrowck as mir_borrowck;
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_data_structures::parallel;
 use rustc_data_structures::steal::Steal;
-use rustc_data_structures::sync::{Lrc, OnceLock, WorkerLocal};
+use rustc_data_structures::sync::{DynSend, Lrc, OnceLock, WorkerLocal};
 use rustc_errors::PResult;
 use rustc_expand::base::{ExtCtxt, LintStoreExpand};
 use rustc_feature::Features;
@@ -917,7 +917,7 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
 pub fn start_codegen<'tcx>(
     codegen_backend: &dyn CodegenBackend,
     tcx: TyCtxt<'tcx>,
-) -> Box<dyn Any> {
+) -> Box<dyn Any + DynSend> {
     info!("Pre-codegen\n{:?}", tcx.debug_stats());
 
     let (metadata, need_metadata_module) = rustc_metadata::fs::encode_and_write_metadata(tcx);
