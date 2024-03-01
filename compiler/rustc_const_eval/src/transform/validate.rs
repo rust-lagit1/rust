@@ -580,7 +580,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
             Variance::Covariant
         };
 
-        crate::util::relate_types(self.tcx, self.param_env, variance, src, dest)
+        crate::util::relate_types(self.tcx, self.param_env, variance, src, dest, true)
     }
 }
 
@@ -746,6 +746,7 @@ impl<'a, 'tcx> Visitor<'tcx> for TypeChecker<'a, 'tcx> {
                     Variance::Covariant,
                     ty,
                     place_ref.ty(&self.body.local_decls, self.tcx).ty,
+                    true,
                 ) {
                     self.fail(
                         location,

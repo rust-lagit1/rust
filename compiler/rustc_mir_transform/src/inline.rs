@@ -229,6 +229,7 @@ impl<'tcx> Inliner<'tcx> {
             ty::Variance::Covariant,
             output_type,
             destination_ty,
+            true,
         ) {
             trace!(?output_type, ?destination_ty);
             return Err("failed to normalize return type");
@@ -265,6 +266,7 @@ impl<'tcx> Inliner<'tcx> {
                     ty::Variance::Covariant,
                     input_type,
                     arg_ty,
+                    true,
                 ) {
                     trace!(?arg_ty, ?input_type);
                     return Err("failed to normalize tuple argument type");
@@ -280,6 +282,7 @@ impl<'tcx> Inliner<'tcx> {
                     ty::Variance::Covariant,
                     input_type,
                     arg_ty,
+                    true,
                 ) {
                     trace!(?arg_ty, ?input_type);
                     return Err("failed to normalize argument type");
