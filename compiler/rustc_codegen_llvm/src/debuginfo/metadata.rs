@@ -972,7 +972,7 @@ fn build_field_di_node<'ll, 'tcx>(
     def_id: Option<DefId>,
 ) -> &'ll DIType {
     let (file_metadata, line_number) =
-        if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+        if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
             file_metadata_from_def_id(cx, def_id)
         } else {
             (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
@@ -1028,7 +1028,7 @@ fn build_struct_type_di_node<'ll, 'tcx>(
     let containing_scope = get_namespace_for_item(cx, adt_def.did());
     let struct_type_and_layout = cx.layout_of(struct_type);
     let variant_def = adt_def.non_enum_variant();
-    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+    let def_location = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
         Some(file_metadata_from_def_id(cx, Some(adt_def.did())))
     } else {
         None
@@ -1061,7 +1061,7 @@ fn build_struct_type_di_node<'ll, 'tcx>(
                         Cow::Borrowed(f.name.as_str())
                     };
                     let field_layout = struct_type_and_layout.field(cx, i);
-                    let def_id = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo
+                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers
                     {
                         Some(f.did)
                     } else {
@@ -1194,7 +1194,7 @@ fn build_closure_env_di_node<'ll, 'tcx>(
     let containing_scope = get_namespace_for_item(cx, def_id);
     let type_name = compute_debuginfo_type_name(cx.tcx, closure_env_type, false);
 
-    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+    let def_location = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
         Some(file_metadata_from_def_id(cx, Some(def_id)))
     } else {
         None
@@ -1231,7 +1231,7 @@ fn build_union_type_di_node<'ll, 'tcx>(
     let containing_scope = get_namespace_for_item(cx, union_def_id);
     let union_ty_and_layout = cx.layout_of(union_type);
     let type_name = compute_debuginfo_type_name(cx.tcx, union_type, false);
-    let def_location = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo {
+    let def_location = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
         Some(file_metadata_from_def_id(cx, Some(union_def_id)))
     } else {
         None
@@ -1257,7 +1257,7 @@ fn build_union_type_di_node<'ll, 'tcx>(
                 .enumerate()
                 .map(|(i, f)| {
                     let field_layout = union_ty_and_layout.field(cx, i);
-                    let def_id = if cx.sess().opts.unstable_opts.more_source_locations_in_debuginfo
+                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers
                     {
                         Some(f.did)
                     } else {

@@ -682,7 +682,6 @@ fn test_unstable_options_tracking_hash() {
     untracked!(macro_backtrace, true);
     untracked!(meta_stats, true);
     untracked!(mir_include_spans, true);
-    untracked!(more_source_locations_in_debuginfo, true);
     untracked!(nll_facts, true);
     untracked!(no_analysis, true);
     untracked!(no_leak_check, true);
@@ -747,6 +746,7 @@ fn test_unstable_options_tracking_hash() {
     tracked!(crate_attr, vec!["abc".to_string()]);
     tracked!(cross_crate_inline_threshold, InliningThreshold::Always);
     tracked!(debug_info_for_profiling, true);
+    tracked!(debug_info_type_line_numbers, true);
     tracked!(debug_macros, true);
     tracked!(default_hidden_visibility, Some(true));
     tracked!(dep_info_omit_d_target, true);
