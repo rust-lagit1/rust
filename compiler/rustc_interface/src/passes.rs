@@ -688,6 +688,9 @@ pub fn create_global_ctxt<'tcx>(
 fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
     rustc_passes::hir_id_validator::check_crate(tcx);
 
+    // Prefetch this to prevent multiple threads from blocking on it later.
+    tcx.ensure_with_value().hir_crate(());
+
     let sess = tcx.sess;
 
     sess.time("misc_checking_1", || {
