@@ -971,12 +971,12 @@ fn build_field_di_node<'ll, 'tcx>(
     type_di_node: &'ll DIType,
     def_id: Option<DefId>,
 ) -> &'ll DIType {
-    let (file_metadata, line_number) =
-        if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
-            file_metadata_from_def_id(cx, def_id)
-        } else {
-            (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
-        };
+    let (file_metadata, line_number) = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers
+    {
+        file_metadata_from_def_id(cx, def_id)
+    } else {
+        (unknown_file_metadata(cx), UNKNOWN_LINE_NUMBER)
+    };
     unsafe {
         llvm::LLVMRustDIBuilderCreateMemberType(
             DIB(cx),
@@ -1061,8 +1061,7 @@ fn build_struct_type_di_node<'ll, 'tcx>(
                         Cow::Borrowed(f.name.as_str())
                     };
                     let field_layout = struct_type_and_layout.field(cx, i);
-                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers
-                    {
+                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
                         Some(f.did)
                     } else {
                         None
@@ -1257,8 +1256,7 @@ fn build_union_type_di_node<'ll, 'tcx>(
                 .enumerate()
                 .map(|(i, f)| {
                     let field_layout = union_ty_and_layout.field(cx, i);
-                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers
-                    {
+                    let def_id = if cx.sess().opts.unstable_opts.debug_info_type_line_numbers {
                         Some(f.did)
                     } else {
                         None
@@ -1629,7 +1627,10 @@ pub fn file_metadata_from_def_id<'ll>(
     cx: &CodegenCx<'ll, '_>,
     def_id: Option<DefId>,
 ) -> DefinitionLocation<'ll> {
-    if let Some(def_id) = def_id && let span = cx.tcx.def_span(def_id) && !span.is_dummy() {
+    if let Some(def_id) = def_id
+        && let span = cx.tcx.def_span(def_id)
+        && !span.is_dummy()
+    {
         let loc = cx.lookup_debug_loc(span.lo());
         (file_metadata(cx, &loc.file), loc.line)
     } else {

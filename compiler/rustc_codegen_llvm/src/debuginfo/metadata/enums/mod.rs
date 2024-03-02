@@ -444,11 +444,7 @@ enum DiscrResult {
 
 impl DiscrResult {
     fn opt_single_val(&self) -> Option<u128> {
-        if let Self::Value(d) = *self {
-            Some(d)
-        } else {
-            None
-        }
+        if let Self::Value(d) = *self { Some(d) } else { None }
     }
 }
 
