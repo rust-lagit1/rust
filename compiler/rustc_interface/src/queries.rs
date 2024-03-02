@@ -360,16 +360,18 @@ impl Compiler {
             }
 
             self.sess.time("serialize_dep_graph", || gcx.enter(rustc_incremental::save_dep_graph));
-            queries.dep_graph_serialized_tx.send(()).ok();
         }
 
-        // The timer's lifetime spans the dropping of `queries`, which contains
-        // the global context.
-        _timer = Some(self.sess.timer("free_global_ctxt"));
+        // Finish the dep graph encoding before we signal `dep_graph_serialized`.
         if let Err((path, error)) = queries.finish() {
             self.sess.dcx().emit_fatal(errors::FailedWritingFile { path: &path, error });
         }
 
+        queries.dep_graph_serialized_tx.send(()).ok();
+
+        // The timer's lifetime spans the dropping of `queries`, which contains
+        // the global context.
+        _timer = Some(self.sess.timer("free_global_ctxt"));
         ret
     }
 }
