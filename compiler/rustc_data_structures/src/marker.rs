@@ -93,6 +93,7 @@ cfg_match! {
             [std::sync::mpsc::Sender<T> where T: DynSend]
             [std::sync::mpsc::Receiver<T> where T: DynSend]
             [std::sync::Arc<T> where T: ?Sized + DynSync + DynSend]
+            [std::sync::OnceLock<T> where T: DynSend]
             [std::sync::LazyLock<T, F> where T: DynSend, F: DynSend]
             [std::thread::JoinHandle<T> where T]
             [std::collections::HashSet<K, S> where K: DynSend, S: DynSend]

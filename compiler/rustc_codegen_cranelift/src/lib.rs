@@ -32,7 +32,7 @@ extern crate rustc_driver;
 use std::any::Any;
 use std::cell::Cell;
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::OnceLock;
 
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::settings::{self, Configurable};
@@ -167,7 +167,7 @@ impl CodegenCx {
 }
 
 pub struct CraneliftCodegenBackend {
-    pub config: RwLock<Option<BackendConfig>>,
+    pub config: OnceLock<BackendConfig>,
 }
 
 impl CodegenBackend for CraneliftCodegenBackend {
@@ -185,12 +185,10 @@ impl CodegenBackend for CraneliftCodegenBackend {
             }
         }
 
-        let mut config = self.config.write().unwrap();
-        if config.is_none() {
-            let new_config = BackendConfig::from_opts(&sess.opts.cg.llvm_args)
-                .unwrap_or_else(|err| sess.dcx().fatal(err));
-            *config = Some(new_config);
-        }
+        self.config.get_or_init(|| {
+            BackendConfig::from_opts(&sess.opts.cg.llvm_args)
+                .unwrap_or_else(|err| sess.dcx().fatal(err))
+        });
     }
 
     fn target_features(&self, sess: &Session, _allow_unstable: bool) -> Vec<rustc_span::Symbol> {
@@ -217,7 +215,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
         need_metadata_module: bool,
     ) -> Box<dyn Any + DynSend> {
         tcx.dcx().abort_if_errors();
-        let config = self.config.read().unwrap().clone().unwrap();
+        let config = self.config.get().unwrap().clone();
         match config.codegen_mode {
             CodegenMode::Aot => driver::aot::run_aot(tcx, config, metadata, need_metadata_module),
             CodegenMode::Jit | CodegenMode::JitLazy => {
@@ -238,7 +236,7 @@ impl CodegenBackend for CraneliftCodegenBackend {
     ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>) {
         downcast_box_any_dyn_send::<driver::aot::OngoingCodegen>(ongoing_codegen)
             .unwrap()
-            .join(sess, self.config.read().unwrap().as_ref().unwrap())
+            .join(sess, self.config.get().unwrap())
     }
 
     fn link(
@@ -351,5 +349,5 @@ fn build_isa(sess: &Session, backend_config: &BackendConfig) -> Arc<dyn isa::Tar
 /// This is the entrypoint for a hot plugged rustc_codegen_cranelift
 #[no_mangle]
 pub fn __rustc_codegen_backend() -> Box<dyn CodegenBackend> {
-    Box::new(CraneliftCodegenBackend { config: RwLock::new(None) })
+    Box::new(CraneliftCodegenBackend { config: OnceLock::new() })
 }
