@@ -128,6 +128,7 @@ impl<D: Deps> DepGraph<D> {
             encoder,
             record_graph,
             record_stats,
+            prev_graph.clone(),
         );
 
         let colors = DepNodeColorMap::new(prev_graph_node_count);
@@ -1085,6 +1086,7 @@ impl<D: Deps> CurrentDepGraph<D> {
         encoder: FileEncoder,
         record_graph: bool,
         record_stats: bool,
+        previous: Arc<SerializedDepGraph>,
     ) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1117,6 +1119,7 @@ impl<D: Deps> CurrentDepGraph<D> {
                 record_graph,
                 record_stats,
                 profiler,
+                previous,
             ),
             new_node_to_index: Sharded::new(|| {
                 FxHashMap::with_capacity_and_hasher(
@@ -1237,16 +1240,14 @@ impl<D: Deps> CurrentDepGraph<D> {
         match prev_index_to_index[prev_index] {
             Some(dep_node_index) => dep_node_index,
             None => {
-                let key = prev_graph.index_to_node(prev_index);
-                let edges = prev_graph
-                    .edge_targets_from(prev_index)
-                    .map(|i| prev_index_to_index[i].unwrap())
-                    .collect();
-                let fingerprint = prev_graph.fingerprint_by_index(prev_index);
-                let dep_node_index = self.encoder.send(key, fingerprint, edges);
+                let dep_node_index = self.encoder.promote(prev_index, &mut *prev_index_to_index);
                 prev_index_to_index[prev_index] = Some(dep_node_index);
                 #[cfg(debug_assertions)]
-                self.record_edge(dep_node_index, key, fingerprint);
+                self.record_edge(
+                    dep_node_index,
+                    prev_graph.index_to_node(prev_index),
+                    prev_graph.fingerprint_by_index(prev_index),
+                );
                 dep_node_index
             }
         }
