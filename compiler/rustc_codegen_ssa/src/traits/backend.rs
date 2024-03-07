@@ -57,7 +57,7 @@ impl<'tcx, T> Backend<'tcx> for T where
 {
 }
 
-pub trait CodegenBackend {
+pub trait CodegenBackend: DynSync + DynSend {
     /// Locale resources for diagnostic messages - a string the content of the Fluent resource.
     /// Called before `init` so that all other functions are able to emit translatable diagnostics.
     fn locale_resource(&self) -> &'static str;
@@ -90,16 +90,16 @@ pub trait CodegenBackend {
         tcx: TyCtxt<'tcx>,
         metadata: EncodedMetadata,
         need_metadata_module: bool,
-    ) -> Box<dyn Any>;
+    ) -> Box<dyn Any + DynSend>;
 
-    /// This is called on the returned `Box<dyn Any>` from `codegen_backend`
+    /// This is called on the returned `Box<dyn Any + DynSend>` from `codegen_backend`
     ///
     /// # Panics
     ///
-    /// Panics when the passed `Box<dyn Any>` was not returned by `codegen_backend`.
+    /// Panics when the passed `Box<dyn Any + DynSend>` was not returned by `codegen_backend`.
     fn join_codegen(
         &self,
-        ongoing_codegen: Box<dyn Any>,
+        ongoing_codegen: Box<dyn Any + DynSend>,
         sess: &Session,
         outputs: &OutputFilenames,
     ) -> (CodegenResults, FxIndexMap<WorkProductId, WorkProduct>);

@@ -71,6 +71,6 @@ fn compile(code: String, output: PathBuf, sysroot: PathBuf) {
             queries.global_ctxt()?.enter(|tcx| tcx.analysis(()))?;
             queries.codegen_and_build_linker()
         });
-        linker.unwrap().link(&compiler.sess, &*compiler.codegen_backend).unwrap();
+        linker.unwrap().join().unwrap();
     });
 }
