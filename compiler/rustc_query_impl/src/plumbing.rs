@@ -6,8 +6,6 @@ use crate::rustc_middle::dep_graph::DepContext;
 use crate::rustc_middle::ty::TyEncoder;
 use crate::QueryConfigRestored;
 use rustc_data_structures::stable_hasher::{Hash64, HashStable, StableHasher};
-use rustc_data_structures::sync::Lock;
-use rustc_errors::DiagInner;
 
 use rustc_index::Idx;
 use rustc_middle::dep_graph::dep_kinds;
@@ -32,7 +30,6 @@ use rustc_serialize::Encodable;
 use rustc_session::Limit;
 use rustc_span::def_id::LOCAL_CRATE;
 use std::num::NonZero;
-use thin_vec::ThinVec;
 
 #[derive(Copy, Clone)]
 pub struct QueryCtxt<'tcx> {
@@ -90,12 +87,14 @@ impl QueryContext for QueryCtxt<'_> {
     }
 
     // Interactions with on_disk_cache
-    fn load_side_effects(self, prev_dep_node_index: SerializedDepNodeIndex) -> QuerySideEffects {
+    fn load_side_effects(
+        self,
+        prev_dep_node_index: SerializedDepNodeIndex,
+    ) -> Option<QuerySideEffects> {
         self.query_system
             .on_disk_cache
             .as_ref()
-            .map(|c| c.load_side_effects(self.tcx, prev_dep_node_index))
-            .unwrap_or_default()
+            .and_then(|c| c.load_side_effects(self.tcx, prev_dep_node_index))
     }
 
     #[inline(never)]
@@ -106,27 +105,13 @@ impl QueryContext for QueryCtxt<'_> {
         }
     }
 
-    #[inline(never)]
-    #[cold]
-    fn store_side_effects_for_anon_node(
-        self,
-        dep_node_index: DepNodeIndex,
-        side_effects: QuerySideEffects,
-    ) {
-        if let Some(c) = self.query_system.on_disk_cache.as_ref() {
-            c.store_side_effects_for_anon_node(dep_node_index, side_effects)
-        }
-    }
-
     /// Executes a job by changing the `ImplicitCtxt` to point to the
-    /// new query job while it executes. It returns the diagnostics
-    /// captured during execution and the actual result.
+    /// new query job while it executes.
     #[inline(always)]
     fn start_query<R>(
         self,
         token: QueryJobId,
         depth_limit: bool,
-        diagnostics: Option<&Lock<ThinVec<DiagInner>>>,
         compute: impl FnOnce() -> R,
     ) -> R {
         // The `TyCtxt` stored in TLS has the same global interner lifetime
@@ -141,7 +126,6 @@ impl QueryContext for QueryCtxt<'_> {
             let new_icx = ImplicitCtxt {
                 tcx: self.tcx,
                 query: Some(token),
-                diagnostics,
                 query_depth: current_icx.query_depth + depth_limit as usize,
                 task_deps: current_icx.task_deps,
             };
@@ -467,7 +451,7 @@ where
         is_anon,
         is_eval_always,
         fingerprint_style,
-        force_from_dep_node: Some(|tcx, dep_node| {
+        force_from_dep_node: Some(|tcx, dep_node, _| {
             force_from_dep_node(Q::config(tcx), tcx, dep_node)
         }),
         try_load_from_on_disk_cache: Some(|tcx, dep_node| {
@@ -741,7 +725,7 @@ macro_rules! define_queries {
                     is_anon: false,
                     is_eval_always: false,
                     fingerprint_style: FingerprintStyle::Unit,
-                    force_from_dep_node: Some(|_, dep_node| bug!("force_from_dep_node: encountered {:?}", dep_node)),
+                    force_from_dep_node: Some(|_, dep_node, _| bug!("force_from_dep_node: encountered {:?}", dep_node)),
                     try_load_from_on_disk_cache: None,
                     name: &"Null",
                 }
@@ -753,9 +737,23 @@ macro_rules! define_queries {
                     is_anon: false,
                     is_eval_always: false,
                     fingerprint_style: FingerprintStyle::Unit,
-                    force_from_dep_node: Some(|_, dep_node| bug!("force_from_dep_node: encountered {:?}", dep_node)),
+                    force_from_dep_node: Some(|_, dep_node, _| bug!("force_from_dep_node: encountered {:?}", dep_node)),
                     try_load_from_on_disk_cache: None,
                     name: &"Red",
+                }
+            }
+
+            pub fn SideEffect<'tcx>() -> DepKindStruct<'tcx> {
+                DepKindStruct {
+                    is_anon: false,
+                    is_eval_always: false,
+                    fingerprint_style: FingerprintStyle::Unit,
+                    force_from_dep_node: Some(|tcx, _, prev_index| {
+                        tcx.dep_graph.force_diagnostic_node(QueryCtxt::new(tcx), prev_index);
+                        true
+                    }),
+                    try_load_from_on_disk_cache: None,
+                    name: &"SideEffect",
                 }
             }
 

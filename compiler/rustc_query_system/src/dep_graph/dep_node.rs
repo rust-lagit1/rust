@@ -42,7 +42,7 @@
 //!   `DefId` it was computed from. In other cases, too much information gets
 //!   lost during fingerprint computation.
 
-use super::{DepContext, FingerprintStyle};
+use super::{DepContext, FingerprintStyle, SerializedDepNodeIndex};
 use crate::ich::StableHashingContext;
 
 use rustc_data_structures::fingerprint::{Fingerprint, PackedFingerprint};
@@ -271,7 +271,8 @@ pub struct DepKindStruct<Tcx: DepContext> {
     /// with kind `MirValidated`, we know that the GUID/fingerprint of the `DepNode`
     /// is actually a `DefPathHash`, and can therefore just look up the corresponding
     /// `DefId` in `tcx.def_path_hash_to_def_id`.
-    pub force_from_dep_node: Option<fn(tcx: Tcx, dep_node: DepNode) -> bool>,
+    pub force_from_dep_node:
+        Option<fn(tcx: Tcx, dep_node: DepNode, prev_index: SerializedDepNodeIndex) -> bool>,
 
     /// Invoke a query to put the on-disk cached value in memory.
     pub try_load_from_on_disk_cache: Option<fn(Tcx, DepNode)>,
