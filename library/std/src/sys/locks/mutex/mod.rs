@@ -11,6 +11,14 @@ cfg_if::cfg_if! {
     ))] {
         mod futex;
         pub use futex::Mutex;
+    } else if #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos",
+    ))] {
+        mod apple;
+        pub use apple::Mutex;
     } else if #[cfg(target_os = "fuchsia")] {
         mod fuchsia;
         pub use fuchsia::Mutex;
