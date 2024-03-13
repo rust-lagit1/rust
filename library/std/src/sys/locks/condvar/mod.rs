@@ -9,6 +9,10 @@ cfg_if::cfg_if! {
         target_os = "fuchsia",
         all(target_family = "wasm", target_feature = "atomics"),
         target_os = "hermit",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "tvos",
+        target_os = "watchos",
     ))] {
         mod futex;
         pub use futex::Condvar;
