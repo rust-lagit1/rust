@@ -10,13 +10,12 @@ use crate::query::caches::QueryCache;
 use crate::query::job::QueryLatch;
 use crate::query::job::{report_cycle, QueryInfo, QueryJob, QueryJobId, QueryJobInfo};
 use crate::query::SerializedDepNodeIndex;
-use crate::query::{QueryContext, QueryMap, QuerySideEffects, QueryStackFrame};
+use crate::query::{QueryContext, QueryMap, QueryStackFrame};
 use crate::HandleCycleError;
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::sharded::Sharded;
 use rustc_data_structures::stack::ensure_sufficient_stack;
-use rustc_data_structures::sync::Lock;
 #[cfg(parallel_compiler)]
 use rustc_data_structures::{outline, sync};
 use rustc_errors::{Diag, FatalError, StashKey};
@@ -26,7 +25,6 @@ use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::mem;
-use thin_vec::ThinVec;
 
 use super::QueryConfig;
 
@@ -466,7 +464,7 @@ where
     }
 
     let prof_timer = qcx.dep_context().profiler().query_provider();
-    let result = qcx.start_query(job_id, query.depth_limit(), None, || query.compute(qcx, key));
+    let result = qcx.start_query(job_id, query.depth_limit(), || query.compute(qcx, key));
     let dep_node_index = qcx.dep_context().dep_graph().next_virtual_depnode_index();
     prof_timer.finish_with_query_invocation_id(dep_node_index.into());
 
@@ -503,7 +501,7 @@ where
 
         // The diagnostics for this query will be promoted to the current session during
         // `try_mark_green()`, so we can ignore them here.
-        if let Some(ret) = qcx.start_query(job_id, false, None, || {
+        if let Some(ret) = qcx.start_query(job_id, false, || {
             try_load_from_disk_and_cache_in_memory(query, dep_graph_data, qcx, &key, dep_node)
         }) {
             return ret;
@@ -511,40 +509,27 @@ where
     }
 
     let prof_timer = qcx.dep_context().profiler().query_provider();
-    let diagnostics = Lock::new(ThinVec::new());
 
-    let (result, dep_node_index) =
-        qcx.start_query(job_id, query.depth_limit(), Some(&diagnostics), || {
-            if query.anon() {
-                return dep_graph_data.with_anon_task(*qcx.dep_context(), query.dep_kind(), || {
-                    query.compute(qcx, key)
-                });
-            }
+    let (result, dep_node_index) = qcx.start_query(job_id, query.depth_limit(), || {
+        if query.anon() {
+            return dep_graph_data
+                .with_anon_task(*qcx.dep_context(), query.dep_kind(), || query.compute(qcx, key));
+        }
 
-            // `to_dep_node` is expensive for some `DepKind`s.
-            let dep_node =
-                dep_node_opt.unwrap_or_else(|| query.construct_dep_node(*qcx.dep_context(), &key));
+        // `to_dep_node` is expensive for some `DepKind`s.
+        let dep_node =
+            dep_node_opt.unwrap_or_else(|| query.construct_dep_node(*qcx.dep_context(), &key));
 
-            dep_graph_data.with_task(
-                dep_node,
-                (qcx, query),
-                key,
-                |(qcx, query), key| query.compute(qcx, key),
-                query.hash_result(),
-            )
-        });
+        dep_graph_data.with_task(
+            dep_node,
+            (qcx, query),
+            key,
+            |(qcx, query), key| query.compute(qcx, key),
+            query.hash_result(),
+        )
+    });
 
     prof_timer.finish_with_query_invocation_id(dep_node_index.into());
-
-    let side_effects = QuerySideEffects { diagnostics: diagnostics.into_inner() };
-
-    if std::intrinsics::unlikely(side_effects.maybe_any()) {
-        if query.anon() {
-            qcx.store_side_effects_for_anon_node(dep_node_index, side_effects);
-        } else {
-            qcx.store_side_effects(dep_node_index, side_effects);
-        }
-    }
 
     (result, dep_node_index)
 }

@@ -1,10 +1,11 @@
-use rustc_data_structures::fingerprint::Fingerprint;
+use rustc_data_structures::fingerprint::{Fingerprint, PackedFingerprint};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::profiling::{QueryInvocationId, SelfProfilerRef};
 use rustc_data_structures::sharded::{self, Sharded};
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_data_structures::sync::{AtomicU32, AtomicU64, Lock, Lrc};
 use rustc_data_structures::unord::UnordMap;
+use rustc_errors::DiagInner;
 use rustc_index::IndexVec;
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder};
 use std::assert_matches::assert_matches;
@@ -13,6 +14,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use super::query::DepGraphQuery;
 use super::serialized::{GraphEncoder, SerializedDepGraph, SerializedDepNodeIndex};
@@ -81,11 +83,9 @@ pub(crate) struct DepGraphData<D: Deps> {
 
     /// The dep-graph from the previous compilation session. It contains all
     /// nodes and edges as well as all fingerprints of nodes that have them.
-    previous: SerializedDepGraph,
+    previous: Arc<SerializedDepGraph>,
 
     colors: DepNodeColorMap,
-
-    processed_side_effects: Lock<FxHashSet<DepNodeIndex>>,
 
     /// When we load, there may be `.o` files, cached MIR, or other such
     /// things available to us. If we find that they are not dirty, we
@@ -113,7 +113,7 @@ where
 impl<D: Deps> DepGraph<D> {
     pub fn new(
         profiler: &SelfProfilerRef,
-        prev_graph: SerializedDepGraph,
+        prev_graph: Arc<SerializedDepGraph>,
         prev_work_products: WorkProductMap,
         encoder: FileEncoder,
         record_graph: bool,
@@ -127,6 +127,7 @@ impl<D: Deps> DepGraph<D> {
             encoder,
             record_graph,
             record_stats,
+            prev_graph.clone(),
         );
 
         let colors = DepNodeColorMap::new(prev_graph_node_count);
@@ -167,7 +168,6 @@ impl<D: Deps> DepGraph<D> {
                 previous_work_products: prev_work_products,
                 dep_node_debug: Default::default(),
                 current,
-                processed_side_effects: Default::default(),
                 previous: prev_graph,
                 colors,
                 debug_loaded_from_disk: Default::default(),
@@ -499,6 +499,24 @@ impl<D: Deps> DepGraph<D> {
         }
     }
 
+    #[inline]
+    pub fn record_diagnostic<Qcx: QueryContext>(&self, qcx: Qcx, diagnostic: &DiagInner) {
+        if let Some(ref data) = self.data {
+            self.read_index(data.encode_diagnostic(qcx, diagnostic));
+        }
+    }
+
+    #[inline]
+    pub fn force_diagnostic_node<Qcx: QueryContext>(
+        &self,
+        qcx: Qcx,
+        prev_index: SerializedDepNodeIndex,
+    ) {
+        if let Some(ref data) = self.data {
+            data.force_diagnostic_node(qcx, prev_index);
+        }
+    }
+
     /// Create a node when we force-feed a value into the query cache.
     /// This is used to remove cycles during type-checking const generic parameters.
     ///
@@ -641,6 +659,47 @@ impl<D: Deps> DepGraphData<D> {
     pub(crate) fn mark_debug_loaded_from_disk(&self, dep_node: DepNode) {
         self.debug_loaded_from_disk.lock().insert(dep_node);
     }
+
+    #[inline]
+    fn encode_diagnostic<Qcx: QueryContext>(
+        &self,
+        qcx: Qcx,
+        diagnostic: &DiagInner,
+    ) -> DepNodeIndex {
+        let dep_node_index = self.current.encoder.send(
+            DepNode {
+                kind: D::DEP_KIND_SIDE_EFFECT,
+                hash: PackedFingerprint::from(Fingerprint::ZERO),
+            },
+            Fingerprint::ZERO,
+            // We want the side effect node to always be red so it will be forced and emit the
+            // diagnostic.
+            std::iter::once(DepNodeIndex::FOREVER_RED_NODE).collect(),
+        );
+        let side_effects = QuerySideEffects { diagnostic: diagnostic.clone() };
+        qcx.store_side_effects(dep_node_index, side_effects);
+        dep_node_index
+    }
+
+    #[inline]
+    fn force_diagnostic_node<Qcx: QueryContext>(
+        &self,
+        qcx: Qcx,
+        prev_index: SerializedDepNodeIndex,
+    ) {
+        D::with_deps(TaskDepsRef::Ignore, || {
+            let side_effects = qcx.load_side_effects(prev_index).unwrap();
+
+            qcx.dep_context().sess().dcx().emit_diagnostic(side_effects.diagnostic.clone());
+
+            // Promote the previous diagnostics to the current session.
+            let index = self.current.promote_node_and_deps_to_current(&self.previous, prev_index);
+            qcx.store_side_effects(index, side_effects);
+
+            // Mark the node as green.
+            self.colors.insert(prev_index, DepNodeColor::Green(index));
+        })
+    }
 }
 
 impl<D: Deps> DepGraph<D> {
@@ -779,7 +838,7 @@ impl<D: Deps> DepGraphData<D> {
 
         // We failed to mark it green, so we try to force the query.
         debug!("trying to force dependency {dep_dep_node:?}");
-        if !qcx.dep_context().try_force_from_dep_node(*dep_dep_node, frame) {
+        if !qcx.dep_context().try_force_from_dep_node(*dep_dep_node, parent_dep_node_index, frame) {
             // The DepNode could not be forced.
             debug!("dependency {dep_dep_node:?} could not be forced");
             return None;
@@ -858,10 +917,6 @@ impl<D: Deps> DepGraphData<D> {
 
         // ... emitting any stored diagnostic ...
 
-        // FIXME: Store the fact that a node has diagnostics in a bit in the dep graph somewhere
-        // Maybe store a list on disk and encode this fact in the DepNodeState
-        let side_effects = qcx.load_side_effects(prev_dep_node_index);
-
         #[cfg(not(parallel_compiler))]
         debug_assert!(
             self.colors.get(prev_dep_node_index).is_none(),
@@ -869,45 +924,12 @@ impl<D: Deps> DepGraphData<D> {
                       insertion for {dep_node:?}"
         );
 
-        if side_effects.maybe_any() {
-            qcx.dep_context().dep_graph().with_query_deserialization(|| {
-                self.emit_side_effects(qcx, dep_node_index, side_effects)
-            });
-        }
-
         // ... and finally storing a "Green" entry in the color map.
         // Multiple threads can all write the same color here
         self.colors.insert(prev_dep_node_index, DepNodeColor::Green(dep_node_index));
 
         debug!("successfully marked {dep_node:?} as green");
         Some(dep_node_index)
-    }
-
-    /// Atomically emits some loaded diagnostics.
-    /// This may be called concurrently on multiple threads for the same dep node.
-    #[cold]
-    #[inline(never)]
-    fn emit_side_effects<Qcx: QueryContext<Deps = D>>(
-        &self,
-        qcx: Qcx,
-        dep_node_index: DepNodeIndex,
-        side_effects: QuerySideEffects,
-    ) {
-        let mut processed = self.processed_side_effects.lock();
-
-        if processed.insert(dep_node_index) {
-            // We were the first to insert the node in the set so this thread
-            // must process side effects
-
-            // Promote the previous diagnostics to the current session.
-            qcx.store_side_effects(dep_node_index, side_effects.clone());
-
-            let dcx = qcx.dep_context().sess().dcx();
-
-            for diagnostic in side_effects.diagnostics {
-                dcx.emit_diagnostic(diagnostic);
-            }
-        }
     }
 }
 
@@ -1084,6 +1106,7 @@ impl<D: Deps> CurrentDepGraph<D> {
         encoder: FileEncoder,
         record_graph: bool,
         record_stats: bool,
+        previous: Arc<SerializedDepGraph>,
     ) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1116,6 +1139,7 @@ impl<D: Deps> CurrentDepGraph<D> {
                 record_graph,
                 record_stats,
                 profiler,
+                previous,
             ),
             new_node_to_index: Sharded::new(|| {
                 FxHashMap::with_capacity_and_hasher(
@@ -1236,16 +1260,14 @@ impl<D: Deps> CurrentDepGraph<D> {
         match prev_index_to_index[prev_index] {
             Some(dep_node_index) => dep_node_index,
             None => {
-                let key = prev_graph.index_to_node(prev_index);
-                let edges = prev_graph
-                    .edge_targets_from(prev_index)
-                    .map(|i| prev_index_to_index[i].unwrap())
-                    .collect();
-                let fingerprint = prev_graph.fingerprint_by_index(prev_index);
-                let dep_node_index = self.encoder.send(key, fingerprint, edges);
+                let dep_node_index = self.encoder.promote(prev_index, &mut *prev_index_to_index);
                 prev_index_to_index[prev_index] = Some(dep_node_index);
                 #[cfg(debug_assertions)]
-                self.record_edge(dep_node_index, key, fingerprint);
+                self.record_edge(
+                    dep_node_index,
+                    prev_graph.index_to_node(prev_index),
+                    prev_graph.fingerprint_by_index(prev_index),
+                );
                 dep_node_index
             }
         }
