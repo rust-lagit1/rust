@@ -204,6 +204,8 @@ impl SerializedDepGraph {
             .map(|&n| UnhashMap::with_capacity_and_hasher(n, Default::default()))
             .collect();
 
+        // Use a single loop to build indices for all kinds, unlike `setup_index` which builds
+        // a single index for each loop over the nodes.
         for (idx, node) in self.nodes.iter_enumerated() {
             index[node.kind.as_usize()].insert(node.hash, idx);
         }
@@ -220,7 +222,9 @@ impl SerializedDepGraph {
             let client = jobserver::client();
             // This should ideally use `try_acquire` to avoid races on the tokens,
             // but the jobserver crate doesn't support that operation.
-            if let Ok(true) = client.available().map(|tokens| tokens > 0) {
+            if let Ok(tokens) = client.available()
+                && tokens > 0
+            {
                 let this = self.clone();
                 thread::spawn(move || {
                     let _token = client.acquire();
