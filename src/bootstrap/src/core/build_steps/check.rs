@@ -127,7 +127,8 @@ impl Step for Std {
 
         builder.update_submodule(&Path::new("library").join("stdarch"));
 
-        let mut cargo = builder.cargo(
+        let mut cargo = builder::Cargo::new(
+            builder,
             compiler,
             Mode::Std,
             SourceType::InTree,

@@ -658,7 +658,7 @@ impl Step for StdLink {
 
             // Copy all *.so files from stage0/lib to stage0-sysroot/lib
             let stage0_lib_dir = builder.out.join(&host).join("stage0/lib");
-            builder.cp_r(&stage0_lib_dir, &sysroot.join("lib"));
+            builder.cp_link_r(&stage0_lib_dir, &sysroot.join("lib"));
 
             // Copy codegen-backends from stage0
             let sysroot_codegen_backends = builder.sysroot_codegen_backends(compiler);
@@ -674,7 +674,7 @@ impl Step for StdLink {
             }
         } else if compiler.stage == 0 {
             let sysroot = builder.out.join(&compiler.host.triple).join("stage0-sysroot");
-            builder.cp_r(&builder.initial_sysroot.join("lib"), &sysroot.join("lib"));
+            builder.cp_link_r(&builder.initial_sysroot.join("lib"), &sysroot.join("lib"));
         } else {
             add_to_sysroot(builder, &libdir, &hostdir, &libstd_stamp(builder, compiler, target));
         }
