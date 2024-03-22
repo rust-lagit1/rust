@@ -53,6 +53,7 @@ use crate::errors::{self, ObligationCauseFailureCode, TypeErrorAdditionalDiags};
 use crate::infer;
 use crate::infer::error_reporting::nice_region_error::find_anon_type::find_anon_type;
 use crate::infer::ExpectedFound;
+use crate::traits::util::{elaborate_predicates_of, filter_predicates};
 use crate::traits::{
     IfExpressionCause, MatchExpressionArmCause, ObligationCause, ObligationCauseCode,
     PredicateObligation,
@@ -61,7 +62,7 @@ use crate::traits::{
 use rustc_data_structures::fx::{FxIndexMap, FxIndexSet};
 use rustc_errors::{
     codes::*, pluralize, struct_span_code_err, Applicability, Diag, DiagCtxt, DiagStyledString,
-    ErrorGuaranteed, IntoDiagArg,
+    ErrorGuaranteed, IntoDiagArg, MultiSpan,
 };
 use rustc_hir as hir;
 use rustc_hir::def::DefKind;
@@ -459,11 +460,62 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
                     // the error. If all of these fails, we fall back to a rather
                     // general bit of code that displays the error information
                     RegionResolutionError::ConcreteFailure(origin, sub, sup) => {
-                        if sub.is_placeholder() || sup.is_placeholder() {
-                            self.report_placeholder_failure(origin, sub, sup).emit()
+                        let extra_info = self.find_trait_object_relate_failure_reason(
+                            generic_param_scope,
+                            &origin,
+                            sub,
+                            sup,
+                        );
+                        let mut err = if sub.is_placeholder() || sup.is_placeholder() {
+                            self.report_placeholder_failure(origin, sub, sup)
                         } else {
-                            self.report_concrete_failure(origin, sub, sup).emit()
+                            self.report_concrete_failure(origin, sub, sup)
+                        };
+                        if let Some((primary_spans, relevant_bindings)) = extra_info {
+                            if primary_spans.has_primary_spans() {
+                                // We shorten the span from the whole field type to only the traits
+                                // and lifetime bound that failed.
+                                err.span(primary_spans);
+                            }
+                            if relevant_bindings.has_primary_spans() {
+                                // Point at all the trait obligations for the lifetime that
+                                // couldn't be met.
+                                err.span_note(
+                                    relevant_bindings,
+                                    format!("`{sub}` requirement introduced here"),
+                                );
+                            }
                         }
+                        if let hir::def::DefKind::Impl { .. } =
+                            self.tcx.def_kind(generic_param_scope)
+                            && let Some(def_id) =
+                                self.tcx.trait_id_of_impl(generic_param_scope.into())
+                        {
+                            // Collect all the `Span`s corresponding to the predicates introducing
+                            // the `sub` lifetime that couldn't be met (sometimes `'static`) on
+                            // both the `trait` and the `impl`.
+                            let spans: Vec<Span> = elaborate_predicates_of(self.tcx, def_id)
+                                .chain(elaborate_predicates_of(
+                                    self.tcx,
+                                    generic_param_scope.into(),
+                                ))
+                                .filter_map(filter_predicates(self.tcx.lifetimes.re_static, |_| {
+                                    true
+                                }))
+                                .collect();
+
+                            if !spans.is_empty() {
+                                let spans_len = spans.len();
+                                err.span_note(
+                                    MultiSpan::from(spans),
+                                    format!(
+                                        "`{sub}` requirement{} introduced here",
+                                        pluralize!(spans_len),
+                                    ),
+                                );
+                            }
+                        }
+                        err.emit()
                     }
 
                     RegionResolutionError::GenericBoundFailure(origin, param_ty, sub) => self
@@ -2633,6 +2685,128 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
 
         self.note_region_origin(&mut err, &sub_origin);
         if sub_region.is_error() | sup_region.is_error() { err.delay_as_bug() } else { err.emit() }
+    }
+
+    /// If a field on a struct has a trait object with lifetime requirement that can't be satisfied
+    /// by one of the traits in the trait object, shorten the span from the whole field type to only
+    /// the relevant traits and the lifetime. We also collect the spans for the places where the
+    /// traits' obligations were introduced.
+    fn find_trait_object_relate_failure_reason(
+        &self,
+        generic_param_scope: LocalDefId,
+        origin: &SubregionOrigin<'tcx>,
+        sub: ty::Region<'tcx>,
+        sup: ty::Region<'tcx>,
+    ) -> Option<(MultiSpan, MultiSpan)> {
+        let infer::RelateRegionParamBound(span) = origin else {
+            return None;
+        };
+        let Some(hir::Node::Item(hir::Item { kind: hir::ItemKind::Struct(item, _), .. })) =
+            self.tcx.hir().get_if_local(generic_param_scope.into())
+        else {
+            return None;
+        };
+        /// Collect all `hir::Ty<'_>` `Span`s for trait objects with the sup lifetime.
+        pub struct HirTraitObjectVisitor<'tcx> {
+            pub expected_region: ty::Region<'tcx>,
+            pub found_region: ty::Region<'tcx>,
+            pub primary_spans: Vec<Span>,
+            pub secondary_spans: Vec<Span>,
+            pub pred_spans: Vec<Span>,
+            pub tcx: TyCtxt<'tcx>,
+        }
+        impl<'tcx> Visitor<'tcx> for HirTraitObjectVisitor<'tcx> {
+            fn visit_lifetime(&mut self, lt: &'tcx hir::Lifetime) {
+                if match (lt.res, self.expected_region.kind()) {
+                    (
+                        hir::LifetimeName::ImplicitObjectLifetimeDefault
+                        | hir::LifetimeName::Static,
+                        ty::RegionKind::ReStatic,
+                    ) => true,
+                    (hir::LifetimeName::Param(a), ty::RegionKind::ReEarlyParam(b)) => {
+                        a.to_def_id() == b.def_id
+                    }
+                    _ => false,
+                } {
+                    // We want to keep a span to the lifetime bound on the trait object.
+                    self.primary_spans.push(lt.ident.span);
+                }
+            }
+            fn visit_ty(&mut self, t: &'tcx hir::Ty<'tcx>) {
+                match t.kind {
+                    // Find all the trait objects that have the lifetime that was found.
+                    hir::TyKind::TraitObject(poly_trait_refs, lt, _)
+                        if match (lt.res, self.expected_region.kind()) {
+                            (
+                                hir::LifetimeName::ImplicitObjectLifetimeDefault
+                                | hir::LifetimeName::Static,
+                                ty::RegionKind::ReStatic,
+                            ) => true,
+                            (hir::LifetimeName::Param(a), ty::RegionKind::ReEarlyParam(b)) => {
+                                a.to_def_id() == b.def_id
+                            }
+                            _ => false,
+                        } =>
+                    {
+                        for ptr in poly_trait_refs {
+                            if let Some(def_id) = ptr.trait_ref.trait_def_id() {
+                                // Find the bounds on the trait with the lifetime that couldn't be met.
+                                let bindings: Vec<Span> = elaborate_predicates_of(self.tcx, def_id)
+                                    .filter_map(filter_predicates(self.found_region, |_| true))
+                                    .collect();
+                                if !bindings.is_empty() {
+                                    self.secondary_spans.push(ptr.span);
+                                    self.pred_spans.extend(bindings);
+                                }
+                            }
+                        }
+                    }
+                    // Detect when an associated item is given a lifetime restriction that the
+                    // definition of that associated item couldn't meet.
+                    hir::TyKind::Path(hir::QPath::Resolved(_, path)) => {
+                        self.pred_spans.extend(
+                            elaborate_predicates_of(self.tcx, path.res.def_id())
+                                .filter_map(filter_predicates(self.found_region, |_| true))
+                                .collect::<Vec<_>>(),
+                        );
+                    }
+                    _ => {}
+                }
+                hir::intravisit::walk_ty(self, t);
+            }
+        }
+        let mut visitor = HirTraitObjectVisitor {
+            expected_region: sup,
+            found_region: sub,
+            primary_spans: vec![],
+            secondary_spans: vec![],
+            pred_spans: vec![],
+            tcx: self.tcx,
+        };
+        for field in item.fields() {
+            if field.ty.span == *span {
+                // `span` points at the type of a field, we only want to look for trait objects in
+                // the field that failed.
+                visitor.visit_ty(field.ty);
+            }
+        }
+
+        visitor.primary_spans.sort();
+        let mut primary_span: MultiSpan = visitor.primary_spans.clone().into();
+        if let Some(last) = visitor.primary_spans.iter().rev().next() {
+            primary_span.push_span_label(
+                *last,
+                format!(
+                    "lifetime bound{s} not satisfied",
+                    s = pluralize!(visitor.primary_spans.len())
+                ),
+            );
+        }
+
+        for span in visitor.secondary_spans {
+            primary_span.push_span_label(span, format!("this requires `{sub}`"));
+        }
+        Some((primary_span, visitor.pred_spans.into()))
     }
 
     /// Determine whether an error associated with the given span and definition

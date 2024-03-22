@@ -18,7 +18,7 @@ LL |     impl<T> MyTrait<T> for dyn ObjectTrait<T> {
    |                                ^^^^^^^^^^^^^^ this has an implicit `'static` lifetime requirement
 LL |         fn use_self<K>(&self) -> &() { panic!() }
    |            -------- calling this method introduces the `impl`'s `'static` requirement
-help: consider relaxing the implicit `'static` requirement
+help: consider relaxing the implicit `'static` requirement on the impl
    |
 LL |     impl<T> MyTrait<T> for dyn ObjectTrait<T> + '_ {
    |                                               ++++
@@ -43,7 +43,7 @@ LL |     impl dyn ObjectTrait {
    |              ^^^^^^^^^^^ this has an implicit `'static` lifetime requirement
 LL |         fn use_self(&self) -> &() { panic!() }
    |            -------- calling this method introduces the `impl`'s `'static` requirement
-help: consider relaxing the implicit `'static` requirement
+help: consider relaxing the implicit `'static` requirement on the impl
    |
 LL |     impl dyn ObjectTrait + '_ {
    |                          ++++
@@ -69,7 +69,7 @@ LL |         fn use_self(&self) -> &() { panic!() }
 ...
 LL |     impl MyTrait for dyn ObjectTrait {}
    |                          ^^^^^^^^^^^ this has an implicit `'static` lifetime requirement
-help: consider relaxing the implicit `'static` requirement
+help: consider relaxing the implicit `'static` requirement on the impl
    |
 LL |     impl MyTrait for dyn ObjectTrait + '_ {}
    |                                      ++++
@@ -95,7 +95,7 @@ LL |         fn use_self(&self) -> &() { panic!() }
 ...
 LL |     impl MyTrait for dyn ObjectTrait {}
    |                          ^^^^^^^^^^^ this has an implicit `'static` lifetime requirement
-help: consider relaxing the implicit `'static` requirement
+help: consider relaxing the implicit `'static` requirement on the impl
    |
 LL |     impl MyTrait for dyn ObjectTrait + '_ {}
    |                                      ++++
@@ -120,7 +120,7 @@ LL |     impl MyTrait for dyn ObjectTrait {
    |                          ^^^^^^^^^^^ this has an implicit `'static` lifetime requirement
 LL |         fn use_self(&self) -> &() { panic!() }
    |            -------- calling this method introduces the `impl`'s `'static` requirement
-help: consider relaxing the implicit `'static` requirement
+help: consider relaxing the implicit `'static` requirement on the impl
    |
 LL |     impl MyTrait for dyn ObjectTrait + '_ {
    |                                      ++++
