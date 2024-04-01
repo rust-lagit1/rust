@@ -27,16 +27,6 @@ download-ci-llvm = false
 
 [build]
 target = ["x86_64-unknown-managarm-mlibc", "x86_64-unknown-linux-gnu"]
-build-dir = "/path/to/the/build/dir"
-docs = false
-
-[install]
-prefix = "/path/to/the/prefix"
-sysconfdir = "etc"
-
-[rust]
-codegen-tests = false
-deny-warnings = false
 
 [target.x86_64-unknown-linux-gnu]
 llvm-config = "/path/to/your/llvm/bin/llvm-config"
