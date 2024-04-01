@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   xdg-utils \
   wget \
   # libgccjit dependencies
+  libgccjit-12-dev \
   flex \
   libmpfr-dev \
   libgmp-dev \
@@ -66,6 +67,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY scripts/sccache.sh /scripts/
 RUN sh /scripts/sccache.sh
+
+RUN echo "debugging"
+RUN echo "BEGIN $DOWNLOAD_RUSTC END"
 
 # Fix rustc_codegen_gcc lto issues.
 ENV GCC_EXEC_PREFIX="/usr/lib/gcc/"
