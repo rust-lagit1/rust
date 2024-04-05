@@ -58,6 +58,7 @@
     - [\*-nto-qnx-\*](platform-support/nto-qnx.md)
     - [*-unikraft-linux-musl](platform-support/unikraft-linux-musl.md)
     - [*-unknown-hermit](platform-support/hermit.md)
+    - [\*-unknown-managarm-mlibc](platform-support/managarm.md)
     - [\*-unknown-netbsd\*](platform-support/netbsd.md)
     - [*-unknown-openbsd](platform-support/openbsd.md)
     - [\*-unknown-uefi](platform-support/unknown-uefi.md)
