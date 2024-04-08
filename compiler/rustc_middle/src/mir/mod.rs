@@ -999,6 +999,8 @@ pub struct VarBindingForm<'tcx> {
     pub opt_match_place: Option<(Option<Place<'tcx>>, Span)>,
     /// The span of the pattern in which this variable was bound.
     pub pat_span: Span,
+    /// For each introduction place, record here the span and whether this was a shorthand pattern.
+    pub introductions: Vec<(Span, /* is_shorthand */ bool)>,
 }
 
 #[derive(Clone, Debug, TyEncodable, TyDecodable)]
@@ -1008,7 +1010,7 @@ pub enum BindingForm<'tcx> {
     /// Binding for a `self`/`&self`/`&mut self` binding where the type is implicit.
     ImplicitSelf(ImplicitSelfKind),
     /// Reference used in a guard expression to ensure immutability.
-    RefForGuard,
+    RefForGuard(Local),
 }
 
 TrivialTypeTraversalImpls! { BindingForm<'tcx> }
@@ -1025,7 +1027,7 @@ mod binding_form_impl {
             match self {
                 Var(binding) => binding.hash_stable(hcx, hasher),
                 ImplicitSelf(kind) => kind.hash_stable(hcx, hasher),
-                RefForGuard => (),
+                RefForGuard(local) => local.hash_stable(hcx, hasher),
             }
         }
     }
@@ -1208,9 +1210,7 @@ impl<'tcx> LocalDecl<'tcx> {
             LocalInfo::User(
                 BindingForm::Var(VarBindingForm {
                     binding_mode: BindingAnnotation(ByRef::No, _),
-                    opt_ty_info: _,
-                    opt_match_place: _,
-                    pat_span: _,
+                    ..
                 }) | BindingForm::ImplicitSelf(ImplicitSelfKind::Imm),
             )
         )
@@ -1225,9 +1225,7 @@ impl<'tcx> LocalDecl<'tcx> {
             LocalInfo::User(
                 BindingForm::Var(VarBindingForm {
                     binding_mode: BindingAnnotation(ByRef::No, _),
-                    opt_ty_info: _,
-                    opt_match_place: _,
-                    pat_span: _,
+                    ..
                 }) | BindingForm::ImplicitSelf(_),
             )
         )
@@ -1244,7 +1242,7 @@ impl<'tcx> LocalDecl<'tcx> {
     /// expression that is used to access said variable for the guard of the
     /// match arm.
     pub fn is_ref_for_guard(&self) -> bool {
-        matches!(self.local_info(), LocalInfo::User(BindingForm::RefForGuard))
+        matches!(self.local_info(), LocalInfo::User(BindingForm::RefForGuard(_)))
     }
 
     /// Returns `Some` if this is a reference to a static item that is used to
