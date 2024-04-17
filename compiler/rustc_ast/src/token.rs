@@ -963,6 +963,15 @@ impl Token {
         }
     }
 
+    /// Is this an invisible open delimiter at the start of a token sequence
+    /// from an expanded metavar?
+    pub fn is_metavar_seq(&self) -> Option<MetaVarKind> {
+        match self.kind {
+            OpenDelim(Delimiter::Invisible(InvisibleOrigin::MetaVar(kind))) => Some(kind),
+            _ => None,
+        }
+    }
+
     pub fn glue(&self, joint: &Token) -> Option<Token> {
         let kind = match self.kind {
             Eq => match joint.kind {
@@ -1066,7 +1075,6 @@ pub enum Nonterminal {
     /// Stuff inside brackets for attributes
     NtMeta(P<ast::AttrItem>),
     NtPath(P<ast::Path>),
-    NtVis(P<ast::Visibility>),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Encodable, Decodable, Hash, HashStable_Generic)]
@@ -1163,7 +1171,6 @@ impl Nonterminal {
             NtTy(ty) => ty.span,
             NtMeta(attr_item) => attr_item.span(),
             NtPath(path) => path.span,
-            NtVis(vis) => vis.span,
         }
     }
 
@@ -1178,7 +1185,6 @@ impl Nonterminal {
             NtTy(..) => "type",
             NtMeta(..) => "attribute",
             NtPath(..) => "path",
-            NtVis(..) => "visibility",
         }
     }
 }
@@ -1205,7 +1211,6 @@ impl fmt::Debug for Nonterminal {
             NtLiteral(..) => f.pad("NtLiteral(..)"),
             NtMeta(..) => f.pad("NtMeta(..)"),
             NtPath(..) => f.pad("NtPath(..)"),
-            NtVis(..) => f.pad("NtVis(..)"),
         }
     }
 }
