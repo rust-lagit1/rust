@@ -7,8 +7,8 @@ fn constant_eq(s: &str, b: bool) -> u32 {
 
     // CHECK-LABEL: fn constant_eq(
     // CHECK: bb0: {
-    // CHECK: [[a:_.*]] = const "a";
-    // CHECK-NOT: {{_.*}} = const "a";
+    // CHECK: const "a"
+    // CHECK-NOT: const "a"
     match (s, b) {
         ("a", _) if true => 1,
         ("b", true) => 2,

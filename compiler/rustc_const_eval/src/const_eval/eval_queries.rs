@@ -235,10 +235,9 @@ pub(super) fn op_to_const<'tcx>(
                 // We know `offset` is relative to the allocation, so we can use `into_parts`.
                 let (prov, offset) = a.to_pointer(ecx).expect(msg).into_parts();
                 let alloc_id = prov.expect(msg).alloc_id();
-                let data = ecx.tcx.global_alloc(alloc_id).unwrap_memory();
                 assert!(offset == abi::Size::ZERO, "{}", msg);
                 let meta = b.to_target_usize(ecx).expect(msg);
-                ConstValue::Slice { data, meta }
+                ConstValue::Slice { alloc_id, meta, phantom: std::marker::PhantomData }
             }
             Immediate::Uninit => bug!("`Uninit` is not a valid value for {}", op.layout.ty),
         },

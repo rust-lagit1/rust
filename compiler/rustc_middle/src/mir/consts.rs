@@ -5,7 +5,7 @@ use rustc_session::{config::RemapPathScopeComponents, RemapFileNameExt};
 use rustc_span::{Span, DUMMY_SP};
 use rustc_target::abi::{HasDataLayout, Size};
 
-use crate::mir::interpret::{alloc_range, AllocId, ConstAllocation, ErrorHandled, Scalar};
+use crate::mir::interpret::{alloc_range, AllocId, ErrorHandled, Scalar};
 use crate::mir::{pretty_print_const_value, Promoted};
 use crate::ty::print::with_no_trimmed_paths;
 use crate::ty::GenericArgsRef;
@@ -28,8 +28,8 @@ pub struct ConstAlloc<'tcx> {
 
 /// Represents a constant value in Rust. `Scalar` and `Slice` are optimizations for
 /// array length computations, enum discriminants and the pattern matching logic.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, TyEncodable, TyDecodable, Hash)]
-#[derive(HashStable, Lift)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, TyEncodable, TyDecodable, Lift, Hash)]
+#[derive(HashStable)]
 pub enum ConstValue<'tcx> {
     /// Used for types with `layout::abi::Scalar` ABI.
     ///
@@ -48,10 +48,11 @@ pub enum ConstValue<'tcx> {
     Slice {
         /// The allocation storing the slice contents.
         /// This always points to the beginning of the allocation.
-        data: ConstAllocation<'tcx>,
+        alloc_id: AllocId,
         /// The metadata field of the reference.
         /// This is a "target usize", so we use `u64` as in the interpreter.
         meta: u64,
+        phantom: std::marker::PhantomData<&'tcx ()>,
     },
 
     /// A value not representable by the other variants; needs to be stored in-memory.
@@ -73,7 +74,7 @@ pub enum ConstValue<'tcx> {
 #[cfg(target_pointer_width = "64")]
 static_assert_size!(ConstValue<'_>, 24);
 
-impl<'tcx> ConstValue<'tcx> {
+impl ConstValue<'_> {
     #[inline]
     pub fn try_to_scalar(&self) -> Option<Scalar> {
         match *self {
@@ -94,11 +95,11 @@ impl<'tcx> ConstValue<'tcx> {
         self.try_to_scalar_int()?.try_into().ok()
     }
 
-    pub fn try_to_target_usize(&self, tcx: TyCtxt<'tcx>) -> Option<u64> {
+    pub fn try_to_target_usize(&self, tcx: TyCtxt<'_>) -> Option<u64> {
         self.try_to_scalar_int()?.try_to_target_usize(tcx).ok()
     }
 
-    pub fn try_to_bits_for_ty(
+    pub fn try_to_bits_for_ty<'tcx>(
         &self,
         tcx: TyCtxt<'tcx>,
         param_env: ty::ParamEnv<'tcx>,
@@ -125,12 +126,15 @@ impl<'tcx> ConstValue<'tcx> {
     }
 
     /// Must only be called on constants of type `&str` or `&[u8]`!
-    pub fn try_get_slice_bytes_for_diagnostics(&self, tcx: TyCtxt<'tcx>) -> Option<&'tcx [u8]> {
-        let (data, start, end) = match self {
+    pub fn try_get_slice_bytes_for_diagnostics<'tcx>(
+        &self,
+        tcx: TyCtxt<'tcx>,
+    ) -> Option<&'tcx [u8]> {
+        let (alloc_id, start, len) = match self {
             ConstValue::Scalar(_) | ConstValue::ZeroSized => {
                 bug!("`try_get_slice_bytes` on non-slice constant")
             }
-            &ConstValue::Slice { data, meta } => (data, 0, meta),
+            &ConstValue::Slice { alloc_id, meta, phantom: _ } => (alloc_id, 0, meta),
             &ConstValue::Indirect { alloc_id, offset } => {
                 // The reference itself is stored behind an indirection.
                 // Load the reference, and then load the actual slice contents.
@@ -162,26 +166,29 @@ impl<'tcx> ConstValue<'tcx> {
                 }
                 // Non-empty slice, must have memory. We know this is a relative pointer.
                 let (inner_prov, offset) = ptr.into_parts();
-                let data = tcx.global_alloc(inner_prov?.alloc_id()).unwrap_memory();
-                (data, offset.bytes(), offset.bytes() + len)
+                (inner_prov?.alloc_id(), offset.bytes(), offset.bytes() + len)
             }
         };
 
+        let data = tcx.global_alloc(alloc_id).unwrap_memory();
+
         // This is for diagnostics only, so we are okay to use `inspect_with_uninit_and_ptr_outside_interpreter`.
         let start = start.try_into().unwrap();
-        let end = end.try_into().unwrap();
+        let end = start + usize::try_from(len).unwrap();
         Some(data.inner().inspect_with_uninit_and_ptr_outside_interpreter(start..end))
     }
 
     /// Check if a constant may contain provenance information. This is used by MIR opts.
     /// Can return `true` even if there is no provenance.
-    pub fn may_have_provenance(&self, tcx: TyCtxt<'tcx>, size: Size) -> bool {
+    pub fn may_have_provenance(&self, tcx: TyCtxt<'_>, size: Size) -> bool {
         match *self {
             ConstValue::ZeroSized | ConstValue::Scalar(Scalar::Int(_)) => return false,
             ConstValue::Scalar(Scalar::Ptr(..)) => return true,
             // It's hard to find out the part of the allocation we point to;
             // just conservatively check everything.
-            ConstValue::Slice { data, meta: _ } => !data.inner().provenance().ptrs().is_empty(),
+            ConstValue::Slice { alloc_id, meta: _, phantom: _ } => {
+                !tcx.global_alloc(alloc_id).unwrap_memory().inner().provenance().ptrs().is_empty()
+            }
             ConstValue::Indirect { alloc_id, offset } => !tcx
                 .global_alloc(alloc_id)
                 .unwrap_memory()
@@ -424,9 +431,8 @@ impl<'tcx> Const<'tcx> {
     /// taking into account even pointer identity tests.
     pub fn is_deterministic(&self) -> bool {
         // Some constants may generate fresh allocations for pointers they contain,
-        // so using the same constant twice can yield two different results:
-        // - valtrees purposefully generate new allocations
-        // - ConstValue::Slice also generate new allocations
+        // so using the same constant twice can yield two different results.
+        // Notably, valtrees purposefully generate new allocations.
         match self {
             Const::Ty(c) => match c.kind() {
                 ty::ConstKind::Param(..) => true,
@@ -444,11 +450,11 @@ impl<'tcx> Const<'tcx> {
                 | ty::ConstKind::Placeholder(..) => bug!(),
             },
             Const::Unevaluated(..) => false,
-            // If the same slice appears twice in the MIR, we cannot guarantee that we will
-            // give the same `AllocId` to the data.
-            Const::Val(ConstValue::Slice { .. }, _) => false,
             Const::Val(
-                ConstValue::ZeroSized | ConstValue::Scalar(_) | ConstValue::Indirect { .. },
+                ConstValue::Slice { .. }
+                | ConstValue::ZeroSized
+                | ConstValue::Scalar(_)
+                | ConstValue::Indirect { .. },
                 _,
             ) => true,
         }
