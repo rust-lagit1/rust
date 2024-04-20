@@ -101,7 +101,7 @@ trait SimplifyMatch<'tcx> {
         tcx: TyCtxt<'tcx>,
         targets: &SwitchTargets,
         param_env: ParamEnv<'tcx>,
-        bbs: &IndexSlice<BasicBlock, BasicBlockData<'tcx>>,
+        bbs: &BasicBlocks<'tcx>,
         discr_ty: Ty<'tcx>,
     ) -> Option<()>;
 
@@ -157,7 +157,7 @@ impl<'tcx> SimplifyMatch<'tcx> for SimplifyToIf {
         tcx: TyCtxt<'tcx>,
         targets: &SwitchTargets,
         param_env: ParamEnv<'tcx>,
-        bbs: &IndexSlice<BasicBlock, BasicBlockData<'tcx>>,
+        bbs: &BasicBlocks<'tcx>,
         _discr_ty: Ty<'tcx>,
     ) -> Option<()> {
         if targets.iter().len() != 1 {
@@ -165,7 +165,9 @@ impl<'tcx> SimplifyMatch<'tcx> for SimplifyToIf {
         }
         // We require that the possible target blocks all be distinct.
         let (_, first) = targets.iter().next().unwrap();
-        let second = targets.otherwise();
+        let SwitchAction::Goto(second) = targets.otherwise() else {
+            return None;
+        };
         if first == second {
             return None;
         }
@@ -215,7 +217,7 @@ impl<'tcx> SimplifyMatch<'tcx> for SimplifyToIf {
         discr_ty: Ty<'tcx>,
     ) {
         let (val, first) = targets.iter().next().unwrap();
-        let second = targets.otherwise();
+        let SwitchAction::Goto(second) = targets.otherwise() else { unreachable!() };
         // We already checked that first and second are different blocks,
         // and bb_idx has a different terminator from both of them.
         let first = &bbs[first];
@@ -336,7 +338,7 @@ impl<'tcx> SimplifyMatch<'tcx> for SimplifyToExp {
         tcx: TyCtxt<'tcx>,
         targets: &SwitchTargets,
         param_env: ParamEnv<'tcx>,
-        bbs: &IndexSlice<BasicBlock, BasicBlockData<'tcx>>,
+        bbs: &BasicBlocks<'tcx>,
         discr_ty: Ty<'tcx>,
     ) -> Option<()> {
         if targets.iter().len() < 2 || targets.iter().len() > 64 {
@@ -346,7 +348,7 @@ impl<'tcx> SimplifyMatch<'tcx> for SimplifyToExp {
         if !targets.is_distinct() {
             return None;
         }
-        if !bbs[targets.otherwise()].is_empty_unreachable() {
+        if !bbs.is_empty_unreachable(targets.otherwise()) {
             return None;
         }
         let mut target_iter = targets.iter();

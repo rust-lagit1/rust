@@ -361,8 +361,9 @@ impl<'a, 'tcx> Iterator for MonoReachable<'a, 'tcx> {
             if let Some((bits, targets)) =
                 Body::try_const_mono_switchint(self.tcx, self.instance, data)
             {
-                let target = targets.target_for_value(bits);
-                self.add_work([target]);
+                if let SwitchAction::Goto(target) = targets.target_for_value(bits) {
+                    self.add_work([target]);
+                }
             } else {
                 self.add_work(data.terminator().successors());
             }

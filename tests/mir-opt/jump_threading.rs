@@ -50,7 +50,7 @@ fn identity(x: Result<i32, i32>) -> Result<i32, i32> {
     // CHECK-LABEL: fn identity(
     // CHECK: bb0: {
     // CHECK:     [[x:_.*]] = _1;
-    // CHECK:     switchInt(move {{_.*}}) -> [0: bb7, 1: bb6, otherwise: bb1];
+    // CHECK:     switchInt(move {{_.*}}) -> [0: bb7, 1: bb6];
     // CHECK: bb1: {
     // CHECK:     unreachable;
     // CHECK: bb2: {

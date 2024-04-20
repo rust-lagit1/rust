@@ -4,7 +4,7 @@ use super::MirPass;
 use rustc_middle::{
     mir::{
         interpret::Scalar, BasicBlock, BinOp, Body, Operand, Place, Rvalue, Statement,
-        StatementKind, SwitchTargets, TerminatorKind,
+        StatementKind, SwitchAction, SwitchTargets, TerminatorKind,
     },
     ty::{Ty, TyCtxt},
 };
@@ -124,7 +124,10 @@ impl<'tcx> MirPass<'tcx> for SimplifyComparisonIntegral {
                 e => bug!("expected 2 switch targets, got: {:?}", e),
             };
 
-            let targets = SwitchTargets::new(iter::once((new_value, bb_cond)), bb_otherwise);
+            let targets = SwitchTargets::new(
+                iter::once((new_value, bb_cond)),
+                SwitchAction::Goto(bb_otherwise),
+            );
 
             let terminator = bb.terminator_mut();
             terminator.kind =

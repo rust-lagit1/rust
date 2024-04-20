@@ -151,7 +151,7 @@ impl<'tcx, 'body> ParseCtxt<'tcx, 'body> {
             targets.push(self.parse_block(arm.body)?);
         }
 
-        Ok(SwitchTargets::new(values.into_iter().zip(targets), otherwise))
+        Ok(SwitchTargets::new(values.into_iter().zip(targets), SwitchAction::Goto(otherwise)))
     }
 
     fn parse_call(&self, args: &[ExprId]) -> PResult<TerminatorKind<'tcx>> {
