@@ -5,5 +5,5 @@
 fn main() {
     assert!("foo");
     //[edition2024]~^ ERROR mismatched types
-    //[edition2021]~^^ ERROR cannot apply unary operator `!` to type `&'static str`
+    //[edition2021]~^^ ERROR mismatched types
 }
