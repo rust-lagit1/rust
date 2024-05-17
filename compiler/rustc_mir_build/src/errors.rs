@@ -14,6 +14,7 @@ use rustc_span::Span;
 #[diag(mir_build_unconditional_recursion)]
 #[help]
 pub struct UnconditionalRecursion {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[label(mir_build_unconditional_recursion_call_site_label)]
@@ -24,6 +25,7 @@ pub struct UnconditionalRecursion {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_call_to_unsafe_fn_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnCallToUnsafeFunctionRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     pub function: String,
@@ -35,6 +37,7 @@ pub struct UnsafeOpInUnsafeFnCallToUnsafeFunctionRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_call_to_unsafe_fn_requires_unsafe_nameless)]
 #[note]
 pub struct UnsafeOpInUnsafeFnCallToUnsafeFunctionRequiresUnsafeNameless {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -45,6 +48,7 @@ pub struct UnsafeOpInUnsafeFnCallToUnsafeFunctionRequiresUnsafeNameless {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_inline_assembly_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnUseOfInlineAssemblyRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -55,6 +59,7 @@ pub struct UnsafeOpInUnsafeFnUseOfInlineAssemblyRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_initializing_type_with_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnInitializingTypeWithRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -65,6 +70,7 @@ pub struct UnsafeOpInUnsafeFnInitializingTypeWithRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_mutable_static_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnUseOfMutableStaticRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -75,6 +81,7 @@ pub struct UnsafeOpInUnsafeFnUseOfMutableStaticRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_extern_static_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnUseOfExternStaticRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -85,6 +92,7 @@ pub struct UnsafeOpInUnsafeFnUseOfExternStaticRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_deref_raw_pointer_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnDerefOfRawPointerRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -95,6 +103,7 @@ pub struct UnsafeOpInUnsafeFnDerefOfRawPointerRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_union_field_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnAccessToUnionFieldRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -105,6 +114,7 @@ pub struct UnsafeOpInUnsafeFnAccessToUnionFieldRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_mutation_of_layout_constrained_field_requires_unsafe)]
 #[note]
 pub struct UnsafeOpInUnsafeFnMutationOfLayoutConstrainedFieldRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -114,6 +124,7 @@ pub struct UnsafeOpInUnsafeFnMutationOfLayoutConstrainedFieldRequiresUnsafe {
 #[derive(LintDiagnostic)]
 #[diag(mir_build_unsafe_op_in_unsafe_fn_borrow_of_layout_constrained_field_requires_unsafe)]
 pub struct UnsafeOpInUnsafeFnBorrowOfLayoutConstrainedFieldRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -124,6 +135,7 @@ pub struct UnsafeOpInUnsafeFnBorrowOfLayoutConstrainedFieldRequiresUnsafe {
 #[diag(mir_build_unsafe_op_in_unsafe_fn_call_to_fn_with_requires_unsafe)]
 #[help]
 pub struct UnsafeOpInUnsafeFnCallToFunctionWithRequiresUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     pub function: String,
@@ -439,6 +451,7 @@ impl Subdiagnostic for UnsafeNotInheritedLintNote {
 #[derive(LintDiagnostic)]
 #[diag(mir_build_unused_unsafe)]
 pub struct UnusedUnsafe {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]
@@ -560,8 +573,10 @@ pub struct NonConstPath {
 #[derive(LintDiagnostic)]
 #[diag(mir_build_unreachable_pattern)]
 pub struct UnreachablePattern {
+    #[primary_span]
+    pub span: Span,
     #[label]
-    pub span: Option<Span>,
+    pub label: Option<Span>,
     #[label(mir_build_catchall_label)]
     pub catchall: Option<Span>,
 }
@@ -613,6 +628,8 @@ pub struct LowerRangeBoundMustBeLessThanUpper {
 #[note]
 #[help]
 pub struct LeadingIrrefutableLetPatterns {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
@@ -621,12 +638,16 @@ pub struct LeadingIrrefutableLetPatterns {
 #[note]
 #[help]
 pub struct TrailingIrrefutableLetPatterns {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
 #[derive(LintDiagnostic)]
 #[diag(mir_build_bindings_with_variant_name, code = E0170)]
 pub struct BindingsWithVariantName {
+    #[primary_span]
+    pub span: Span,
     #[suggestion(code = "{ty_path}::{name}", applicability = "machine-applicable")]
     pub suggestion: Option<Span>,
     pub ty_path: String,
@@ -638,6 +659,8 @@ pub struct BindingsWithVariantName {
 #[note]
 #[help]
 pub struct IrrefutableLetPatternsIfLet {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
@@ -646,6 +669,8 @@ pub struct IrrefutableLetPatternsIfLet {
 #[note]
 #[help]
 pub struct IrrefutableLetPatternsIfLetGuard {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
@@ -654,6 +679,8 @@ pub struct IrrefutableLetPatternsIfLetGuard {
 #[note]
 #[help]
 pub struct IrrefutableLetPatternsLetElse {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
@@ -662,6 +689,8 @@ pub struct IrrefutableLetPatternsLetElse {
 #[note]
 #[help]
 pub struct IrrefutableLetPatternsWhileLet {
+    #[primary_span]
+    pub span: Span,
     pub count: usize,
 }
 
@@ -790,7 +819,10 @@ pub struct NaNPattern {
 
 #[derive(LintDiagnostic)]
 #[diag(mir_build_pointer_pattern)]
-pub struct PointerPattern;
+pub struct PointerPattern {
+    #[primary_span]
+    pub span: Span,
+}
 
 #[derive(Diagnostic)]
 #[diag(mir_build_non_empty_never_pattern)]
@@ -807,14 +839,8 @@ pub struct NonEmptyNeverPattern<'tcx> {
 #[note(mir_build_type_not_structural_tip)]
 #[note(mir_build_type_not_structural_more_info)]
 pub struct IndirectStructuralMatch<'tcx> {
-    pub non_sm_ty: Ty<'tcx>,
-}
-
-#[derive(LintDiagnostic)]
-#[diag(mir_build_nontrivial_structural_match)]
-#[note(mir_build_type_not_structural_tip)]
-#[note(mir_build_type_not_structural_more_info)]
-pub struct NontrivialStructuralMatch<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub non_sm_ty: Ty<'tcx>,
 }
 
@@ -954,6 +980,8 @@ pub enum RustcBoxAttrReason {
 #[derive(LintDiagnostic)]
 #[diag(mir_build_rust_2024_incompatible_pat)]
 pub struct Rust2024IncompatiblePat {
+    #[primary_span]
+    pub span: Span,
     #[subdiagnostic]
     pub sugg: Rust2024IncompatiblePatSugg,
 }

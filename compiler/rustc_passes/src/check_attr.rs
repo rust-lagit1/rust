@@ -42,7 +42,10 @@ use std::collections::hash_map::Entry;
 
 #[derive(LintDiagnostic)]
 #[diag(passes_diagnostic_diagnostic_on_unimplemented_only_for_traits)]
-pub struct DiagnosticOnUnimplementedOnlyForTraits;
+pub struct DiagnosticOnUnimplementedOnlyForTraits {
+    #[primary_span]
+    pub span: Span,
+}
 
 pub(crate) fn target_from_impl_item<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -248,17 +251,15 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     attr.ident().and_then(|ident| BUILTIN_ATTRIBUTE_MAP.get(&ident.name))
                 {
                     match attr.style {
-                        ast::AttrStyle::Outer => self.tcx.emit_node_span_lint(
+                        ast::AttrStyle::Outer => self.tcx.emit_node_lint(
                             UNUSED_ATTRIBUTES,
                             hir_id,
-                            attr.span,
-                            errors::OuterCrateLevelAttr,
+                            errors::OuterCrateLevelAttr { span: attr.span },
                         ),
-                        ast::AttrStyle::Inner => self.tcx.emit_node_span_lint(
+                        ast::AttrStyle::Inner => self.tcx.emit_node_lint(
                             UNUSED_ATTRIBUTES,
                             hir_id,
-                            attr.span,
-                            errors::InnerCrateLevelAttr,
+                            errors::InnerCrateLevelAttr { span: attr.span },
                         ),
                     }
                 }
@@ -276,20 +277,18 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
     }
 
     fn inline_attr_str_error_with_macro_def(&self, hir_id: HirId, attr: &Attribute, sym: &str) {
-        self.tcx.emit_node_span_lint(
+        self.tcx.emit_node_lint(
             UNUSED_ATTRIBUTES,
             hir_id,
-            attr.span,
-            errors::IgnoredAttrWithMacro { sym },
+            errors::IgnoredAttrWithMacro { span: attr.span, sym },
         );
     }
 
     fn inline_attr_str_error_without_macro_def(&self, hir_id: HirId, attr: &Attribute, sym: &str) {
-        self.tcx.emit_node_span_lint(
+        self.tcx.emit_node_lint(
             UNUSED_ATTRIBUTES,
             hir_id,
-            attr.span,
-            errors::IgnoredAttr { sym },
+            errors::IgnoredAttr { span: attr.span, sym },
         );
     }
 
@@ -306,11 +305,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
     /// Checks if `#[diagnostic::on_unimplemented]` is applied to a trait definition
     fn check_diagnostic_on_unimplemented(&self, attr_span: Span, hir_id: HirId, target: Target) {
         if !matches!(target, Target::Trait) {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 UNKNOWN_OR_MALFORMED_DIAGNOSTIC_ATTRIBUTES,
                 hir_id,
-                attr_span,
-                DiagnosticOnUnimplementedOnlyForTraits,
+                DiagnosticOnUnimplementedOnlyForTraits { span: attr_span },
             );
         }
     }
@@ -322,11 +320,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             | Target::Closure
             | Target::Method(MethodKind::Trait { body: true } | MethodKind::Inherent) => true,
             Target::Method(MethodKind::Trait { body: false }) | Target::ForeignFn => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::IgnoredInlineAttrFnProto,
+                    errors::IgnoredInlineAttrFnProto { span: attr.span },
                 );
                 true
             }
@@ -335,11 +332,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             // accidentally, to be compatible with crates depending on them, we can't throw an
             // error here.
             Target::AssocConst => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::IgnoredInlineAttrConstants,
+                    errors::IgnoredInlineAttrConstants { span: attr.span },
                 );
                 true
             }
@@ -368,31 +364,28 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
 
             // function prototypes can't be covered
             Target::Method(MethodKind::Trait { body: false }) | Target::ForeignFn => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::IgnoredCoverageFnProto,
+                    errors::IgnoredCoverageFnProto { span: attr.span },
                 );
                 true
             }
 
             Target::Mod | Target::ForeignMod | Target::Impl | Target::Trait => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::IgnoredCoveragePropagate,
+                    errors::IgnoredCoveragePropagate { span: attr.span },
                 );
                 true
             }
 
             Target::Expression | Target::Statement | Target::Arm => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::IgnoredCoverageFnDefn,
+                    errors::IgnoredCoverageFnDefn { span: attr.span },
                 );
                 true
             }
@@ -415,11 +408,11 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
         allowed_target: Target,
     ) {
         if target != allowed_target {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 UNUSED_ATTRIBUTES,
                 hir_id,
-                attr.span,
                 errors::OnlyHasEffectOn {
+                    span: attr.span,
                     attr_name: attr.name_or_empty(),
                     target_name: allowed_target.name().replace(' ', "_"),
                 },
@@ -645,11 +638,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             // FIXME: #[target_feature] was previously erroneously allowed on statements and some
             // crates used this, so only emit a warning.
             Target::Statement => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::TargetFeatureOnStatement,
+                    errors::TargetFeatureOnStatement { span: attr.span },
                 );
                 true
             }
@@ -784,11 +776,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             return false;
         }
         if let Err(entry) = aliases.try_insert(doc_alias_str.to_owned(), span) {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 UNUSED_ATTRIBUTES,
                 hir_id,
-                span,
-                errors::DocAliasDuplicated { first_defn: *entry.entry.get() },
+                errors::DocAliasDuplicated { span, first_defn: *entry.entry.get() },
             );
         }
         true
@@ -931,12 +922,11 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 }
             }
             _ => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     INVALID_DOC_ATTRIBUTES,
                     hir_id,
-                    meta.span(),
                     errors::DocInlineOnlyUse {
-                        attr_span: meta.span(),
+                        span: meta.span(),
                         item_span: (attr.style == AttrStyle::Outer)
                             .then(|| self.tcx.hir().span(hir_id)),
                     },
@@ -954,12 +944,11 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
         target: Target,
     ) -> bool {
         if target != Target::ExternCrate {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 INVALID_DOC_ATTRIBUTES,
                 hir_id,
-                meta.span(),
                 errors::DocMaskedOnlyExternCrate {
-                    attr_span: meta.span(),
+                    span: meta.span(),
                     item_span: (attr.style == AttrStyle::Outer)
                         .then(|| self.tcx.hir().span(hir_id)),
                 },
@@ -968,12 +957,11 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
         }
 
         if self.tcx.extern_mod_stmt_cnum(hir_id.owner).is_none() {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 INVALID_DOC_ATTRIBUTES,
                 hir_id,
-                meta.span(),
                 errors::DocMaskedNotExternCrateSelf {
-                    attr_span: meta.span(),
+                    span: meta.span(),
                     item_span: (attr.style == AttrStyle::Outer)
                         .then(|| self.tcx.hir().span(hir_id)),
                 },
@@ -1013,11 +1001,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 .then_some(errors::AttrCrateLevelOnlySugg {
                     attr: attr.span.with_lo(bang_span).with_hi(bang_span),
                 });
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 INVALID_DOC_ATTRIBUTES,
                 hir_id,
-                meta.span(),
-                errors::AttrCrateLevelOnly { sugg },
+                errors::AttrCrateLevelOnly { span: meta.span(), sugg },
             );
             return false;
         }
@@ -1033,33 +1020,31 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 match (i_meta.name_or_empty(), i_meta.meta_item()) {
                     (sym::attr | sym::no_crate_inject, _) => {}
                     (_, Some(m)) => {
-                        self.tcx.emit_node_span_lint(
+                        self.tcx.emit_node_lint(
                             INVALID_DOC_ATTRIBUTES,
                             hir_id,
-                            i_meta.span(),
                             errors::DocTestUnknown {
+                                span: i_meta.span(),
                                 path: rustc_ast_pretty::pprust::path_to_string(&m.path),
                             },
                         );
                         is_valid = false;
                     }
                     (_, None) => {
-                        self.tcx.emit_node_span_lint(
+                        self.tcx.emit_node_lint(
                             INVALID_DOC_ATTRIBUTES,
                             hir_id,
-                            i_meta.span(),
-                            errors::DocTestLiteral,
+                            errors::DocTestLiteral { span: i_meta.span() },
                         );
                         is_valid = false;
                     }
                 }
             }
         } else {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 INVALID_DOC_ATTRIBUTES,
                 hir_id,
-                meta.span(),
-                errors::DocTestTakesList,
+                errors::DocTestTakesList { span: meta.span() },
             );
             is_valid = false;
         }
@@ -1072,11 +1057,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
         if meta.meta_item_list().is_some() {
             true
         } else {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 INVALID_DOC_ATTRIBUTES,
                 hir_id,
-                meta.span(),
-                errors::DocCfgHideTakesList,
+                errors::DocCfgHideTakesList { span: meta.span() },
             );
             false
         }
@@ -1206,11 +1190,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                         _ => {
                             let path = rustc_ast_pretty::pprust::path_to_string(&i_meta.path);
                             if i_meta.has_name(sym::spotlight) {
-                                self.tcx.emit_node_span_lint(
+                                self.tcx.emit_node_lint(
                                     INVALID_DOC_ATTRIBUTES,
                                     hir_id,
-                                    i_meta.span,
-                                    errors::DocTestUnknownSpotlight { path, span: i_meta.span },
+                                    errors::DocTestUnknownSpotlight { span: i_meta.span, path },
                                 );
                             } else if i_meta.has_name(sym::include)
                                 && let Some(value) = i_meta.value_str()
@@ -1222,11 +1205,11 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                                 };
                                 // If there are multiple attributes, the suggestion would suggest
                                 // deleting all of them, which is incorrect.
-                                self.tcx.emit_node_span_lint(
+                                self.tcx.emit_node_lint(
                                     INVALID_DOC_ATTRIBUTES,
                                     hir_id,
-                                    i_meta.span,
                                     errors::DocTestUnknownInclude {
+                                        span: i_meta.span,
                                         path,
                                         value: value.to_string(),
                                         inner: match attr.style {
@@ -1237,22 +1220,20 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                                     },
                                 );
                             } else {
-                                self.tcx.emit_node_span_lint(
+                                self.tcx.emit_node_lint(
                                     INVALID_DOC_ATTRIBUTES,
                                     hir_id,
-                                    i_meta.span,
-                                    errors::DocTestUnknownAny { path },
+                                    errors::DocTestUnknownAny { span: i_meta.span, path },
                                 );
                             }
                             is_valid = false;
                         }
                     }
                 } else {
-                    self.tcx.emit_node_span_lint(
+                    self.tcx.emit_node_lint(
                         INVALID_DOC_ATTRIBUTES,
                         hir_id,
-                        meta.span(),
-                        errors::DocInvalid,
+                        errors::DocInvalid { span: meta.span() },
                     );
                     is_valid = false;
                 }
@@ -1352,11 +1333,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 _ => "a",
             };
 
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 UNUSED_ATTRIBUTES,
                 hir_id,
-                attr.span,
-                errors::MustUseNoEffect { article, target },
+                errors::MustUseNoEffect { span: attr.span, article, target },
             );
         }
 
@@ -1389,11 +1369,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 // FIXME: #[cold] was previously allowed on non-functions and some crates used
                 // this, so only emit a warning.
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::Cold { span, on_crate: hir_id == CRATE_HIR_ID },
+                    errors::Cold { span: attr.span, label: span, on_crate: hir_id == CRATE_HIR_ID },
                 );
             }
         }
@@ -1409,11 +1388,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             return;
         }
 
-        self.tcx.emit_node_span_lint(
+        self.tcx.emit_node_lint(
             UNUSED_ATTRIBUTES,
             hir_id,
-            attr.span,
-            errors::Link { span: (target != Target::ForeignMod).then_some(span) },
+            errors::Link { span: attr.span, label: (target != Target::ForeignMod).then_some(span) },
         );
     }
 
@@ -1431,20 +1409,28 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 // FIXME: #[cold] was previously allowed on non-functions/statics and some crates
                 // used this, so only emit a warning.
-                let attr_span = matches!(target, Target::ForeignMod).then_some(attr.span);
+                let help_sp = matches!(target, Target::ForeignMod).then_some(attr.span);
                 if let Some(s) = attr.value_str() {
-                    self.tcx.emit_node_span_lint(
+                    self.tcx.emit_node_lint(
                         UNUSED_ATTRIBUTES,
                         hir_id,
-                        attr.span,
-                        errors::LinkName { span, attr_span, value: s.as_str() },
+                        errors::LinkName {
+                            span: attr.span,
+                            label: span,
+                            help: help_sp,
+                            value: s.as_str(),
+                        },
                     );
                 } else {
-                    self.tcx.emit_node_span_lint(
+                    self.tcx.emit_node_lint(
                         UNUSED_ATTRIBUTES,
                         hir_id,
-                        attr.span,
-                        errors::LinkName { span, attr_span, value: "..." },
+                        errors::LinkName {
+                            span: attr.span,
+                            label: span,
+                            help: help_sp,
+                            value: "...",
+                        },
                     );
                 };
             }
@@ -1719,11 +1705,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             _ => {
                 // FIXME: #[link_section] was previously allowed on non-functions/statics and some
                 // crates used this, so only emit a warning.
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::LinkSection { span },
+                    errors::LinkSection { span: attr.span, label: span },
                 );
             }
         }
@@ -1750,21 +1735,19 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     Target::ForeignStatic => "static",
                     _ => unreachable!(),
                 };
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::NoMangleForeign { span, attr_span: attr.span, foreign_item_kind },
+                    errors::NoMangleForeign { span: attr.span, label: span, foreign_item_kind },
                 );
             }
             _ => {
                 // FIXME: #[no_mangle] was previously allowed on non-functions/statics and some
                 // crates used this, so only emit a warning.
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::NoMangle { span },
+                    errors::NoMangle { span: attr.span, label: span },
                 );
             }
         }
@@ -1939,11 +1922,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                     return false;
                 }))
         {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 CONFLICTING_REPR_HINTS,
                 hir_id,
-                hint_spans.collect::<Vec<Span>>(),
-                errors::ReprConflictingLint,
+                errors::ReprConflictingLint { spans: hint_spans.collect() },
             );
         }
     }
@@ -2178,11 +2160,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
     fn check_deprecated(&self, hir_id: HirId, attr: &Attribute, _span: Span, target: Target) {
         match target {
             Target::Closure | Target::Expression | Target::Statement | Target::Arm => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::Deprecated,
+                    errors::Deprecated { span: attr.span },
                 );
             }
             _ => {}
@@ -2194,11 +2175,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
         match target {
             Target::ExternCrate | Target::Mod => {}
             _ => {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::MacroUse { name },
+                    errors::MacroUse { span: attr.span, name },
                 );
             }
         }
@@ -2206,29 +2186,27 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
 
     fn check_macro_export(&self, hir_id: HirId, attr: &Attribute, target: Target) {
         if target != Target::MacroDef {
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 UNUSED_ATTRIBUTES,
                 hir_id,
-                attr.span,
-                errors::MacroExport::Normal,
+                errors::MacroExport::Normal { span: attr.span },
             );
         } else if let Some(meta_item_list) = attr.meta_item_list()
             && !meta_item_list.is_empty()
         {
             if meta_item_list.len() > 1 {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     INVALID_MACRO_EXPORT_ARGUMENTS,
                     hir_id,
-                    attr.span,
-                    errors::MacroExport::TooManyItems,
+                    errors::MacroExport::TooManyItems { span: attr.span },
                 );
             } else {
                 if meta_item_list[0].name_or_empty() != sym::local_inner_macros {
-                    self.tcx.emit_node_span_lint(
+                    self.tcx.emit_node_lint(
                         INVALID_MACRO_EXPORT_ARGUMENTS,
                         hir_id,
-                        meta_item_list[0].span(),
                         errors::MacroExport::UnknownItem {
+                            span: meta_item_list[0].span(),
                             name: meta_item_list[0].name_or_empty(),
                         },
                     );
@@ -2240,11 +2218,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             let is_decl_macro = !macro_definition.macro_rules;
 
             if is_decl_macro {
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     UNUSED_ATTRIBUTES,
                     hir_id,
-                    attr.span,
-                    errors::MacroExport::OnDeclMacro,
+                    errors::MacroExport::OnDeclMacro { span: attr.span },
                 );
             }
         }
@@ -2282,11 +2259,10 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             return;
         };
 
-        self.tcx.emit_node_span_lint(
+        self.tcx.emit_node_lint(
             UNUSED_ATTRIBUTES,
             hir_id,
-            attr.span,
-            errors::Unused { attr_span: attr.span, note },
+            errors::Unused { span: attr.span, note },
         );
     }
 
@@ -2625,12 +2601,11 @@ fn check_duplicates(
                     } else {
                         (attr.span, *entry.get())
                     };
-                    tcx.emit_node_span_lint(
+                    tcx.emit_node_lint(
                         UNUSED_ATTRIBUTES,
                         hir_id,
-                        this,
                         errors::UnusedDuplicate {
-                            this,
+                            span: this,
                             other,
                             warning: matches!(
                                 duplicates,

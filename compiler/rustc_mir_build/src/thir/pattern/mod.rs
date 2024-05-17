@@ -55,11 +55,10 @@ pub(super) fn pat_from_hir<'a, 'tcx>(
     let result = pcx.lower_pattern(pat);
     debug!("pat_from_hir({:?}) = {:?}", pat, result);
     if let Some(sugg) = pcx.rust_2024_migration_suggestion {
-        tcx.emit_node_span_lint(
+        tcx.emit_node_lint(
             lint::builtin::RUST_2024_INCOMPATIBLE_PAT,
             pat.hir_id,
-            pat.span,
-            Rust2024IncompatiblePat { sugg },
+            Rust2024IncompatiblePat { span: pat.span, sugg },
         );
     }
     result

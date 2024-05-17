@@ -257,9 +257,6 @@ mir_build_non_exhaustive_patterns_type_not_empty = non-exhaustive patterns: type
 mir_build_non_partial_eq_match =
     to use a constant of type `{$non_peq_ty}` in a pattern, the type must implement `PartialEq`
 
-mir_build_nontrivial_structural_match =
-    to use a constant of type `{$non_sm_ty}` in a pattern, the constant's initializer must be trivial or `{$non_sm_ty}` must be annotated with `#[derive(PartialEq)]`
-
 mir_build_pattern_not_covered = refutable pattern in {$origin}
     .pattern_ty = the matched value is of type `{$pattern_ty}`
 

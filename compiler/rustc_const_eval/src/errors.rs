@@ -35,10 +35,7 @@ pub(crate) struct NestedStaticInThreadLocal {
 #[derive(LintDiagnostic)]
 #[diag(const_eval_mutable_ptr_in_final)]
 pub(crate) struct MutablePtrInFinal {
-    // rust-lang/rust#122153: This was marked as `#[primary_span]` under
-    // `derive(Diagnostic)`. Since we expect we may hard-error in future, we are
-    // keeping the field (and skipping it under `derive(LintDiagnostic)`).
-    #[skip_arg]
+    #[primary_span]
     pub span: Span,
     pub kind: InternKind,
 }
@@ -228,6 +225,8 @@ pub(crate) struct InteriorMutabilityBorrow {
 #[diag(const_eval_long_running)]
 #[note]
 pub struct LongRunning {
+    #[primary_span]
+    pub span: Span,
     #[help]
     pub item_span: Span,
 }
@@ -407,6 +406,8 @@ pub struct ConstEvalError {
 #[derive(LintDiagnostic)]
 #[diag(const_eval_write_through_immutable_pointer)]
 pub struct WriteThroughImmutablePointer {
+    #[primary_span]
+    pub span: Span,
     #[subdiagnostic]
     pub frames: Vec<FrameNote>,
 }

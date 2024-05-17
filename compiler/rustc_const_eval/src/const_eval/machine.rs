@@ -622,11 +622,10 @@ impl<'mir, 'tcx> interpret::Machine<'mir, 'tcx> for CompileTimeInterpreter<'mir,
                     .0
                     .is_error();
                 let span = ecx.cur_span();
-                ecx.tcx.emit_node_span_lint(
+                ecx.tcx.emit_node_lint(
                     rustc_session::lint::builtin::LONG_RUNNING_CONST_EVAL,
                     hir_id,
-                    span,
-                    LongRunning { item_span: ecx.tcx.span },
+                    LongRunning { span, item_span: ecx.tcx.span },
                 );
                 // If this was a hard error, don't bother continuing evaluation.
                 if is_error {
@@ -747,8 +746,8 @@ impl<'mir, 'tcx> interpret::Machine<'mir, 'tcx> for CompileTimeInterpreter<'mir,
         }
         // Reject writes through immutable pointers.
         if immutable {
-            super::lint(tcx, machine, WRITES_THROUGH_IMMUTABLE_POINTER, |frames| {
-                crate::errors::WriteThroughImmutablePointer { frames }
+            super::lint(tcx, machine, WRITES_THROUGH_IMMUTABLE_POINTER, |span, frames| {
+                crate::errors::WriteThroughImmutablePointer { span, frames }
             });
         }
         // Everything else is fine.

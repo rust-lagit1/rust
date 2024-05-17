@@ -72,11 +72,11 @@ pub(crate) fn lint_nonexhaustive_missing_variants<'p, 'tcx>(
             // is not exhaustive enough.
             //
             // NB: The partner lint for structs lives in `compiler/rustc_hir_analysis/src/check/pat.rs`.
-            rcx.tcx.emit_node_span_lint(
+            rcx.tcx.emit_node_lint(
                 NON_EXHAUSTIVE_OMITTED_PATTERNS,
                 rcx.match_lint_level,
-                rcx.scrut_span,
                 NonExhaustiveOmittedPattern {
+                    span: rcx.scrut_span,
                     scrut_ty: scrut_ty.inner(),
                     uncovered: Uncovered::new(rcx.scrut_span, rcx, witnesses),
                 },
@@ -91,6 +91,7 @@ pub(crate) fn lint_nonexhaustive_missing_variants<'p, 'tcx>(
                 rcx.tcx.lint_level_at_node(NON_EXHAUSTIVE_OMITTED_PATTERNS, arm.arm_data);
             if !matches!(lint_level, rustc_session::lint::Level::Allow) {
                 let decorator = NonExhaustiveOmittedPatternLintOnArm {
+                    span: arm.pat.data().span,
                     lint_span: lint_level_source.span(),
                     suggest_lint_on_match: rcx.whole_match_span.map(|span| span.shrink_to_lo()),
                     lint_level: lint_level.as_str(),
@@ -98,7 +99,7 @@ pub(crate) fn lint_nonexhaustive_missing_variants<'p, 'tcx>(
                 };
 
                 use rustc_errors::LintDiagnostic;
-                let mut err = rcx.tcx.dcx().struct_span_warn(arm.pat.data().span, "");
+                let mut err = rcx.tcx.dcx().struct_span_warn(decorator.span, "");
                 err.primary_message(decorator.msg());
                 decorator.decorate_lint(&mut err);
                 err.emit();

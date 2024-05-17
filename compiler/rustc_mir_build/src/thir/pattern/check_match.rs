@@ -569,11 +569,10 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
                 let span_end = prefix.last().unwrap().unwrap().0;
                 let span = span_start.to(span_end);
                 let count = prefix.len();
-                self.tcx.emit_node_span_lint(
+                self.tcx.emit_node_lint(
                     IRREFUTABLE_LET_PATTERNS,
                     self.lint_level,
-                    span,
-                    LeadingIrrefutableLetPatterns { count },
+                    LeadingIrrefutableLetPatterns { span, count },
                 );
             }
         }
@@ -588,11 +587,10 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
             let span_end = suffix.last().unwrap().unwrap().0;
             let span = span_start.to(span_end);
             let count = suffix.len();
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 IRREFUTABLE_LET_PATTERNS,
                 self.lint_level,
-                span,
-                TrailingIrrefutableLetPatterns { count },
+                TrailingIrrefutableLetPatterns { span, count },
             );
         }
     }
@@ -846,19 +844,15 @@ fn check_for_bindings_named_same_as_variants(
     {
         let variant_count = edef.variants().len();
         let ty_path = with_no_trimmed_paths!(cx.tcx.def_path_str(edef.did()));
-        cx.tcx.emit_node_span_lint(
+        cx.tcx.emit_node_lint(
             BINDINGS_WITH_VARIANT_NAME,
             cx.lint_level,
-            pat.span,
             BindingsWithVariantName {
+                span: pat.span,
                 // If this is an irrefutable pattern, and there's > 1 variant,
                 // then we can't actually match on this. Applying the below
                 // suggestion would produce code that breaks on `check_binding_is_irrefutable`.
-                suggestion: if rf == Refutable || variant_count == 1 {
-                    Some(pat.span)
-                } else {
-                    None
-                },
+                suggestion: (rf == Refutable || variant_count == 1).then_some(pat.span),
                 ty_path,
                 name,
             },
@@ -888,7 +882,7 @@ fn report_irrefutable_let_patterns(
 ) {
     macro_rules! emit_diag {
         ($lint:tt) => {{
-            tcx.emit_node_span_lint(IRREFUTABLE_LET_PATTERNS, id, span, $lint { count });
+            tcx.emit_node_lint(IRREFUTABLE_LET_PATTERNS, id, $lint { span, count });
         }};
     }
 
@@ -908,11 +902,10 @@ fn report_unreachable_pattern<'p, 'tcx>(
     span: Span,
     catchall: Option<Span>,
 ) {
-    cx.tcx.emit_node_span_lint(
+    cx.tcx.emit_node_lint(
         UNREACHABLE_PATTERNS,
         hir_id,
-        span,
-        UnreachablePattern { span: if catchall.is_some() { Some(span) } else { None }, catchall },
+        UnreachablePattern { span, label: catchall.map(|_| span), catchall },
     );
 }
 

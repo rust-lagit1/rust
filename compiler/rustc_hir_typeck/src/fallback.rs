@@ -376,25 +376,24 @@ impl<'tcx> FnCtxt<'_, 'tcx> {
                         .collect::<Vec<_>>();
 
                 for (hir_id, span, reason) in affected_unsafe_infer_vars {
-                    self.tcx.emit_node_span_lint(
+                    self.tcx.emit_node_lint(
                         lint::builtin::NEVER_TYPE_FALLBACK_FLOWING_INTO_UNSAFE,
                         hir_id,
-                        span,
                         match reason {
                             UnsafeUseReason::Call => {
-                                errors::NeverTypeFallbackFlowingIntoUnsafe::Call
+                                errors::NeverTypeFallbackFlowingIntoUnsafe::Call { span }
                             }
                             UnsafeUseReason::Method => {
-                                errors::NeverTypeFallbackFlowingIntoUnsafe::Method
+                                errors::NeverTypeFallbackFlowingIntoUnsafe::Method { span }
                             }
                             UnsafeUseReason::Path => {
-                                errors::NeverTypeFallbackFlowingIntoUnsafe::Path
+                                errors::NeverTypeFallbackFlowingIntoUnsafe::Path { span }
                             }
                             UnsafeUseReason::UnionField => {
-                                errors::NeverTypeFallbackFlowingIntoUnsafe::UnionField
+                                errors::NeverTypeFallbackFlowingIntoUnsafe::UnionField { span }
                             }
                             UnsafeUseReason::Deref => {
-                                errors::NeverTypeFallbackFlowingIntoUnsafe::Deref
+                                errors::NeverTypeFallbackFlowingIntoUnsafe::Deref { span }
                             }
                         },
                     );

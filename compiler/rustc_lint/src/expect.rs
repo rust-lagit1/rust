@@ -29,11 +29,10 @@ fn check_expectations(tcx: TyCtxt<'_>, tool_filter: Option<Symbol>) {
             {
                 let rationale = expectation.reason.map(|rationale| ExpectationNote { rationale });
                 let note = expectation.is_unfulfilled_lint_expectations.then_some(());
-                tcx.emit_node_span_lint(
+                tcx.emit_node_lint(
                     UNFULFILLED_LINT_EXPECTATIONS,
                     *hir_id,
-                    expectation.emission_span,
-                    Expectation { rationale, note },
+                    Expectation { span: expectation.emission_span, rationale, note },
                 );
             }
         } else {

@@ -150,41 +150,37 @@ impl<'tcx> LateLintPass<'tcx> for DropForgetUseless {
             let drop_is_single_call_in_arm = is_single_call_in_arm(cx, arg, expr);
             match fn_name {
                 sym::mem_drop if arg_ty.is_ref() && !drop_is_single_call_in_arm => {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         DROPPING_REFERENCES,
-                        expr.span,
-                        DropRefDiag { arg_ty, label: arg.span },
+                        DropRefDiag { span: expr.span, arg_ty, label: arg.span },
                     );
                 }
                 sym::mem_forget if arg_ty.is_ref() => {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         FORGETTING_REFERENCES,
-                        expr.span,
-                        ForgetRefDiag { arg_ty, label: arg.span },
+                        ForgetRefDiag { span: expr.span, arg_ty, label: arg.span },
                     );
                 }
                 sym::mem_drop if is_copy && !drop_is_single_call_in_arm => {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         DROPPING_COPY_TYPES,
-                        expr.span,
-                        DropCopyDiag { arg_ty, label: arg.span },
+                        DropCopyDiag { span: expr.span, arg_ty, label: arg.span },
                     );
                 }
                 sym::mem_forget if is_copy => {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         FORGETTING_COPY_TYPES,
-                        expr.span,
-                        ForgetCopyDiag { arg_ty, label: arg.span },
+                        ForgetCopyDiag { span: expr.span, arg_ty, label: arg.span },
                     );
                 }
                 sym::mem_drop
                     if let ty::Adt(adt, _) = arg_ty.kind()
                         && adt.is_manually_drop() =>
                 {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         UNDROPPED_MANUALLY_DROPS,
-                        expr.span,
                         UndroppedManuallyDropsDiag {
+                            span: expr.span,
                             arg_ty,
                             label: arg.span,
                             suggestion: UndroppedManuallyDropsSuggestion {
