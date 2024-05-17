@@ -514,12 +514,12 @@ fn lint_uncovered_ty_params<'tcx>(
             Some(local_type) => tcx.emit_node_lint(
                 UNCOVERED_PARAM_IN_PROJECTION,
                 hir_id,
-                errors::TyParamFirstLocalLint { span, note: (), param: name, local_type },
+                errors::TyParamFirstLocal { span, note: (), param: name, local_type },
             ),
             None => tcx.emit_node_lint(
                 UNCOVERED_PARAM_IN_PROJECTION,
                 hir_id,
-                errors::TyParamSomeLint { span, note: (), param: name },
+                errors::TyParamSome { span, note: (), param: name },
             ),
         };
     }

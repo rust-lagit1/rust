@@ -1907,8 +1907,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             });
         }
         if is_explicit_rust && (int_reprs > 0 || is_c || is_simd) {
-            let hint_spans = hint_spans.clone().collect();
-            self.dcx().emit_err(errors::ReprConflicting { hint_spans });
+            self.dcx().emit_err(errors::ReprConflicting { spans: hint_spans.clone().collect() });
         }
         // Warn on repr(u8, u16), repr(C, simd), and c-like-enum-repr(C, u8)
         if (int_reprs > 1)
@@ -1925,7 +1924,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             self.tcx.emit_node_lint(
                 CONFLICTING_REPR_HINTS,
                 hir_id,
-                errors::ReprConflictingLint { spans: hint_spans.collect() },
+                errors::ReprConflicting { spans: hint_spans.collect() },
             );
         }
     }
