@@ -6,7 +6,6 @@
 use hir::def_id::{LocalDefIdMap, LocalDefIdSet};
 use hir::ItemKind;
 use rustc_data_structures::unord::UnordSet;
-use rustc_errors::MultiSpan;
 use rustc_hir as hir;
 use rustc_hir::def::{CtorOf, DefKind, Res};
 use rustc_hir::def_id::{DefId, LocalDefId, LocalModDefId};
@@ -212,11 +211,14 @@ impl<'tcx> MarkSymbolVisitor<'tcx> {
             && !assign.span.from_expansion()
         {
             let is_field_assign = matches!(lhs.kind, hir::ExprKind::Field(..));
-            self.tcx.emit_node_span_lint(
+            self.tcx.emit_node_lint(
                 lint::builtin::DEAD_CODE,
                 assign.hir_id,
-                assign.span,
-                UselessAssignment { is_field_assign, ty: self.typeck_results().expr_ty(lhs) },
+                UselessAssignment {
+                    span: assign.span,
+                    is_field_assign,
+                    ty: self.typeck_results().expr_ty(lhs),
+                },
             )
         }
     }
@@ -995,17 +997,19 @@ impl<'tcx> DeadVisitor<'tcx> {
 
         let diag = match report_on {
             ReportOn::TupleField => MultipleDeadCodes::UnusedTupleStructFields {
+                spans: spans.clone(),
                 multiple,
                 num,
                 descr,
                 participle,
                 name_list,
-                change_fields_suggestion: ChangeFieldsToBeOfUnitType { num, spans: spans.clone() },
+                change_fields_suggestion: ChangeFieldsToBeOfUnitType { num, spans },
                 parent_info,
                 ignored_derived_impls,
             },
 
             ReportOn::NamedField => MultipleDeadCodes::DeadCodes {
+                spans,
                 multiple,
                 num,
                 descr,
@@ -1017,7 +1021,7 @@ impl<'tcx> DeadVisitor<'tcx> {
         };
 
         let hir_id = tcx.local_def_id_to_hir_id(first_item.def_id);
-        self.tcx.emit_node_span_lint(DEAD_CODE, hir_id, MultiSpan::from_spans(spans), diag);
+        self.tcx.emit_node_lint(DEAD_CODE, hir_id, diag);
     }
 
     fn warn_multiple(

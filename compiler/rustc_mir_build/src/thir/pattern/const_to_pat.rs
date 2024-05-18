@@ -201,11 +201,10 @@ impl<'tcx> ConstToPat<'tcx> {
             } else if !have_valtree && !self.saw_const_match_lint.get() {
                 // The only way valtree construction can fail without the structural match
                 // checker finding a violation is if there is a pointer somewhere.
-                self.tcx().emit_node_span_lint(
+                self.tcx().emit_node_lint(
                     lint::builtin::POINTER_STRUCTURAL_MATCH,
                     self.id,
-                    self.span,
-                    PointerPattern,
+                    PointerPattern { span: self.span },
                 );
             }
 
@@ -293,11 +292,10 @@ impl<'tcx> ConstToPat<'tcx> {
             ty::Adt(..) if !self.type_marked_structural(ty) && self.behind_reference.get() => {
                 if self.saw_const_match_error.get().is_none() && !self.saw_const_match_lint.get() {
                     self.saw_const_match_lint.set(true);
-                    tcx.emit_node_span_lint(
+                    tcx.emit_node_lint(
                         lint::builtin::INDIRECT_STRUCTURAL_MATCH,
                         id,
-                        span,
-                        IndirectStructuralMatch { non_sm_ty: ty },
+                        IndirectStructuralMatch { span, non_sm_ty: ty },
                     );
                 }
                 // Since we are behind a reference, we can just bubble the error up so we get a
@@ -389,11 +387,10 @@ impl<'tcx> ConstToPat<'tcx> {
                             && !self.saw_const_match_lint.get()
                         {
                             self.saw_const_match_lint.set(true);
-                            tcx.emit_node_span_lint(
+                            tcx.emit_node_lint(
                                 lint::builtin::INDIRECT_STRUCTURAL_MATCH,
                                 self.id,
-                                span,
-                                IndirectStructuralMatch { non_sm_ty: *pointee_ty },
+                                IndirectStructuralMatch { span, non_sm_ty: *pointee_ty },
                             );
                         }
                         return Err(FallbackToOpaqueConst);

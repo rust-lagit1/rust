@@ -50,8 +50,9 @@ impl<'tcx> Uncovered<'tcx> {
 #[diag(pattern_analysis_overlapping_range_endpoints)]
 #[note]
 pub struct OverlappingRangeEndpoints<'tcx> {
+    #[primary_span]
     #[label]
-    pub range: Span,
+    pub span: Span,
     #[subdiagnostic]
     pub overlap: Vec<Overlap<'tcx>>,
 }
@@ -79,10 +80,11 @@ impl<'tcx> Subdiagnostic for Overlap<'tcx> {
 #[derive(LintDiagnostic)]
 #[diag(pattern_analysis_excluside_range_missing_max)]
 pub struct ExclusiveRangeMissingMax<'tcx> {
+    #[primary_span]
     #[label]
     #[suggestion(code = "{suggestion}", applicability = "maybe-incorrect")]
     /// This is an exclusive range that looks like `lo..max` (i.e. doesn't match `max`).
-    pub first_range: Span,
+    pub span: Span,
     /// Suggest `lo..=max` instead.
     pub suggestion: String,
     pub max: Pat<'tcx>,
@@ -91,10 +93,11 @@ pub struct ExclusiveRangeMissingMax<'tcx> {
 #[derive(LintDiagnostic)]
 #[diag(pattern_analysis_excluside_range_missing_gap)]
 pub struct ExclusiveRangeMissingGap<'tcx> {
+    #[primary_span]
     #[label]
     #[suggestion(code = "{suggestion}", applicability = "maybe-incorrect")]
     /// This is an exclusive range that looks like `lo..gap` (i.e. doesn't match `gap`).
-    pub first_range: Span,
+    pub span: Span,
     pub gap: Pat<'tcx>,
     /// Suggest `lo..=gap` instead.
     pub suggestion: String,
@@ -132,6 +135,8 @@ impl<'tcx> Subdiagnostic for GappedRange<'tcx> {
 #[help]
 #[note]
 pub(crate) struct NonExhaustiveOmittedPattern<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub scrut_ty: Ty<'tcx>,
     #[subdiagnostic]
     pub uncovered: Uncovered<'tcx>,
@@ -141,6 +146,8 @@ pub(crate) struct NonExhaustiveOmittedPattern<'tcx> {
 #[diag(pattern_analysis_non_exhaustive_omitted_pattern_lint_on_arm)]
 #[help]
 pub(crate) struct NonExhaustiveOmittedPatternLintOnArm {
+    #[primary_span]
+    pub span: Span,
     #[label]
     pub lint_span: Span,
     #[suggestion(code = "#[{lint_level}({lint_name})]\n", applicability = "maybe-incorrect")]

@@ -110,12 +110,10 @@ fn eval_body_using_ecx<'mir, 'tcx, R: InterpretationResult<'tcx>>(
         }
         Err(InternResult::FoundBadMutablePointer) => {
             // only report mutable pointers if there were no dangling pointers
-            let err_diag = errors::MutablePtrInFinal { span: ecx.tcx.span, kind: intern_kind };
-            ecx.tcx.emit_node_span_lint(
+            ecx.tcx.emit_node_lint(
                 lint::builtin::CONST_EVAL_MUTABLE_PTR_IN_FINAL_VALUE,
                 ecx.best_lint_scope(),
-                err_diag.span,
-                err_diag,
+                errors::MutablePtrInFinal { span: ecx.tcx.span, kind: intern_kind },
             )
         }
     }

@@ -42,10 +42,9 @@ impl LateLintPass<'_> for DefaultHashTypes {
             Some(sym::HashSet) => "FxHashSet",
             _ => return,
         };
-        cx.emit_span_lint(
+        cx.emit_lint(
             DEFAULT_HASH_TYPES,
-            path.span,
-            DefaultHashTypesDiag { preferred, used: cx.tcx.item_name(def_id) },
+            DefaultHashTypesDiag { span: path.span, preferred, used: cx.tcx.item_name(def_id) },
         );
     }
 }
@@ -90,10 +89,9 @@ impl LateLintPass<'_> for QueryStability {
         if let Ok(Some(instance)) = ty::Instance::resolve(cx.tcx, cx.param_env, def_id, args) {
             let def_id = instance.def_id();
             if cx.tcx.has_attr(def_id, sym::rustc_lint_query_instability) {
-                cx.emit_span_lint(
+                cx.emit_lint(
                     POTENTIAL_QUERY_INSTABILITY,
-                    span,
-                    QueryInstability { query: cx.tcx.item_name(def_id) },
+                    QueryInstability { span, query: cx.tcx.item_name(def_id) },
                 );
             }
         }
@@ -135,7 +133,7 @@ impl<'tcx> LateLintPass<'tcx> for TyTyKind {
         {
             let span =
                 path.span.with_hi(segment.args.map_or(segment.ident.span, |a| a.span_ext).hi());
-            cx.emit_span_lint(USAGE_OF_TY_TYKIND, path.span, TykindKind { suggestion: span });
+            cx.emit_lint(USAGE_OF_TY_TYKIND, TykindKind { span: path.span, suggestion: span });
         }
     }
 
@@ -184,23 +182,18 @@ impl<'tcx> LateLintPass<'tcx> for TyTyKind {
 
                     match span {
                         Some(span) => {
-                            cx.emit_span_lint(
+                            cx.emit_lint(
                                 USAGE_OF_TY_TYKIND,
-                                path.span,
-                                TykindKind { suggestion: span },
+                                TykindKind { span: path.span, suggestion: span },
                             );
                         }
-                        None => cx.emit_span_lint(USAGE_OF_TY_TYKIND, path.span, TykindDiag),
+                        None => cx.emit_lint(USAGE_OF_TY_TYKIND, TykindDiag { span: path.span }),
                     }
                 } else if !ty.span.from_expansion()
                     && path.segments.len() > 1
                     && let Some(ty) = is_ty_or_ty_ctxt(cx, path)
                 {
-                    cx.emit_span_lint(
-                        USAGE_OF_QUALIFIED_TY,
-                        path.span,
-                        TyQualified { ty, suggestion: path.span },
-                    );
+                    cx.emit_lint(USAGE_OF_QUALIFIED_TY, TyQualified { span: path.span, ty });
                 }
             }
             _ => {}
@@ -283,10 +276,9 @@ impl EarlyLintPass for LintPassImpl {
                         && call_site.ctxt().outer_expn_data().kind
                             != ExpnKind::Macro(MacroKind::Bang, sym::declare_lint_pass)
                     {
-                        cx.emit_span_lint(
+                        cx.emit_lint(
                             LINT_PASS_IMPL_WITHOUT_MACRO,
-                            lint_pass.path.span,
-                            LintPassByHand,
+                            LintPassByHand { span: lint_pass.path.span },
                         );
                     }
                 }
@@ -325,10 +317,9 @@ impl<'tcx> LateLintPass<'tcx> for ExistingDocKeyword {
                         if is_doc_keyword(keyword) {
                             return;
                         }
-                        cx.emit_span_lint(
+                        cx.emit_lint(
                             EXISTING_DOC_KEYWORD,
-                            attr.span,
-                            NonExistentDocKeyword { keyword },
+                            NonExistentDocKeyword { span: attr.span, keyword },
                         );
                     }
                 }
@@ -467,7 +458,7 @@ impl LateLintPass<'_> for Diagnostics {
             }
             debug!(?is_inside_appropriate_impl);
             if !is_inside_appropriate_impl {
-                cx.emit_span_lint(DIAGNOSTIC_OUTSIDE_OF_IMPL, span, DiagOutOfImpl);
+                cx.emit_lint(DIAGNOSTIC_OUTSIDE_OF_IMPL, DiagOutOfImpl { span });
             }
         }
 
@@ -480,7 +471,7 @@ impl LateLintPass<'_> for Diagnostics {
             let is_translatable = is_diag_message(arg_ty)
                 || matches!(arg_ty.kind(), ty::Param(p) if p.name == param_i_p_name);
             if !is_translatable {
-                cx.emit_span_lint(UNTRANSLATABLE_DIAGNOSTIC, span, UntranslatableDiag);
+                cx.emit_lint(UNTRANSLATABLE_DIAGNOSTIC, UntranslatableDiag { span });
             }
         }
     }
@@ -516,10 +507,9 @@ impl LateLintPass<'_> for BadOptAccess {
                 && let Some(lit) = item.lit()
                 && let ast::LitKind::Str(val, _) = lit.kind
             {
-                cx.emit_span_lint(
+                cx.emit_lint(
                     BAD_OPT_ACCESS,
-                    expr.span,
-                    BadOptAccessDiag { msg: val.as_str() },
+                    BadOptAccessDiag { span: expr.span, msg: val.as_str() },
                 );
             }
         }
@@ -541,7 +531,7 @@ impl<'tcx> LateLintPass<'tcx> for SpanUseEqCtxt {
             expr.kind
         {
             if is_span_ctxt_call(cx, lhs) && is_span_ctxt_call(cx, rhs) {
-                cx.emit_span_lint(SPAN_USE_EQ_CTXT, expr.span, SpanUseEqCtxtDiag);
+                cx.emit_lint(SPAN_USE_EQ_CTXT, SpanUseEqCtxtDiag { span: expr.span });
             }
         }
     }

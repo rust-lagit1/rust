@@ -187,7 +187,7 @@ impl EarlyLintPass for NonAsciiIdents {
                 continue;
             }
             has_non_ascii_idents = true;
-            cx.emit_span_lint(NON_ASCII_IDENTS, sp, IdentifierNonAsciiChar);
+            cx.emit_lint(NON_ASCII_IDENTS, IdentifierNonAsciiChar { span: sp });
             if check_uncommon_codepoints
                 && !symbol_str.chars().all(GeneralSecurityProfile::identifier_allowed)
             {
@@ -207,10 +207,10 @@ impl EarlyLintPass for NonAsciiIdents {
                     if codepoints.is_empty() {
                         continue;
                     }
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         UNCOMMON_CODEPOINTS,
-                        sp,
                         IdentifierUncommonCodepoints {
+                            span: sp,
                             codepoints_len: codepoints.len(),
                             codepoints: codepoints.into_iter().map(|(c, _)| c).collect(),
                             identifier_type: id_ty_descr,
@@ -222,10 +222,10 @@ impl EarlyLintPass for NonAsciiIdents {
                     .extract_if(|(c, _)| !GeneralSecurityProfile::identifier_allowed(*c))
                     .collect::<Vec<_>>();
                 if !remaining.is_empty() {
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         UNCOMMON_CODEPOINTS,
-                        sp,
                         IdentifierUncommonCodepoints {
+                            span: sp,
                             codepoints_len: remaining.len(),
                             codepoints: remaining.into_iter().map(|(c, _)| c).collect(),
                             identifier_type: "Restricted",
@@ -259,14 +259,13 @@ impl EarlyLintPass for NonAsciiIdents {
                     .entry(skeleton_sym)
                     .and_modify(|(existing_symbol, existing_span, existing_is_ascii)| {
                         if !*existing_is_ascii || !is_ascii {
-                            cx.emit_span_lint(
+                            cx.emit_lint(
                                 CONFUSABLE_IDENTS,
-                                sp,
                                 ConfusableIdentifierPair {
+                                    span: sp,
                                     existing_sym: *existing_symbol,
                                     sym: symbol,
                                     label: *existing_span,
-                                    main_label: sp,
                                 },
                             );
                         }
@@ -380,10 +379,9 @@ impl EarlyLintPass for NonAsciiIdents {
                         let char_info = format!("'{}' (U+{:04X})", ch, ch as u32);
                         includes += &char_info;
                     }
-                    cx.emit_span_lint(
+                    cx.emit_lint(
                         MIXED_SCRIPT_CONFUSABLES,
-                        sp,
-                        MixedScriptConfusables { set: script_set.to_string(), includes },
+                        MixedScriptConfusables { span: sp, set: script_set.to_string(), includes },
                     );
                 }
             }

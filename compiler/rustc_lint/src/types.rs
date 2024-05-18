@@ -254,10 +254,9 @@ fn lint_overflowing_range_endpoint<'tcx>(
         }
     };
 
-    cx.emit_span_lint(
+    cx.emit_lint(
         OVERFLOWING_LITERALS,
-        struct_expr.span,
-        RangeEndpointOutOfRange { ty, sub: sub_sugg },
+        RangeEndpointOutOfRange { span: struct_expr.span, ty, sub: sub_sugg },
     );
 
     // We've just emitted a lint, special cased for `(...)..MAX+1` ranges,
@@ -371,10 +370,10 @@ fn report_bin_hex_error(
         })
         .flatten();
 
-    cx.emit_span_lint(
+    cx.emit_lint(
         OVERFLOWING_LITERALS,
-        expr.span,
         OverflowingBinHex {
+            span: expr.span,
             ty: t,
             lit: repr_str.clone(),
             dec: val,
@@ -473,10 +472,9 @@ fn lint_int_literal<'tcx>(
         let help = get_type_suggestion(cx.typeck_results().node_type(e.hir_id), v, negative)
             .map(|suggestion_ty| OverflowingIntHelp { suggestion_ty });
 
-        cx.emit_span_lint(
+        cx.emit_lint(
             OVERFLOWING_LITERALS,
-            span,
-            OverflowingInt { ty: t.name_str(), lit, min, max, help },
+            OverflowingInt { span, ty: t.name_str(), lit, min, max, help },
         );
     }
 }
@@ -500,9 +498,8 @@ fn lint_uint_literal<'tcx>(
             match par_e.kind {
                 hir::ExprKind::Cast(..) => {
                     if let ty::Char = cx.typeck_results().expr_ty(par_e).kind() {
-                        cx.emit_span_lint(
+                        cx.emit_lint(
                             OVERFLOWING_LITERALS,
-                            par_e.span,
                             OnlyCastu8ToChar { span: par_e.span, literal: lit_val },
                         );
                         return;
@@ -527,10 +524,10 @@ fn lint_uint_literal<'tcx>(
             );
             return;
         }
-        cx.emit_span_lint(
+        cx.emit_lint(
             OVERFLOWING_LITERALS,
-            e.span,
             OverflowingUInt {
+                span: e.span,
                 ty: t.name_str(),
                 lit: cx
                     .sess()
@@ -572,10 +569,10 @@ fn lint_literal<'tcx>(
                 _ => bug!(),
             };
             if is_infinite == Ok(true) {
-                cx.emit_span_lint(
+                cx.emit_lint(
                     OVERFLOWING_LITERALS,
-                    e.span,
                     OverflowingLiteral {
+                        span: e.span,
                         ty: t.name_str(),
                         lit: cx
                             .sess()
@@ -630,7 +627,7 @@ fn lint_nan<'tcx>(
             }
         });
 
-        InvalidNanComparisons::EqNe { suggestion }
+        InvalidNanComparisons::EqNe { span: e.span, suggestion }
     }
 
     let lint = match binop.node {
@@ -651,12 +648,12 @@ fn lint_nan<'tcx>(
         hir::BinOpKind::Lt | hir::BinOpKind::Le | hir::BinOpKind::Gt | hir::BinOpKind::Ge
             if is_nan(cx, l) || is_nan(cx, r) =>
         {
-            InvalidNanComparisons::LtLeGtGe
+            InvalidNanComparisons::LtLeGtGe { span: e.span }
         }
         _ => return,
     };
 
-    cx.emit_span_lint(INVALID_NAN_COMPARISONS, e.span, lint);
+    cx.emit_lint(INVALID_NAN_COMPARISONS, lint);
 }
 
 #[derive(Debug, PartialEq)]
@@ -721,10 +718,9 @@ fn lint_wide_pointer<'tcx>(
     let (Some(l_span), Some(r_span)) =
         (l.span.find_ancestor_inside(e.span), r.span.find_ancestor_inside(e.span))
     else {
-        return cx.emit_span_lint(
+        return cx.emit_lint(
             AMBIGUOUS_WIDE_POINTER_COMPARISONS,
-            e.span,
-            AmbiguousWidePointerComparisons::Spanless,
+            AmbiguousWidePointerComparisons::Spanless { span: e.span },
         );
     };
 
@@ -742,10 +738,10 @@ fn lint_wide_pointer<'tcx>(
     let l_modifiers = &*l_modifiers;
     let r_modifiers = &*r_modifiers;
 
-    cx.emit_span_lint(
+    cx.emit_lint(
         AMBIGUOUS_WIDE_POINTER_COMPARISONS,
-        e.span,
         AmbiguousWidePointerComparisons::Spanful {
+            span: e.span,
             addr_metadata_suggestion: (is_eq_ne && !is_dyn_comparison).then(|| {
                 AmbiguousWidePointerComparisonsAddrMetadataSuggestion {
                     ne,
@@ -800,7 +796,7 @@ impl<'tcx> LateLintPass<'tcx> for TypeLimits {
             hir::ExprKind::Binary(binop, ref l, ref r) => {
                 if is_comparison(binop) {
                     if !check_limits(cx, binop, l, r) {
-                        cx.emit_span_lint(UNUSED_COMPARISONS, e.span, UnusedComparisons);
+                        cx.emit_lint(UNUSED_COMPARISONS, UnusedComparisons { span: e.span });
                     } else {
                         lint_nan(cx, e, binop, l, r);
                         lint_wide_pointer(cx, e, ComparisonOp::BinOp(binop.node), l, r);
@@ -1558,11 +1554,7 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
         } else {
             None
         };
-        self.cx.emit_span_lint(
-            lint,
-            sp,
-            ImproperCTypes { ty, desc, label: sp, help, note, span_note },
-        );
+        self.cx.emit_lint(lint, ImproperCTypes { span: sp, ty, desc, help, note, span_note });
     }
 
     fn check_for_opaque_ty(&mut self, sp: Span, ty: Ty<'tcx>) -> bool {
@@ -1883,10 +1875,12 @@ impl<'tcx> LateLintPass<'tcx> for VariantSizeDifferences {
             // We only warn if the largest variant is at least thrice as large as
             // the second-largest.
             if largest > slargest * 3 && slargest > 0 {
-                cx.emit_span_lint(
+                cx.emit_lint(
                     VARIANT_SIZE_DIFFERENCES,
-                    enum_definition.variants[largest_index].span,
-                    VariantSizeDifferencesDiag { largest },
+                    VariantSizeDifferencesDiag {
+                        span: enum_definition.variants[largest_index].span,
+                        largest,
+                    },
                 );
             }
         }
@@ -2004,9 +1998,15 @@ impl InvalidAtomicOrdering {
             && (ordering == invalid_ordering || ordering == sym::AcqRel)
         {
             if method == sym::load {
-                cx.emit_span_lint(INVALID_ATOMIC_ORDERING, ordering_arg.span, AtomicOrderingLoad);
+                cx.emit_lint(
+                    INVALID_ATOMIC_ORDERING,
+                    AtomicOrderingLoad { span: ordering_arg.span },
+                );
             } else {
-                cx.emit_span_lint(INVALID_ATOMIC_ORDERING, ordering_arg.span, AtomicOrderingStore);
+                cx.emit_lint(
+                    INVALID_ATOMIC_ORDERING,
+                    AtomicOrderingStore { span: ordering_arg.span },
+                );
             };
         }
     }
@@ -2018,7 +2018,7 @@ impl InvalidAtomicOrdering {
             && matches!(cx.tcx.get_diagnostic_name(def_id), Some(sym::fence | sym::compiler_fence))
             && Self::match_ordering(cx, &args[0]) == Some(sym::Relaxed)
         {
-            cx.emit_span_lint(INVALID_ATOMIC_ORDERING, args[0].span, AtomicOrderingFence);
+            cx.emit_lint(INVALID_ATOMIC_ORDERING, AtomicOrderingFence { span: args[0].span });
         }
     }
 
@@ -2040,10 +2040,9 @@ impl InvalidAtomicOrdering {
         let Some(fail_ordering) = Self::match_ordering(cx, fail_order_arg) else { return };
 
         if matches!(fail_ordering, sym::Release | sym::AcqRel) {
-            cx.emit_span_lint(
+            cx.emit_lint(
                 INVALID_ATOMIC_ORDERING,
-                fail_order_arg.span,
-                InvalidAtomicOrderingDiag { method, fail_order_arg_span: fail_order_arg.span },
+                InvalidAtomicOrderingDiag { span: fail_order_arg.span, method },
             );
         }
     }

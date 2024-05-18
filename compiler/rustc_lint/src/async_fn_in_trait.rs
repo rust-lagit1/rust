@@ -117,11 +117,10 @@ impl<'tcx> LateLintPass<'tcx> for AsyncFnInTrait {
                 def.owner_id.def_id,
                 " + Send",
             );
-            cx.tcx.emit_node_span_lint(
+            cx.tcx.emit_node_lint(
                 ASYNC_FN_IN_TRAIT,
                 item.hir_id(),
-                async_span,
-                AsyncFnInTraitDiag { sugg },
+                AsyncFnInTraitDiag { span: async_span, sugg },
             );
         }
     }

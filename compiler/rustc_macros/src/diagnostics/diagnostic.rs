@@ -6,9 +6,11 @@ use crate::diagnostics::diagnostic_builder::DiagnosticDeriveKind;
 use crate::diagnostics::error::{span_err, DiagnosticDeriveError};
 use crate::diagnostics::utils::SetOnce;
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use synstructure::Structure;
+
+use super::utils::FieldInnerTy;
 
 /// The central struct for constructing the `into_diag` method from an annotated struct.
 pub(crate) struct DiagnosticDerive<'a> {
@@ -16,15 +18,16 @@ pub(crate) struct DiagnosticDerive<'a> {
 }
 
 impl<'a> DiagnosticDerive<'a> {
+    const KIND: DiagnosticDeriveKind = DiagnosticDeriveKind::Diagnostic;
+
     pub(crate) fn new(structure: Structure<'a>) -> Self {
         Self { structure }
     }
 
     pub(crate) fn into_tokens(self) -> TokenStream {
         let DiagnosticDerive { mut structure } = self;
-        let kind = DiagnosticDeriveKind::Diagnostic;
         let slugs = RefCell::new(Vec::new());
-        let implementation = kind.each_variant(&mut structure, |mut builder, variant| {
+        let implementation = Self::KIND.each_variant(&mut structure, |mut builder, variant| {
             let preamble = builder.preamble(variant);
             let body = builder.body(variant);
 
@@ -98,14 +101,15 @@ pub(crate) struct LintDiagnosticDerive<'a> {
 }
 
 impl<'a> LintDiagnosticDerive<'a> {
+    const KIND: DiagnosticDeriveKind = DiagnosticDeriveKind::LintDiagnostic;
+
     pub(crate) fn new(structure: Structure<'a>) -> Self {
         Self { structure }
     }
 
     pub(crate) fn into_tokens(self) -> TokenStream {
         let LintDiagnosticDerive { mut structure } = self;
-        let kind = DiagnosticDeriveKind::LintDiagnostic;
-        let implementation = kind.each_variant(&mut structure, |mut builder, variant| {
+        let implementation = Self::KIND.each_variant(&mut structure, |mut builder, variant| {
             let preamble = builder.preamble(variant);
             let body = builder.body(variant);
 
@@ -119,7 +123,7 @@ impl<'a> LintDiagnosticDerive<'a> {
         });
 
         let slugs = RefCell::new(Vec::new());
-        let msg = kind.each_variant(&mut structure, |mut builder, variant| {
+        let msg = Self::KIND.each_variant(&mut structure, |mut builder, variant| {
             // Collect the slug by generating the preamble.
             let _ = builder.preamble(variant);
 
@@ -152,6 +156,41 @@ impl<'a> LintDiagnosticDerive<'a> {
             }
         });
 
+        let span = Self::KIND.each_variant(&mut structure, |_, variant| {
+            variant
+                .bindings()
+                .iter()
+                .find_map(|binding_info| {
+                    let field = binding_info.ast();
+
+                    field.attrs.iter().find_map(|attr| {
+                        if attr.path().segments.last().unwrap().ident != "primary_span"
+                            || !matches!(attr.meta, syn::Meta::Path(_))
+                        {
+                            return None;
+                        }
+
+                        let ident = &binding_info.binding;
+
+                        // Generate `.clone()` unconditionally as the inner type may
+                        // contain a `MultiSpan` which is not `Copy`.
+                        Some(match FieldInnerTy::from_type(&field.ty) {
+                            FieldInnerTy::Plain(_) | FieldInnerTy::Vec(_) => {
+                                quote_spanned! {field.ty.span()=>
+                                    std::option::Option::Some(#ident.clone().into())
+                                }
+                            }
+                            FieldInnerTy::Option(_) => {
+                                quote_spanned! {field.ty.span()=>
+                                    #ident.clone().into()
+                                }
+                            }
+                        })
+                    })
+                })
+                .unwrap_or_else(|| quote! { std::option::Option::None })
+        });
+
         let mut imp = structure.gen_impl(quote! {
             gen impl<'__a> rustc_errors::LintDiagnostic<'__a, ()> for @Self {
                 #[track_caller]
@@ -164,6 +203,10 @@ impl<'a> LintDiagnosticDerive<'a> {
 
                 fn msg(&self) -> rustc_errors::DiagMessage {
                     #msg
+                }
+
+                fn span(&self) -> std::option::Option<rustc_errors::MultiSpan> {
+                    #span
                 }
             }
         });

@@ -400,6 +400,7 @@ lint_non_binding_let_on_drop_type =
 
 lint_non_binding_let_on_sync_lock =
     non-binding let on a synchronization lock
+    .label = this lock is not assigned to a binding and is immediately dropped
 
 lint_non_binding_let_suggestion =
     consider binding to an unused variable to avoid immediately dropping the value

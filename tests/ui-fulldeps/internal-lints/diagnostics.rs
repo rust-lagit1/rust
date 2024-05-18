@@ -15,7 +15,7 @@ extern crate rustc_span;
 
 use rustc_errors::{
     Diag, DiagCtxt, DiagInner, DiagMessage, Diagnostic, EmissionGuarantee, Level, LintDiagnostic,
-    SubdiagMessageOp, SubdiagMessage, Subdiagnostic,
+    MultiSpan, SubdiagMessageOp, SubdiagMessage, Subdiagnostic,
 };
 use rustc_macros::{Diagnostic, Subdiagnostic};
 use rustc_span::Span;
@@ -89,6 +89,10 @@ impl<'a> LintDiagnostic<'a, ()> for UntranslatableInLintDiagnostic {
     fn msg(&self) -> DiagMessage {
         unreachable!();
     }
+
+    fn span(&self) -> Option<MultiSpan> {
+        None
+    }
 }
 
 pub struct TranslatableInLintDiagnostic;
@@ -100,6 +104,10 @@ impl<'a> LintDiagnostic<'a, ()> for TranslatableInLintDiagnostic {
 
     fn msg(&self) -> DiagMessage {
         unreachable!();
+    }
+
+    fn span(&self) -> Option<MultiSpan> {
+        None
     }
 }
 

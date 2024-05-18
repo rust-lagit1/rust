@@ -1108,6 +1108,7 @@ pub(crate) enum LateBoundInApit {
 #[diag(hir_analysis_unused_associated_type_bounds)]
 #[note]
 pub struct UnusedAssociatedTypeBounds {
+    #[primary_span]
     #[suggestion(code = "")]
     pub span: Span,
 }
@@ -1117,6 +1118,8 @@ pub struct UnusedAssociatedTypeBounds {
 #[note]
 #[note(hir_analysis_feedback_note)]
 pub(crate) struct ReturnPositionImplTraitInTraitRefined<'tcx> {
+    #[primary_span]
+    pub span: Span,
     #[suggestion(applicability = "maybe-incorrect", code = "{pre}{return_ty}{post}")]
     pub impl_return_span: Span,
     #[label]
@@ -1355,9 +1358,7 @@ pub struct CrossCrateTraitsDefined {
     pub traits: String,
 }
 
-// FIXME(fmease): Deduplicate:
-
-#[derive(Diagnostic)]
+#[derive(Diagnostic, LintDiagnostic)]
 #[diag(hir_analysis_ty_param_first_local, code = E0210)]
 #[note]
 pub struct TyParamFirstLocal<'tcx> {
@@ -1370,34 +1371,11 @@ pub struct TyParamFirstLocal<'tcx> {
     pub local_type: Ty<'tcx>,
 }
 
-#[derive(LintDiagnostic)]
-#[diag(hir_analysis_ty_param_first_local, code = E0210)]
-#[note]
-pub struct TyParamFirstLocalLint<'tcx> {
-    #[label]
-    pub span: Span,
-    #[note(hir_analysis_case_note)]
-    pub note: (),
-    pub param: Symbol,
-    pub local_type: Ty<'tcx>,
-}
-
-#[derive(Diagnostic)]
+#[derive(Diagnostic, LintDiagnostic)]
 #[diag(hir_analysis_ty_param_some, code = E0210)]
 #[note]
 pub struct TyParamSome {
     #[primary_span]
-    #[label]
-    pub span: Span,
-    #[note(hir_analysis_only_note)]
-    pub note: (),
-    pub param: Symbol,
-}
-
-#[derive(LintDiagnostic)]
-#[diag(hir_analysis_ty_param_some, code = E0210)]
-#[note]
-pub struct TyParamSomeLint {
     #[label]
     pub span: Span,
     #[note(hir_analysis_only_note)]
@@ -1536,6 +1514,7 @@ pub enum StaticMutRefSugg {
 #[note]
 #[note(hir_analysis_why_note)]
 pub struct RefOfMutStatic<'a> {
+    #[primary_span]
     #[label]
     pub span: Span,
     #[subdiagnostic]

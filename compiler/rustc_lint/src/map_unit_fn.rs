@@ -62,10 +62,10 @@ impl<'tcx> LateLintPass<'tcx> for MapUnitFn {
                         let fn_ty = cx.tcx.fn_sig(id).skip_binder();
                         let ret_ty = fn_ty.output().skip_binder();
                         if is_unit_type(ret_ty) {
-                            cx.emit_span_lint(
+                            cx.emit_lint(
                                 MAP_UNIT_FN,
-                                span,
                                 MappingToUnit {
+                                    span,
                                     function_label: cx
                                         .tcx
                                         .span_of_impl(*id)
@@ -81,10 +81,10 @@ impl<'tcx> LateLintPass<'tcx> for MapUnitFn {
                         let cl_ty = subs.as_closure().sig();
                         let ret_ty = cl_ty.output().skip_binder();
                         if is_unit_type(ret_ty) {
-                            cx.emit_span_lint(
+                            cx.emit_lint(
                                 MAP_UNIT_FN,
-                                span,
                                 MappingToUnit {
+                                    span,
                                     function_label: cx
                                         .tcx
                                         .span_of_impl(*id)

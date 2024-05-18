@@ -215,10 +215,10 @@ impl<'tcx> LateLintPass<'tcx> for NonLocalDefinitions {
                     None
                 };
 
-                cx.emit_span_lint(
+                cx.emit_lint(
                     NON_LOCAL_DEFINITIONS,
-                    item.span,
                     NonLocalDefinitionsDiag::Impl {
+                        span: item.span,
                         depth: self.body_depth,
                         body_kind_descr: cx.tcx.def_kind_descr(parent_def_kind, parent),
                         body_name: parent_opt_item_name
@@ -238,10 +238,10 @@ impl<'tcx> LateLintPass<'tcx> for NonLocalDefinitions {
                 let is_at_toplevel_doctest =
                     self.body_depth == 2 && std::env::var("UNSTABLE_RUSTDOC_TEST_PATH").is_ok();
 
-                cx.emit_span_lint(
+                cx.emit_lint(
                     NON_LOCAL_DEFINITIONS,
-                    item.span,
                     NonLocalDefinitionsDiag::MacroRules {
+                        span: item.span,
                         depth: self.body_depth,
                         body_kind_descr: cx.tcx.def_kind_descr(parent_def_kind, parent),
                         body_name: parent_opt_item_name

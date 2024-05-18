@@ -165,18 +165,17 @@ pub(super) fn lint<'tcx, 'mir, L>(
     tcx: TyCtxtAt<'tcx>,
     machine: &CompileTimeInterpreter<'mir, 'tcx>,
     lint: &'static rustc_session::lint::Lint,
-    decorator: impl FnOnce(Vec<errors::FrameNote>) -> L,
+    decorator: impl FnOnce(Span, Vec<errors::FrameNote>) -> L,
 ) where
     L: for<'a> rustc_errors::LintDiagnostic<'a, ()>,
 {
     let (span, frames) = get_span_and_frames(tcx, &machine.stack);
 
-    tcx.emit_node_span_lint(
+    tcx.emit_node_lint(
         lint,
         // We use the root frame for this so the crate that defines the const defines whether the
         // lint is emitted.
         machine.stack.first().and_then(|frame| frame.lint_root()).unwrap_or(CRATE_HIR_ID),
-        span,
-        decorator(frames),
+        decorator(span, frames),
     );
 }

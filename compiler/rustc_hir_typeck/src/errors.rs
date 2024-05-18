@@ -168,19 +168,34 @@ pub struct MissingParenthesesInRange {
 pub enum NeverTypeFallbackFlowingIntoUnsafe {
     #[help]
     #[diag(hir_typeck_never_type_fallback_flowing_into_unsafe_call)]
-    Call,
+    Call {
+        #[primary_span]
+        span: Span,
+    },
     #[help]
     #[diag(hir_typeck_never_type_fallback_flowing_into_unsafe_method)]
-    Method,
+    Method {
+        #[primary_span]
+        span: Span,
+    },
     #[help]
     #[diag(hir_typeck_never_type_fallback_flowing_into_unsafe_path)]
-    Path,
+    Path {
+        #[primary_span]
+        span: Span,
+    },
     #[help]
     #[diag(hir_typeck_never_type_fallback_flowing_into_unsafe_union_field)]
-    UnionField,
+    UnionField {
+        #[primary_span]
+        span: Span,
+    },
     #[help]
     #[diag(hir_typeck_never_type_fallback_flowing_into_unsafe_deref)]
-    Deref,
+    Deref {
+        #[primary_span]
+        span: Span,
+    },
 }
 
 #[derive(Subdiagnostic)]
@@ -237,6 +252,8 @@ impl Subdiagnostic for TypeMismatchFruTypo {
 #[diag(hir_typeck_lossy_provenance_int2ptr)]
 #[help]
 pub struct LossyProvenanceInt2Ptr<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub expr_ty: Ty<'tcx>,
     pub cast_ty: Ty<'tcx>,
     #[subdiagnostic]
@@ -256,6 +273,8 @@ pub struct LossyProvenanceInt2PtrSuggestion {
 #[diag(hir_typeck_lossy_provenance_ptr2int)]
 #[help]
 pub struct LossyProvenancePtr2Int<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub expr_ty: Ty<'tcx>,
     pub cast_ty: Ty<'tcx>,
     #[subdiagnostic]
@@ -502,6 +521,8 @@ pub struct SuggestPtrNullMut {
 #[diag(hir_typeck_trivial_cast)]
 #[help]
 pub struct TrivialCast<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub numeric: bool,
     pub expr_ty: Ty<'tcx>,
     pub cast_ty: Ty<'tcx>,
@@ -542,6 +563,8 @@ pub struct CannotCastToBool<'tcx> {
 #[derive(LintDiagnostic)]
 #[diag(hir_typeck_cast_enum_drop)]
 pub struct CastEnumDrop<'tcx> {
+    #[primary_span]
+    pub span: Span,
     pub expr_ty: Ty<'tcx>,
     pub cast_ty: Ty<'tcx>,
 }
