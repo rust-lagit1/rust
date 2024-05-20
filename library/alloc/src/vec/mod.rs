@@ -64,7 +64,7 @@ use core::marker::PhantomData;
 use core::mem::{self, ManuallyDrop, MaybeUninit, SizedTypeProperties};
 use core::ops::{self, Index, IndexMut, Range, RangeBounds};
 use core::ptr::{self, NonNull};
-use core::slice::{self, SliceIndex};
+use core::slice::{self, DrainRaw, SliceIndex};
 
 use crate::alloc::{Allocator, Global};
 use crate::borrow::{Cow, ToOwned};
@@ -1389,7 +1389,11 @@ impl<T, A: Allocator> Vec<T, A> {
     pub fn as_mut_ptr(&mut self) -> *mut T {
         // We shadow the slice method of the same name to avoid going through
         // `deref_mut`, which creates an intermediate reference.
-        self.buf.ptr()
+        self.as_nonnull_ptr().as_ptr()
+    }
+
+    fn as_nonnull_ptr(&mut self) -> NonNull<T> {
+        self.buf.non_null()
     }
 
     /// Returns a reference to the underlying allocator.
@@ -2199,12 +2203,13 @@ impl<T, A: Allocator> Vec<T, A> {
         unsafe {
             // set self.vec length's to start, to be safe in case Drain is leaked
             self.set_len(start);
-            let range_slice = slice::from_raw_parts(self.as_ptr().add(start), end - start);
+            let drain = DrainRaw::from_parts(self.as_nonnull_ptr().add(start), end - start);
             Drain {
                 tail_start: end,
                 tail_len: len - end,
-                iter: range_slice.iter(),
+                iter: drain,
                 vec: NonNull::from(self),
+                phantom: PhantomData,
             }
         }
     }
@@ -3000,14 +3005,10 @@ impl<T, A: Allocator> IntoIterator for Vec<T, A> {
             let me = ManuallyDrop::new(self);
             let alloc = ManuallyDrop::new(ptr::read(me.allocator()));
             let buf = me.buf.non_null();
-            let begin = buf.as_ptr();
-            let end = if T::IS_ZST {
-                begin.wrapping_byte_add(me.len())
-            } else {
-                begin.add(me.len()) as *const T
-            };
+            let len = me.len();
             let cap = me.buf.capacity();
-            IntoIter { buf, phantom: PhantomData, cap, alloc, ptr: buf, end }
+            let drain = DrainRaw::from_parts(buf, len);
+            IntoIter { buf, phantom: PhantomData, cap, alloc, drain }
         }
     }
 }
