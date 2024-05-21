@@ -3,10 +3,9 @@ mod context;
 use crate::edition_panic::use_panic_2021;
 use crate::errors;
 use rustc_ast::ptr::P;
-use rustc_ast::token;
-use rustc_ast::token::Delimiter;
+use rustc_ast::token::{self, Delimiter};
 use rustc_ast::tokenstream::{DelimSpan, TokenStream};
-use rustc_ast::{DelimArgs, Expr, ExprKind, MacCall, Path, PathSegment, UnOp};
+use rustc_ast::{DelimArgs, Expr, ExprKind, MacCall, Path, PathSegment};
 use rustc_ast_pretty::pprust;
 use rustc_errors::PResult;
 use rustc_expand::base::{DummyResult, ExpandResult, ExtCtxt, MacEager, MacroExpanderResult};
@@ -30,7 +29,7 @@ pub(crate) fn expand_assert<'cx>(
 
     // `core::panic` and `std::panic` are different macros, so we use call-site
     // context to pick up whichever is currently in scope.
-    let call_site_span = cx.with_call_site_ctxt(span);
+    let call_site_span = cx.with_call_site_ctxt(cond_expr.span);
 
     let panic_path = || {
         if use_panic_2021(span) {
@@ -64,12 +63,14 @@ pub(crate) fn expand_assert<'cx>(
                 }),
             })),
         );
-        expr_if_not(cx, call_site_span, cond_expr, then, None)
+        expr_if_not(cx, call_site_span, cond_expr, then)
     }
     // If `generic_assert` is enabled, generates rich captured outputs
     //
     // FIXME(c410-f3r) See https://github.com/rust-lang/rust/issues/96949
     else if cx.ecfg.features.generic_assert {
+        // FIXME(estebank): we use the condition the user passed without coercing to `bool` when
+        // `generic_assert` is enabled, but we could use `cond_expr` instead.
         context::Context::new(cx, call_site_span).build(cond_expr, panic_path())
     }
     // If `generic_assert` is not enabled, only outputs a literal "assertion failed: ..."
@@ -89,26 +90,25 @@ pub(crate) fn expand_assert<'cx>(
                 )),
             )],
         );
-        expr_if_not(cx, call_site_span, cond_expr, then, None)
+        expr_if_not(cx, call_site_span, cond_expr, then)
     };
 
     ExpandResult::Ready(MacEager::expr(expr))
 }
 
+/// `assert!($cond_expr, $custom_message)`
 struct Assert {
     cond_expr: P<Expr>,
     custom_message: Option<TokenStream>,
 }
 
-// if !{ ... } { ... } else { ... }
-fn expr_if_not(
-    cx: &ExtCtxt<'_>,
-    span: Span,
-    cond: P<Expr>,
-    then: P<Expr>,
-    els: Option<P<Expr>>,
-) -> P<Expr> {
-    cx.expr_if(span, cx.expr(span, ExprKind::Unary(UnOp::Not, cond)), then, els)
+/// `if !{ ... } { ... }`
+fn expr_if_not(cx: &ExtCtxt<'_>, span: Span, cond: P<Expr>, then: P<Expr>) -> P<Expr> {
+    // Instead of expanding to `if !<cond> { <then> }`, we expand to `if <cond> {} else { <then> }`.
+    // This allows us to always complain about mismatched types instead of "cannot apply unary
+    // operator `!` to type `X`" when passing an invalid `<cond>`.
+    let els = cx.expr_block(cx.block(span, thin_vec![]));
+    cx.expr_if(span, cond, els, Some(then))
 }
 
 fn parse_assert<'a>(cx: &ExtCtxt<'a>, sp: Span, stream: TokenStream) -> PResult<'a, Assert> {

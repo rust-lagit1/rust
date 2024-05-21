@@ -1,16 +1,16 @@
 error[E0080]: evaluation of constant value failed
-  --> $DIR/uninhabited.rs:41:9
+  --> $DIR/uninhabited.rs:41:17
    |
 LL |         assert!(false);
-   |         ^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: false', $DIR/uninhabited.rs:41:9
+   |                 ^^^^^ the evaluated program panicked at 'assertion failed: false', $DIR/uninhabited.rs:41:9
    |
    = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0080]: evaluation of constant value failed
-  --> $DIR/uninhabited.rs:65:9
+  --> $DIR/uninhabited.rs:65:17
    |
 LL |         assert!(false);
-   |         ^^^^^^^^^^^^^^ the evaluated program panicked at 'assertion failed: false', $DIR/uninhabited.rs:65:9
+   |                 ^^^^^ the evaluated program panicked at 'assertion failed: false', $DIR/uninhabited.rs:65:9
    |
    = note: this error originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
