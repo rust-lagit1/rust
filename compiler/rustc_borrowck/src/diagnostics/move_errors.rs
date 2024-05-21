@@ -3,7 +3,7 @@
 
 use rustc_errors::{Applicability, Diag};
 use rustc_hir::intravisit::Visitor;
-use rustc_hir::{CaptureBy, ExprKind, HirId, Node};
+use rustc_hir::{CaptureBy, ExprKind, Node};
 use rustc_middle::bug;
 use rustc_middle::mir::*;
 use rustc_middle::ty::{self, Ty};
@@ -307,25 +307,17 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
         self.cannot_move_out_of(span, &description)
     }
 
-    fn suggest_clone_of_captured_var_in_move_closure(
+    pub(in crate::diagnostics) fn suggest_clone_of_captured_var_in_move_closure(
         &self,
         err: &mut Diag<'_>,
-        upvar_hir_id: HirId,
         upvar_name: &str,
         use_spans: Option<UseSpans<'tcx>>,
     ) {
         let tcx = self.infcx.tcx;
-        let typeck_results = tcx.typeck(self.mir_def_id());
         let Some(use_spans) = use_spans else { return };
         // We only care about the case where a closure captured a binding.
         let UseSpans::ClosureUse { args_span, .. } = use_spans else { return };
         let Some(body_id) = tcx.hir_node(self.mir_hir_id()).body_id() else { return };
-        // Fetch the type of the expression corresponding to the closure-captured binding.
-        let Some(captured_ty) = typeck_results.node_type_opt(upvar_hir_id) else { return };
-        if !self.implements_clone(captured_ty) {
-            // We only suggest cloning the captured binding if the type can actually be cloned.
-            return;
-        };
         // Find the closure that captured the binding.
         let mut expr_finder = FindExprBySpan::new(args_span, tcx);
         expr_finder.include_closures = true;
@@ -501,20 +493,12 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 );
 
                 let closure_span = tcx.def_span(def_id);
-                let mut err = self
-                    .cannot_move_out_of(span, &place_description)
+                self.cannot_move_out_of(span, &place_description)
                     .with_span_label(upvar_span, "captured outer variable")
                     .with_span_label(
                         closure_span,
                         format!("captured by this `{closure_kind}` closure"),
-                    );
-                self.suggest_clone_of_captured_var_in_move_closure(
-                    &mut err,
-                    upvar_hir_id,
-                    &upvar_name,
-                    use_spans,
-                );
-                err
+                    )
             }
             _ => {
                 let source = self.borrowed_content_source(deref_base);
@@ -576,7 +560,14 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                     };
 
                     if let Some(expr) = self.find_expr(span) {
-                        self.suggest_cloning(err, place_ty, expr, self.find_expr(other_span), None);
+                        self.suggest_cloning(
+                            err,
+                            move_from.as_ref(),
+                            place_ty,
+                            expr,
+                            self.find_expr(other_span),
+                            None,
+                        );
                     }
 
                     err.subdiagnostic(
@@ -613,6 +604,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 if let Some(expr) = self.find_expr(use_span) {
                     self.suggest_cloning(
                         err,
+                        original_path.as_ref(),
                         place_ty,
                         expr,
                         self.find_expr(span),
@@ -730,7 +722,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, 'tcx> {
                 let place_desc = &format!("`{}`", self.local_names[*local].unwrap());
 
                 if let Some(expr) = self.find_expr(binding_span) {
-                    self.suggest_cloning(err, bind_to.ty, expr, None, None);
+                    let local_place: PlaceRef<'tcx> = (*local).into();
+                    self.suggest_cloning(err, local_place, bind_to.ty, expr, None, None);
                 }
 
                 err.subdiagnostic(

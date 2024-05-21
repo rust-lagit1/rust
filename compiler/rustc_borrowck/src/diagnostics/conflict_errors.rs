@@ -493,11 +493,11 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
                     ..
                 } = move_spans
                 {
-                    self.suggest_cloning(err, ty, expr, None, Some(move_spans));
+                    self.suggest_cloning(err, place.as_ref(), ty, expr, None, Some(move_spans));
                 } else if self.suggest_hoisting_call_outside_loop(err, expr) {
                     // The place where the type moves would be misleading to suggest clone.
                     // #121466
-                    self.suggest_cloning(err, ty, expr, None, Some(move_spans));
+                    self.suggest_cloning(err, place.as_ref(), ty, expr, None, Some(move_spans));
                 }
             }
             if let Some(pat) = finder.pat {
@@ -1084,6 +1084,7 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
     pub(crate) fn suggest_cloning(
         &self,
         err: &mut Diag<'_>,
+        place: PlaceRef<'tcx>,
         ty: Ty<'tcx>,
         mut expr: &'cx hir::Expr<'cx>,
         mut other_expr: Option<&'cx hir::Expr<'cx>>,
@@ -1190,7 +1191,13 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
         }
         let ty = ty.peel_refs();
         if self.implements_clone(ty) {
-            self.suggest_cloning_inner(err, ty, expr);
+            if self.in_move_closure(expr) {
+                if let Some(name) = self.describe_place(place) {
+                    self.suggest_clone_of_captured_var_in_move_closure(err, &name, use_spans);
+                }
+            } else {
+                self.suggest_cloning_inner(err, ty, expr);
+            }
         } else if let ty::Adt(def, args) = ty.kind()
             && def.did().as_local().is_some()
             && def.variants().iter().all(|variant| {
@@ -1442,7 +1449,14 @@ impl<'cx, 'tcx> MirBorrowckCtxt<'cx, 'tcx> {
         if let Some(expr) = self.find_expr(borrow_span)
             && let Some(ty) = typeck_results.node_type_opt(expr.hir_id)
         {
-            self.suggest_cloning(&mut err, ty, expr, self.find_expr(span), Some(move_spans));
+            self.suggest_cloning(
+                &mut err,
+                place.as_ref(),
+                ty,
+                expr,
+                self.find_expr(span),
+                Some(move_spans),
+            );
         }
         self.buffer_error(err);
     }
