@@ -42,7 +42,7 @@
 +         StorageLive(_7);
 +         _6 = (_2.0: &mut {coroutine@$DIR/inline_coroutine.rs:20:5: 20:8});
 +         _7 = discriminant((*_6));
-+         switchInt(move _7) -> [0: bb3, 1: bb7, 3: bb8, otherwise: bb9];
++         switchInt(move _7) -> [0: bb3, 1: bb7, 3: bb8];
       }
   
       bb1: {
@@ -102,10 +102,6 @@
 +         _1 = CoroutineState::<i32, bool>::Complete(_5);
 +         discriminant((*_6)) = 1;
 +         goto -> bb2;
-+     }
-+ 
-+     bb9: {
-+         unreachable;
       }
   }
   

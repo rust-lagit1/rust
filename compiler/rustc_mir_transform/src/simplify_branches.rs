@@ -43,7 +43,7 @@ impl<'tcx> MirPass<'tcx> for SimplifyConstCondition {
                     let constant = c.const_.try_eval_bits(tcx, param_env);
                     if let Some(constant) = constant {
                         let target = targets.target_for_value(constant);
-                        TerminatorKind::Goto { target }
+                        target.into_terminator()
                     } else {
                         continue;
                     }

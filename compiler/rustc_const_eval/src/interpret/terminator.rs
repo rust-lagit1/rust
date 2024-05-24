@@ -104,12 +104,16 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
                         &ImmTy::from_uint(const_int, discr.layout),
                     )?;
                     if res.to_scalar().to_bool()? {
-                        target_block = target;
+                        target_block = mir::SwitchAction::Goto(target);
                         break;
                     }
                 }
 
-                self.go_to_block(target_block);
+                if let mir::SwitchAction::Goto(target_block) = target_block {
+                    self.go_to_block(target_block);
+                } else {
+                    throw_ub!(Unreachable)
+                }
             }
 
             Call {

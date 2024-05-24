@@ -216,6 +216,8 @@ where
         instances: IndexMap::default(),
         constants: IndexMap::default(),
         layouts: IndexMap::default(),
+        synthetic_unreachable_block: usize::MAX,
+        unreachable_block_span: None,
     }));
     stable_mir::compiler_interface::run(&tables, || init(&tables, f))
 }

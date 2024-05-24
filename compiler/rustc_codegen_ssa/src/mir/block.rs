@@ -97,6 +97,17 @@ impl<'a, 'tcx> TerminatorCodegenHelper<'tcx> {
         }
     }
 
+    fn llbb_with_cleanup_from_switch_action<Bx: BuilderMethods<'a, 'tcx>>(
+        &self,
+        fx: &mut FunctionCx<'a, 'tcx, Bx>,
+        target: mir::SwitchAction,
+    ) -> Bx::BasicBlock {
+        match target {
+            mir::SwitchAction::Unreachable => fx.unreachable_block(),
+            mir::SwitchAction::Goto(bb) => self.llbb_with_cleanup(fx, bb),
+        }
+    }
+
     fn llbb_characteristics<Bx: BuilderMethods<'a, 'tcx>>(
         &self,
         fx: &mut FunctionCx<'a, 'tcx, Bx>,
@@ -369,7 +380,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         // If our discriminant is a constant we can branch directly
         if let Some(const_discr) = bx.const_to_opt_u128(discr_value, false) {
             let target = targets.target_for_value(const_discr);
-            bx.br(helper.llbb_with_cleanup(self, target));
+            bx.br(helper.llbb_with_cleanup_from_switch_action(self, target));
             return;
         };
 
@@ -379,7 +390,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             // `switch`.
             let (test_value, target) = target_iter.next().unwrap();
             let lltrue = helper.llbb_with_cleanup(self, target);
-            let llfalse = helper.llbb_with_cleanup(self, targets.otherwise());
+            let llfalse = helper.llbb_with_cleanup_from_switch_action(self, targets.otherwise());
             if switch_ty == bx.tcx().types.bool {
                 // Don't generate trivial icmps when switching on bool.
                 match test_value {
@@ -395,7 +406,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             }
         } else if self.cx.sess().opts.optimize == OptLevel::No
             && target_iter.len() == 2
-            && self.mir[targets.otherwise()].is_empty_unreachable()
+            && self.mir.basic_blocks.is_empty_unreachable(targets.otherwise())
         {
             // In unoptimized builds, if there are two normal targets and the `otherwise` target is
             // an unreachable BB, emit `br` instead of `switch`. This leaves behind the unreachable
@@ -420,7 +431,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         } else {
             bx.switch(
                 discr_value,
-                helper.llbb_with_cleanup(self, targets.otherwise()),
+                helper.llbb_with_cleanup_from_switch_action(self, targets.otherwise()),
                 target_iter.map(|(value, target)| (value, helper.llbb_with_cleanup(self, target))),
             );
         }
@@ -1648,11 +1659,10 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
     }
 
     fn unreachable_block(&mut self) -> Bx::BasicBlock {
-        self.unreachable_block.unwrap_or_else(|| {
+        *self.unreachable_block.get_or_insert_with(|| {
             let llbb = Bx::append_block(self.cx, self.llfn, "unreachable");
             let mut bx = Bx::build(self.cx, llbb);
             bx.unreachable();
-            self.unreachable_block = Some(llbb);
             llbb
         })
     }

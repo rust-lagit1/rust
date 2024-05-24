@@ -1,5 +1,5 @@
 use rustc_middle::mir::{
-    self, BasicBlock, CallReturnPlaces, Location, SwitchTargets, TerminatorEdges,
+    self, BasicBlock, CallReturnPlaces, Location, SwitchAction, SwitchTargets, TerminatorEdges,
 };
 use std::ops::RangeInclusive;
 
@@ -551,9 +551,10 @@ where
 
         // Once we get to the final, "otherwise" branch, there is no need to preserve `exit_state`,
         // so pass it directly to `apply_edge_effect` to save a clone of the dataflow state.
-        let otherwise = self.targets.otherwise();
-        apply_edge_effect(self.exit_state, SwitchIntTarget { value: None, target: otherwise });
-        (self.propagate)(otherwise, self.exit_state);
+        if let SwitchAction::Goto(otherwise) = self.targets.otherwise() {
+            apply_edge_effect(self.exit_state, SwitchIntTarget { value: None, target: otherwise });
+            (self.propagate)(otherwise, self.exit_state);
+        }
 
         self.effects_applied = true;
     }

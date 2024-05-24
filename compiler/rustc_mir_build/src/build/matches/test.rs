@@ -87,7 +87,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             None
                         }
                     }),
-                    otherwise_block,
+                    SwitchAction::Goto(otherwise_block),
                 );
                 debug!("num_enum_variants: {}", adt_def.variants().len());
                 let discr_ty = adt_def.repr().discr_type().to_ty(self.tcx);
@@ -119,7 +119,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                             None
                         }
                     }),
-                    otherwise_block,
+                    SwitchAction::Goto(otherwise_block),
                 );
                 let terminator = TerminatorKind::SwitchInt {
                     discr: Operand::Copy(place),

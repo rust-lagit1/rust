@@ -114,13 +114,13 @@ fn reverse_loop(_1: &[T], _2: impl Fn(&T)) -> () {
         StorageLive(_16);
         StorageLive(_15);
         _15 = &mut (_14.0: std::slice::Iter<'_, T>);
-        _16 = <std::slice::Iter<'_, T> as DoubleEndedIterator>::next_back(move _15) -> [return: bb5, unwind: bb11];
+        _16 = <std::slice::Iter<'_, T> as DoubleEndedIterator>::next_back(move _15) -> [return: bb5, unwind: bb10];
     }
 
     bb5: {
         StorageDead(_15);
         _17 = discriminant(_16);
-        switchInt(move _17) -> [0: bb6, 1: bb8, otherwise: bb10];
+        switchInt(move _17) -> [0: bb6, 1: bb8];
     }
 
     bb6: {
@@ -139,7 +139,7 @@ fn reverse_loop(_1: &[T], _2: impl Fn(&T)) -> () {
         _19 = &_2;
         StorageLive(_20);
         _20 = (_18,);
-        _21 = <impl Fn(&T) as Fn<(&T,)>>::call(move _19, move _20) -> [return: bb9, unwind: bb11];
+        _21 = <impl Fn(&T) as Fn<(&T,)>>::call(move _19, move _20) -> [return: bb9, unwind: bb10];
     }
 
     bb9: {
@@ -149,15 +149,11 @@ fn reverse_loop(_1: &[T], _2: impl Fn(&T)) -> () {
         goto -> bb4;
     }
 
-    bb10: {
-        unreachable;
+    bb10 (cleanup): {
+        drop(_2) -> [return: bb11, unwind terminate(cleanup)];
     }
 
     bb11 (cleanup): {
-        drop(_2) -> [return: bb12, unwind terminate(cleanup)];
-    }
-
-    bb12 (cleanup): {
         resume;
     }
 }

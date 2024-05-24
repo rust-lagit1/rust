@@ -325,7 +325,10 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
             FlatSet::Bottom => TerminatorEdges::None,
             FlatSet::Elem(scalar) => {
                 let choice = scalar.assert_bits(scalar.size());
-                TerminatorEdges::Single(targets.target_for_value(choice))
+                match targets.target_for_value(choice) {
+                    SwitchAction::Goto(bb) => TerminatorEdges::Single(bb),
+                    SwitchAction::Unreachable => TerminatorEdges::None,
+                }
             }
             FlatSet::Top => TerminatorEdges::SwitchInt { discr, targets },
         }
