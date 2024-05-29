@@ -6,7 +6,6 @@
 #![crate_type = "proc-macro"]
 
 extern crate proc_macro;
-extern crate custom_quote;
 
 use proc_macro::{quote, TokenStream};
 
@@ -15,19 +14,12 @@ macro_rules! expand_to_quote {
         quote! {
             let bang_error: bool = 25;
         }
-    }
+    };
 }
 
 #[proc_macro]
 pub fn error_from_bang(_input: TokenStream) -> TokenStream {
     expand_to_quote!()
-}
-
-#[proc_macro]
-pub fn other_error_from_bang(_input: TokenStream) -> TokenStream {
-    custom_quote::custom_quote! {
-        my_ident
-    }
 }
 
 #[proc_macro_attribute]
