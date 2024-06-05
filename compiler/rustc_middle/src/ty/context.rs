@@ -4,6 +4,7 @@
 
 pub mod tls;
 
+use rustc_query_system::query::DefIdInfo;
 pub use rustc_type_ir::lift::Lift;
 
 use crate::arena::Arena;
@@ -59,7 +60,6 @@ use rustc_index::IndexVec;
 use rustc_macros::{HashStable, TyDecodable, TyEncodable};
 use rustc_query_system::dep_graph::{DepNodeIndex, TaskDepsRef};
 use rustc_query_system::ich::StableHashingContext;
-use rustc_query_system::query::DefIdInfo;
 use rustc_serialize::opaque::{FileEncodeResult, FileEncoder};
 use rustc_session::config::CrateType;
 use rustc_session::cstore::{CrateStoreDyn, Untracked};
@@ -74,7 +74,7 @@ use rustc_type_ir::fold::TypeFoldable;
 use rustc_type_ir::TyKind::*;
 use rustc_type_ir::WithCachedTypeInfo;
 use rustc_type_ir::{CollectAndApply, Interner, TypeFlags};
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 
 use std::assert_matches::assert_matches;
 use std::borrow::Borrow;
@@ -1363,6 +1363,7 @@ impl<'tcx> TyCtxtAt<'tcx> {
 
 impl<'tcx> TyCtxt<'tcx> {
     /// `tcx`-dependent operations performed for every created definition.
+    #[instrument(level = "trace", skip(self))]
     pub fn create_def(
         self,
         parent: LocalDefId,
@@ -1370,7 +1371,7 @@ impl<'tcx> TyCtxt<'tcx> {
         def_kind: DefKind,
     ) -> TyCtxtFeed<'tcx, LocalDefId> {
         let data = def_kind.def_path_data(name);
-        // The following call has the side effect of modifying the tables inside `definitions`.
+        // The following create_def calls have the side effect of modifying the tables inside `definitions`.
         // These very tables are relied on by the incr. comp. engine to decode DepNodes and to
         // decode the on-disk cache.
         //
@@ -1383,31 +1384,47 @@ impl<'tcx> TyCtxt<'tcx> {
         // This is fine because:
         // - those queries are `eval_always` so we won't miss their result changing;
         // - this write will have happened before these queries are called.
-        let def_id = self.untracked.definitions.write().create_def(parent, data);
-
-        // This function modifies `self.definitions` using a side-effect.
-        // We need to ensure that these side effects are re-run by the incr. comp. engine.
-        tls::with_context(|icx| {
+        let def_id = tls::with_context(|icx| {
             match icx.task_deps {
                 // Always gets rerun anyway, so nothing to replay
-                TaskDepsRef::EvalAlways => {}
+                TaskDepsRef::EvalAlways => {
+                    let def_id = self.untracked.definitions.write().create_def(parent, data).0;
+                    trace!(?def_id, "eval always");
+                    def_id
+                }
                 // Top-level queries like the resolver get rerun every time anyway
-                TaskDepsRef::Ignore => {}
+                TaskDepsRef::Ignore => {
+                    let def_id = self.untracked.definitions.write().create_def(parent, data).0;
+                    trace!(?def_id, "ignore");
+                    def_id
+                }
                 TaskDepsRef::Forbid => bug!(
                     "cannot create definition {parent:?}, {name:?}, {def_kind:?} without being able to register task dependencies"
                 ),
                 TaskDepsRef::Allow(_) => {
-                    icx.side_effects
-                        .as_ref()
-                        .unwrap()
-                        .lock()
-                        .definitions
-                        .push(DefIdInfo { parent, data });
+                    let (def_id, hash) =
+                        self.untracked.definitions.write().create_def(parent, data);
+                    trace!(?def_id, "record side effects");
+
+                    icx.side_effects.as_ref().unwrap().lock().definitions.push(DefIdInfo {
+                        parent,
+                        data,
+                        hash,
+                    });
+                    def_id
                 }
                 TaskDepsRef::Replay { prev_side_effects, created_def_ids } => {
+                    trace!(?created_def_ids, "replay side effects");
+                    trace!("num_defs : {}", prev_side_effects.definitions.len());
                     let index = created_def_ids.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     let prev_info = &prev_side_effects.definitions[index];
-                    assert_eq!(*prev_info, DefIdInfo { parent, data });
+                    let def_id = self.untracked.definitions.read().local_def_path_hash_to_def_id(
+                        prev_info.hash,
+                        &"should have already recreated def id in try_mark_green",
+                    );
+                    assert_eq!(prev_info.data, data);
+                    assert_eq!(prev_info.parent, parent);
+                    def_id
                 }
             }
         });
