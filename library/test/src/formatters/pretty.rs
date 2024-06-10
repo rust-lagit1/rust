@@ -1,17 +1,17 @@
-use std::{io, io::prelude::Write};
+use std::io;
 
 use super::OutputFormatter;
 use crate::{
     bench::fmt_bench_samples,
-    console::{ConsoleTestDiscoveryState, ConsoleTestState, OutputLocation},
+    console::{ConsoleTestDiscoveryState, ConsoleTestState, Output},
     term,
     test_result::TestResult,
     time,
     types::TestDesc,
 };
 
-pub(crate) struct PrettyFormatter<T> {
-    out: OutputLocation<T>,
+pub(crate) struct PrettyFormatter<'a> {
+    out: &'a mut dyn Output,
     use_color: bool,
     time_options: Option<time::TestTimeOptions>,
 
@@ -21,20 +21,15 @@ pub(crate) struct PrettyFormatter<T> {
     is_multithreaded: bool,
 }
 
-impl<T: Write> PrettyFormatter<T> {
+impl<'a> PrettyFormatter<'a> {
     pub fn new(
-        out: OutputLocation<T>,
+        out: &'a mut dyn Output,
         use_color: bool,
         max_name_len: usize,
         is_multithreaded: bool,
         time_options: Option<time::TestTimeOptions>,
     ) -> Self {
         PrettyFormatter { out, use_color, max_name_len, is_multithreaded, time_options }
-    }
-
-    #[cfg(test)]
-    pub fn output_location(&self) -> &OutputLocation<T> {
-        &self.out
     }
 
     pub fn write_ok(&mut self) -> io::Result<()> {
@@ -69,29 +64,13 @@ impl<T: Write> PrettyFormatter<T> {
         self.write_pretty(result, color)
     }
 
-    pub fn write_pretty(&mut self, word: &str, color: term::color::Color) -> io::Result<()> {
-        match self.out {
-            OutputLocation::Pretty(ref mut term) => {
-                if self.use_color {
-                    term.fg(color)?;
-                }
-                term.write_all(word.as_bytes())?;
-                if self.use_color {
-                    term.reset()?;
-                }
-                term.flush()
-            }
-            OutputLocation::Raw(ref mut stdout) => {
-                stdout.write_all(word.as_bytes())?;
-                stdout.flush()
-            }
-        }
+    fn write_pretty(&mut self, word: &str, color: term::color::Color) -> io::Result<()> {
+        if self.use_color { self.out.write_pretty(word, color) } else { self.out.write_plain(word) }
     }
 
-    pub fn write_plain<S: AsRef<str>>(&mut self, s: S) -> io::Result<()> {
+    fn write_plain<S: AsRef<str>>(&mut self, s: S) -> io::Result<()> {
         let s = s.as_ref();
-        self.out.write_all(s.as_bytes())?;
-        self.out.flush()
+        self.out.write_plain(s)
     }
 
     fn write_time(
@@ -180,7 +159,7 @@ impl<T: Write> PrettyFormatter<T> {
     }
 }
 
-impl<T: Write> OutputFormatter for PrettyFormatter<T> {
+impl OutputFormatter for PrettyFormatter<'_> {
     fn write_discovery_start(&mut self) -> io::Result<()> {
         Ok(())
     }

@@ -5627,6 +5627,7 @@ dependencies = [
  "libc",
  "panic_abort",
  "panic_unwind",
+ "rand",
  "std",
 ]
 

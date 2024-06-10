@@ -1,6 +1,11 @@
+use rand::RngCore;
+use std::fs;
+use std::path::PathBuf;
+
 use super::*;
 
 use crate::{
+    console::list_tests_console,
     console::OutputLocation,
     formatters::PrettyFormatter,
     test::{
@@ -37,6 +42,36 @@ impl TestOpts {
             fail_fast: false,
         }
     }
+}
+
+// These implementations of TempDir and tmpdir are forked from rust/library/std/src/sys_common/io.rs.
+struct TempDir(PathBuf);
+
+impl TempDir {
+    fn join(&self, path: &str) -> PathBuf {
+        let TempDir(ref p) = *self;
+        p.join(path)
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let TempDir(ref p) = *self;
+        let result = fs::remove_dir_all(p);
+        // Avoid panicking while panicking as this causes the process to
+        // immediately abort, without displaying test results.
+        if !thread::panicking() {
+            result.unwrap();
+        }
+    }
+}
+
+fn tmpdir() -> TempDir {
+    let p = env::temp_dir();
+    let mut r = rand::thread_rng();
+    let ret = p.join(&format!("rust-{}", r.next_u32()));
+    fs::create_dir(&ret).unwrap();
+    TempDir(ret)
 }
 
 fn one_ignored_one_unignored_test() -> Vec<TestDescAndFn> {
@@ -858,7 +893,9 @@ fn should_sort_failures_before_printing_them() {
         test_type: TestType::Unknown,
     };
 
-    let mut out = PrettyFormatter::new(OutputLocation::Raw(Vec::new()), false, 10, false, None);
+    let mut output = Vec::new();
+    let mut raw = OutputLocation::Raw(&mut output);
+    let mut out = PrettyFormatter::new(&mut raw, false, 10, false, None);
 
     let st = console::ConsoleTestState {
         log_out: None,
@@ -878,11 +915,8 @@ fn should_sort_failures_before_printing_them() {
     };
 
     out.write_failures(&st).unwrap();
-    let s = match out.output_location() {
-        &OutputLocation::Raw(ref m) => String::from_utf8_lossy(&m[..]),
-        &OutputLocation::Pretty(_) => unreachable!(),
-    };
 
+    let s = String::from_utf8_lossy(&output[..]);
     let apos = s.find("a").unwrap();
     let bpos = s.find("b").unwrap();
     assert!(apos < bpos);
@@ -921,4 +955,83 @@ fn test_dyn_bench_returning_err_fails_when_run_as_test() {
     run_tests(&TestOpts { run_tests: true, ..TestOpts::new() }, vec![desc], notify).unwrap();
     let result = rx.recv().unwrap().result;
     assert_eq!(result, TrFailed);
+}
+
+#[test]
+fn test_discovery_logfile_format() {
+    let desc = TestDescAndFn {
+        desc: TestDesc {
+            name: StaticTestName("whatever"),
+            ignore: false,
+            ignore_message: None,
+            source_file: "",
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+            should_panic: ShouldPanic::No,
+            compile_fail: false,
+            no_run: false,
+            test_type: TestType::Unknown,
+        },
+        testfn: DynTestFn(Box::new(move || Ok(()))),
+    };
+
+    let tmpdir = tmpdir();
+    let output_path = &tmpdir.join("output.txt");
+
+    let opts = TestOpts {
+        run_tests: true,
+        logfile: Some(output_path.clone()),
+        format: OutputFormat::Pretty,
+        list: true,
+        ..TestOpts::new()
+    };
+    list_tests_console(&opts, vec![desc]).unwrap();
+
+    let contents = fs::read_to_string(output_path).expect("`--logfile` did not create file");
+
+    // Split output at line breaks to make the comparison platform-agnostic regarding newline style.
+    let contents_lines = contents.as_str().lines().collect::<Vec<&str>>();
+
+    assert_eq!(contents_lines, vec!["whatever: test", "", "1 test, 0 benchmarks"]);
+}
+
+#[test]
+fn test_logfile_format() {
+    let desc = TestDescAndFn {
+        desc: TestDesc {
+            name: StaticTestName("whatever"),
+            ignore: false,
+            ignore_message: None,
+            source_file: "",
+            start_line: 0,
+            start_col: 0,
+            end_line: 0,
+            end_col: 0,
+            should_panic: ShouldPanic::No,
+            compile_fail: false,
+            no_run: false,
+            test_type: TestType::Unknown,
+        },
+        testfn: DynTestFn(Box::new(move || Ok(()))),
+    };
+
+    let tmpdir = tmpdir();
+    let output_path = &tmpdir.join("output.txt");
+
+    let opts = TestOpts {
+        run_tests: true,
+        logfile: Some(output_path.clone()),
+        format: OutputFormat::Pretty,
+        ..TestOpts::new()
+    };
+    run_tests_console(&opts, vec![desc]).unwrap();
+
+    let contents = fs::read_to_string(output_path).expect("`--logfile` did not create file");
+
+    // Split output at line breaks to make the comparison platform-agnostic regarding newline style.
+    let contents_lines = contents.as_str().lines().collect::<Vec<&str>>();
+
+    assert_eq!(contents_lines, vec!["ok whatever"]);
 }
