@@ -1,0 +1,22 @@
+error[E0282]: type annotations needed
+  --> $DIR/recursive-bound-eval.rs:18:28
+   |
+LL |     move || recursive_fn().parse()
+   |                            ^^^^^ cannot infer type
+
+error[E0599]: no method named `parse` found for opaque type `impl Parser<_>` in the current scope
+  --> $DIR/recursive-bound-eval.rs:18:28
+   |
+LL |     move || recursive_fn().parse()
+   |                            ^^^^^ method not found in `impl Parser<_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+help: trait `Parser` which provides `parse` is implemented but not in scope; perhaps you want to import it
+   |
+LL + use Parser;
+   |
+
+error: aborting due to 2 previous errors
+
+Some errors have detailed explanations: E0282, E0599.
+For more information about an error, try `rustc --explain E0282`.

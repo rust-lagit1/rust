@@ -1,13 +1,12 @@
 //! used to ICE: #119272
 
-//@ check-pass
-
 #![feature(type_alias_impl_trait)]
 mod defining_scope {
     use super::*;
     pub type Alias<T> = impl Sized;
 
     pub fn cast<T>(x: Container<Alias<T>, T>) -> Container<T, T> {
+        //~^ ERROR: type annotations needed
         x
     }
 }
