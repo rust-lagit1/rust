@@ -2094,7 +2094,9 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                 )
             }
             hir::TyKind::TraitObject(bounds, lifetime, repr) => {
-                self.prohibit_or_lint_bare_trait_object_ty(hir_ty, in_path);
+                if let Some(guar) = self.prohibit_or_lint_bare_trait_object_ty(hir_ty, in_path) {
+                    return Ty::new_error(tcx, guar);
+                }
 
                 let repr = match repr {
                     TraitObjectSyntax::Dyn | TraitObjectSyntax::None => ty::Dyn,

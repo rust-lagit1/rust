@@ -591,7 +591,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             self.require_type_is_sized_deferred(
                 output,
                 call.map_or(expr.span, |e| e.span),
-                ObligationCauseCode::SizedCallReturnType,
+                ObligationCauseCode::SizedCallReturnType(did),
             );
         }
 
@@ -774,7 +774,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 self.ret_coercion_span.set(Some(expr.span));
             }
             let cause = self.cause(expr.span, ObligationCauseCode::ReturnNoExpression);
-            if let Some((_, fn_decl, _)) = self.get_fn_decl(expr.hir_id) {
+            if let Some((_, fn_decl, _)) = self.tcx.get_fn_decl(expr.hir_id) {
                 coercion.coerce_forced_unit(
                     self,
                     &cause,
@@ -1514,7 +1514,11 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         let ty = Ty::new_array_with_const_len(tcx, t, count);
 
-        self.register_wf_obligation(ty.into(), expr.span, ObligationCauseCode::WellFormed(None));
+        self.register_wf_obligation(
+            ty.into(),
+            expr.span,
+            ObligationCauseCode::WellFormed(Some(traits::WellFormedLoc::Expr(expr.hir_id))),
+        );
 
         ty
     }

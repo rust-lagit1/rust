@@ -645,7 +645,7 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
                             err.span_label(span, explanation);
                         }
 
-                        if let ObligationCauseCode::Coercion { source, target } =
+                        if let ObligationCauseCode::Coercion { source, target, .. } =
                             *obligation.cause.code().peel_derives()
                         {
                             if Some(leaf_trait_ref.def_id()) == self.tcx.lang_items().sized_trait() {
@@ -857,8 +857,14 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
                     }
 
                     ty::PredicateKind::ObjectSafe(trait_def_id) => {
+                        let mut hir_id = None;
+                        if let ObligationCauseCode::WellFormed(Some(
+                            crate::traits::WellFormedLoc::Expr(id),
+                        )) = root_obligation.cause.code() {
+                            hir_id = Some(*id);
+                        }
                         let violations = self.tcx.object_safety_violations(trait_def_id);
-                        report_object_safety_error(self.tcx, span, None, trait_def_id, violations)
+                        report_object_safety_error(self.tcx, span, hir_id, trait_def_id, violations)
                     }
 
                     ty::PredicateKind::Clause(ty::ClauseKind::WellFormed(ty)) => {
@@ -935,7 +941,46 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
 
             TraitNotObjectSafe(did) => {
                 let violations = self.tcx.object_safety_violations(did);
-                report_object_safety_error(self.tcx, span, None, did, violations)
+                let (hir_id, early) = match root_obligation.cause.code() {
+                    ObligationCauseCode::Coercion { parent_code, .. } => {
+                        match &**parent_code {
+                            ObligationCauseCode::ExprAssignable(hir_id) => (*hir_id, true),
+                            ObligationCauseCode::ReturnValue(_) => {
+                                let node = self.tcx.hir_node(self.tcx.local_def_id_to_hir_id(root_obligation.cause.body_id));
+                                if let Some(decl) = node.fn_decl()
+                                    && let hir::FnRetTy::Return(ty) = decl.output
+                                {
+                                    // We'll point at the return type on type safety errors.
+                                    (Some(ty.hir_id), true)
+                                } else {
+                                    (None, false)
+                                }
+                            }
+                            ObligationCauseCode::BlockTailExpression(hir_id, _) => {
+                                if let Some((_, decl, _)) = self.tcx.get_fn_decl(*hir_id)
+                                    && let hir::FnRetTy::Return(ty) = decl.output
+                                {
+                                    // We'll point at the return type on type safety errors.
+                                    (Some(ty.hir_id), true)
+                                } else {
+                                    (None, false)
+                                }
+                            }
+                            _ => (None, false),
+                        }
+                    }
+                    _ => (None, false),
+                };
+                let mut err = report_object_safety_error(self.tcx, span, hir_id, did, violations);
+                if early {
+                    // We want to skip `note_obligation_cause` because we don't want to note that
+                    // the requirement came from a cast, because that note causes the error
+                    // deduplication to not trigger and we'll have two errors instead of one.
+                    self.point_at_returns_when_relevant(&mut err, &obligation);
+                    return err.emit();
+                } else {
+                    err
+                }
             }
 
             SelectionError::NotConstEvaluatable(NotConstEvaluatable::MentionsInfer) => {

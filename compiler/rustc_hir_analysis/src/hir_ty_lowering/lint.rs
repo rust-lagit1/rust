@@ -1,8 +1,10 @@
 use rustc_ast::TraitObjectSyntax;
-use rustc_errors::{codes::*, Diag, EmissionGuarantee, StashKey};
+use rustc_errors::{codes::*, Diag, EmissionGuarantee, ErrorGuaranteed, StashKey};
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Res};
+use rustc_infer::traits::error_reporting::suggest_path_on_bare_trait;
 use rustc_lint_defs::{builtin::BARE_TRAIT_OBJECTS, Applicability};
+use rustc_middle::ty;
 use rustc_span::Span;
 use rustc_trait_selection::traits::error_reporting::suggestions::NextTypeParamName;
 
@@ -17,13 +19,14 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         &self,
         self_ty: &hir::Ty<'_>,
         in_path: bool,
-    ) {
+    ) -> Option<ErrorGuaranteed> {
         let tcx = self.tcx();
 
-        let hir::TyKind::TraitObject([poly_trait_ref, ..], _, TraitObjectSyntax::None) =
-            self_ty.kind
-        else {
-            return;
+        let hir::TyKind::TraitObject(traits, _, TraitObjectSyntax::None) = self_ty.kind else {
+            return None;
+        };
+        let [poly_trait_ref, ..] = traits else {
+            return None;
         };
 
         let needs_bracket = in_path
@@ -35,6 +38,11 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                 .is_some_and(|s| s.trim_end().ends_with('<'));
 
         let is_global = poly_trait_ref.trait_ref.path.is_global();
+
+        let object_safe = traits.iter().all(|ptr| match ptr.trait_ref.path.res {
+            Res::Def(DefKind::Trait, def_id) => tcx.object_safety_violations(def_id).is_empty(),
+            _ => false,
+        });
 
         let mut sugg = vec![(
             self_ty.span.shrink_to_lo(),
@@ -56,33 +64,119 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
             ));
         }
 
+        let parent = tcx.parent_hir_node(self_ty.hir_id);
         if self_ty.span.edition().at_least_rust_2021() {
             let msg = "trait objects must include the `dyn` keyword";
             let label = "add `dyn` keyword before this trait";
             let mut diag =
                 rustc_errors::struct_span_code_err!(tcx.dcx(), self_ty.span, E0782, "{}", msg);
-            if self_ty.span.can_be_used_for_suggestions()
-                && !self.maybe_suggest_impl_trait(self_ty, &mut diag)
-            {
-                // FIXME: Only emit this suggestion if the trait is object safe.
-                diag.multipart_suggestion_verbose(label, sugg, Applicability::MachineApplicable);
+            if self_ty.span.can_be_used_for_suggestions() {
+                if !self.maybe_suggest_impl_trait(self_ty, &mut diag) && object_safe {
+                    if let hir::Node::Item(hir::Item {
+                        kind: hir::ItemKind::Static(..) | hir::ItemKind::Const(..),
+                        ..
+                    }) = parent
+                    {
+                        // Statics can't be unsized, so we suggest `Box<dyn Trait>` instead.
+                        diag.multipart_suggestion_verbose(
+                            "`static` can't be unsized; use a boxed trait object",
+                            vec![
+                                (self_ty.span.shrink_to_lo(), "Box<dyn ".to_string()),
+                                (self_ty.span.shrink_to_hi(), ">".to_string()),
+                            ],
+                            Applicability::MachineApplicable,
+                        );
+                    } else {
+                        // Only emit this suggestion if the trait is object safe.
+                        diag.multipart_suggestion_verbose(
+                            label,
+                            sugg,
+                            Applicability::MachineApplicable,
+                        );
+                    }
+                }
             }
+
+            if !object_safe && self_ty.span.can_be_used_for_suggestions() {
+                suggest_path_on_bare_trait(tcx, &mut diag, parent);
+            }
+
             // Check if the impl trait that we are considering is an impl of a local trait.
             self.maybe_suggest_blanket_trait_impl(self_ty, &mut diag);
             self.maybe_suggest_assoc_ty_bound(self_ty, &mut diag);
-            diag.stash(self_ty.span, StashKey::TraitMissingMethod);
+            self.maybe_suggest_assoc_type(&poly_trait_ref.trait_ref, &mut diag);
+
+            if object_safe {
+                let parents = self.tcx().hir().parent_iter(self_ty.hir_id);
+                for (_, parent) in parents {
+                    let hir::Node::Expr(expr) = parent else {
+                        break;
+                    };
+                    if let hir::ExprKind::Path(hir::QPath::TypeRelative(_, segment)) = expr.kind
+                        && let Res::Err = segment.res
+                    {
+                        // If the trait is object safe *and* there's a path segment that couldn't be
+                        // resolved, we know that we will have a resolve error later. If there's an
+                        // unresolved segment *and* the trait is not object safe, then no other
+                        // error would have been emitted, so we always emit an error in that case.
+                        diag.emit();
+                        return None;
+                    }
+                }
+            }
+            diag.stash(self_ty.span, StashKey::TraitMissingMethod)
         } else {
             tcx.node_span_lint(BARE_TRAIT_OBJECTS, self_ty.hir_id, self_ty.span, |lint| {
                 lint.primary_message("trait objects without an explicit `dyn` are deprecated");
-                if self_ty.span.can_be_used_for_suggestions() {
-                    lint.multipart_suggestion_verbose(
-                        "if this is an object-safe trait, use `dyn`",
-                        sugg,
-                        Applicability::MachineApplicable,
-                    );
+                match (object_safe, self_ty.span.can_be_used_for_suggestions(), parent) {
+                    (
+                        true,
+                        true,
+                        hir::Node::Item(hir::Item {
+                            kind: hir::ItemKind::Static(..) | hir::ItemKind::Const(..),
+                            ..
+                        }),
+                    ) => {
+                        // Statics can't be unsized, so we suggest `Box<dyn Trait>` instead.
+                        lint.multipart_suggestion_verbose(
+                            "`static` can't be unsized; use a boxed trait object",
+                            vec![
+                                (self_ty.span.shrink_to_lo(), "Box<dyn ".to_string()),
+                                (self_ty.span.shrink_to_hi(), ">".to_string()),
+                            ],
+                            Applicability::MachineApplicable,
+                        );
+                    }
+                    (true, true, _) => {
+                        lint.multipart_suggestion_verbose(
+                            "as this is an \"object safe\" trait, write `dyn` in front of the \
+                             trait",
+                            sugg,
+                            Applicability::MachineApplicable,
+                        );
+                    }
+                    (
+                        true,
+                        false,
+                        hir::Node::Item(hir::Item { kind: hir::ItemKind::Static(..), .. }),
+                    ) => {
+                        lint.note(
+                            "as this is an \"object safe\" trait, you can write `Box<dyn Trait>`",
+                        );
+                    }
+                    (true, false, _) => {
+                        lint.note("as this is an \"object safe\" trait, you can write `dyn Trait`");
+                    }
+                    (false, _, _) => {
+                        lint.note(
+                            "you can't use write a trait object here because the trait isn't \
+                             \"object safe\"",
+                        );
+                    }
                 }
                 self.maybe_suggest_blanket_trait_impl(self_ty, lint);
             });
+            None
         }
     }
 
@@ -152,38 +246,32 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
     }
 
     /// Make sure that we are in the condition to suggest `impl Trait`.
+    ///
+    /// Returns whether a suggestion was provided and whether the error itself should not be emitted
     fn maybe_suggest_impl_trait(&self, self_ty: &hir::Ty<'_>, diag: &mut Diag<'_>) -> bool {
         let tcx = self.tcx();
         let parent_id = tcx.hir().get_parent_item(self_ty.hir_id).def_id;
         // FIXME: If `type_alias_impl_trait` is enabled, also look for `Trait0<Ty = Trait1>`
         //        and suggest `Trait0<Ty = impl Trait1>`.
-        let (sig, generics, owner) = match tcx.hir_node_by_def_id(parent_id) {
+        let (sig, generics) = match tcx.hir_node_by_def_id(parent_id) {
             hir::Node::Item(hir::Item { kind: hir::ItemKind::Fn(sig, generics, _), .. }) => {
-                (sig, generics, None)
+                (sig, generics)
             }
             hir::Node::TraitItem(hir::TraitItem {
                 kind: hir::TraitItemKind::Fn(sig, _),
                 generics,
-                owner_id,
                 ..
-            }) => (sig, generics, Some(tcx.parent(owner_id.to_def_id()))),
+            }) => (sig, generics),
             _ => return false,
         };
         let Ok(trait_name) = tcx.sess.source_map().span_to_snippet(self_ty.span) else {
             return false;
         };
         let impl_sugg = vec![(self_ty.span.shrink_to_lo(), "impl ".to_string())];
-        let mut is_downgradable = true;
         let is_object_safe = match self_ty.kind {
             hir::TyKind::TraitObject(objects, ..) => {
                 objects.iter().all(|o| match o.trait_ref.path.res {
-                    Res::Def(DefKind::Trait, id) => {
-                        if Some(id) == owner {
-                            // For recursive traits, don't downgrade the error. (#119652)
-                            is_downgradable = false;
-                        }
-                        tcx.is_object_safe(id)
-                    }
+                    Res::Def(DefKind::Trait, id) => tcx.object_safety_violations(id).is_empty(),
                     _ => false,
                 })
             }
@@ -211,11 +299,9 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     ],
                     Applicability::MachineApplicable,
                 );
-            } else if is_downgradable {
-                // We'll emit the object safety error already, with a structured suggestion.
-                diag.downgrade_to_delayed_bug();
+                return true;
             }
-            return true;
+            return false;
         }
         for ty in sig.decl.inputs {
             if ty.hir_id != self_ty.hir_id {
@@ -237,10 +323,6 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
             }
             if !is_object_safe {
                 diag.note(format!("`{trait_name}` it is not object safe, so it can't be `dyn`"));
-                if is_downgradable {
-                    // We'll emit the object safety error already, with a structured suggestion.
-                    diag.downgrade_to_delayed_bug();
-                }
             } else {
                 let sugg = if let hir::TyKind::TraitObject([_, _, ..], _, _) = self_ty.kind {
                     // There are more than one trait bound, we need surrounding parentheses.
@@ -294,6 +376,41 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                 lo.between(hi),
                 "you might have meant to write a bound here",
                 ": ",
+                Applicability::MaybeIncorrect,
+            );
+        }
+    }
+
+    /// Look for associated types with the same name as the `-> Trait` and suggest `-> Self::Trait`.
+    fn maybe_suggest_assoc_type(&self, trait_ref: &hir::TraitRef<'_>, diag: &mut Diag<'_>) {
+        let tcx = self.tcx();
+        let [segment] = trait_ref.path.segments else { return };
+        let mut trait_or_impl = None;
+        let mut iter = tcx.hir().parent_owner_iter(trait_ref.hir_ref_id);
+        while let Some((def_id, node)) = iter.next() {
+            if let hir::OwnerNode::Item(hir::Item {
+                kind: hir::ItemKind::Trait(..) | hir::ItemKind::Impl(..),
+                ..
+            }) = node
+            {
+                trait_or_impl = Some(def_id);
+                break;
+            }
+        }
+        let Some(parent_id) = trait_or_impl else { return };
+        let mut assocs = tcx
+            .associated_items(parent_id)
+            .filter_by_name_unhygienic(segment.ident.name)
+            .filter(|assoc| assoc.kind == ty::AssocKind::Type);
+        if let Some(assoc) = assocs.next() {
+            diag.span_label(
+                tcx.def_span(assoc.def_id),
+                "you might have meant to use this associated type",
+            );
+            diag.span_suggestion_verbose(
+                segment.ident.span.shrink_to_lo(),
+                "there is an associated type with the same name",
+                "Self::",
                 Applicability::MaybeIncorrect,
             );
         }

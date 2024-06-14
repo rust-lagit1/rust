@@ -1,0 +1,83 @@
+warning: trait objects without an explicit `dyn` are deprecated
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:19
+   |
+LL |     let x: u32 = <Default>::default();
+   |                   ^^^^^^^
+   |
+   = warning: this is accepted in the current edition (Rust 2018) but is a hard error in Rust 2021!
+   = note: for more information, see <https://doc.rust-lang.org/nightly/edition-guide/rust-2021/warnings-promoted-to-error.html>
+   = note: you can't use write a trait object here because the trait isn't "object safe"
+   = note: `#[warn(bare_trait_objects)]` on by default
+
+error[E0038]: the trait `Default` cannot be made into an object
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:19
+   |
+LL |     let x: u32 = <Default>::default();
+   |                   ^^^^^^^ `Default` cannot be made into an object
+   |
+   = note: the trait cannot be made into an object because it requires `Self: Sized`
+   = note: for a trait to be "object safe" it needs to allow building a vtable to allow the call to be resolvable dynamically; for more information visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
+note: `Default` is the type for the trait in editions 2015 and 2018 and is equivalent to writing `dyn Default`
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:19
+   |
+LL |     let x: u32 = <Default>::default();
+   |                   ^^^^^^^
+   = help: when writing `<Default>::default` you are requiring `Default` be "object safe", which it isn't
+help: you might have meant to access the associated function of a specific `impl` to avoid requiring "object safety" from `Default`, either with some explicit type...
+   |
+LL |     let x: u32 = </* Type */ as Default>::default();
+   |                   +++++++++++++
+help: ...or rely on inference if the compiler has enough context to identify the desired type on its own...
+   |
+LL -     let x: u32 = <Default>::default();
+LL +     let x: u32 = Default::default();
+   |
+help: ...which is equivalent to
+   |
+LL |     let x: u32 = <_ as Default>::default();
+   |                   ++++
+
+error[E0277]: the size for values of type `dyn Default` cannot be known at compilation time
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:19
+   |
+LL |     let x: u32 = <Default>::default();
+   |                   ^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `dyn Default`
+note: required by a bound in `default`
+  --> $SRC_DIR/core/src/default.rs:LL:COL
+
+error[E0308]: mismatched types
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:18
+   |
+LL |     let x: u32 = <Default>::default();
+   |            ---   ^^^^^^^^^^^^^^^^^^^^ expected `u32`, found `dyn Default`
+   |            |
+   |            expected due to this
+   |
+   = note:      expected type `u32`
+           found trait object `dyn Default`
+   = help: `u32` implements `Default` so you could change the expected type to `Box<dyn Default>`
+
+error[E0038]: the trait `Default` cannot be made into an object
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:19
+   |
+LL |     let x: u32 = <Default>::default();
+   |                   ^^^^^^^ `Default` cannot be made into an object
+   |
+   = note: the trait cannot be made into an object because it requires `Self: Sized`
+   = note: for a trait to be "object safe" it needs to allow building a vtable to allow the call to be resolvable dynamically; for more information visit <https://doc.rust-lang.org/reference/items/traits.html#object-safety>
+
+error[E0277]: the size for values of type `dyn Default` cannot be known at compilation time
+  --> $DIR/trait-missing-dyn-in-qualified-path.rs:5:18
+   |
+LL |     let x: u32 = <Default>::default();
+   |                  ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+   |
+   = help: the trait `Sized` is not implemented for `dyn Default`
+   = note: the return type of a function must have a statically known size
+
+error: aborting due to 5 previous errors; 1 warning emitted
+
+Some errors have detailed explanations: E0038, E0277, E0308.
+For more information about an error, try `rustc --explain E0038`.

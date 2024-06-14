@@ -2707,7 +2707,7 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
         let tcx = self.tcx;
         let predicate = predicate.upcast(tcx);
         match *cause_code {
-            ObligationCauseCode::ExprAssignable
+            ObligationCauseCode::ExprAssignable(_)
             | ObligationCauseCode::MatchExpressionArm { .. }
             | ObligationCauseCode::Pattern { .. }
             | ObligationCauseCode::IfExpression { .. }
@@ -2886,7 +2886,7 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
                 // We hold the `DefId` of the item introducing the obligation, but displaying it
                 // doesn't add user usable information. It always point at an associated item.
             }
-            ObligationCauseCode::Coercion { source, target } => {
+            ObligationCauseCode::Coercion { source, target, .. } => {
                 let source =
                     tcx.short_ty_string(self.resolve_vars_if_possible(source), &mut long_ty_file);
                 let target =
@@ -3081,7 +3081,7 @@ impl<'tcx> TypeErrCtxt<'_, 'tcx> {
                     err.help("unsized fn params are gated as an unstable feature");
                 }
             }
-            ObligationCauseCode::SizedReturnType | ObligationCauseCode::SizedCallReturnType => {
+            ObligationCauseCode::SizedReturnType | ObligationCauseCode::SizedCallReturnType(_) => {
                 err.note("the return type of a function must have a statically known size");
             }
             ObligationCauseCode::SizedYieldType => {

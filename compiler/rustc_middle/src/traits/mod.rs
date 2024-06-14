@@ -268,6 +268,8 @@ pub enum ObligationCauseCode<'tcx> {
     Coercion {
         source: Ty<'tcx>,
         target: Ty<'tcx>,
+        /// The obligation introduced by this argument.
+        parent_code: InternedObligationCauseCode<'tcx>,
     },
 
     /// Various cases where expressions must be `Sized` / `Copy` / etc.
@@ -284,7 +286,7 @@ pub enum ObligationCauseCode<'tcx> {
     /// Return type must be `Sized`.
     SizedReturnType,
     /// Return type of a call expression must be `Sized`.
-    SizedCallReturnType,
+    SizedCallReturnType(DefId),
     /// Yield type must be `Sized`.
     SizedYieldType,
     /// Inline asm operand type must be `Sized`.
@@ -355,7 +357,7 @@ pub enum ObligationCauseCode<'tcx> {
     },
 
     /// Checking that this expression can be assigned to its target.
-    ExprAssignable,
+    ExprAssignable(Option<HirId>),
 
     /// Computing common supertype in the arms of a match expression
     MatchExpressionArm(Box<MatchExpressionArmCause<'tcx>>),
@@ -486,6 +488,8 @@ pub enum WellFormedLoc {
         /// being the last 'parameter'
         param_idx: usize,
     },
+    /// The HIR node for the expression that introduced this obligation.
+    Expr(HirId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
