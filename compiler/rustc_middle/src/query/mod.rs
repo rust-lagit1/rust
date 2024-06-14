@@ -1065,7 +1065,6 @@ rustc_queries! {
             "evaluating initializer of static `{}`",
             tcx.def_path_str(key)
         }
-        cache_on_disk_if { key.is_local() }
         separate_provide_extern
         feedable
     }
@@ -1716,6 +1715,7 @@ rustc_queries! {
         desc { |tcx| "computing visibility of `{}`", tcx.def_path_str(def_id) }
         separate_provide_extern
         feedable
+        cache_on_disk_if { def_id.is_local() }
     }
 
     query inhabited_predicate_adt(key: DefId) -> ty::inhabitedness::InhabitedPredicate<'tcx> {
