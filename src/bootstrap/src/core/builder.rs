@@ -946,7 +946,13 @@ impl<'a> Builder<'a> {
                 run::GenerateWindowsSys,
                 run::GenerateCompletions,
             ),
-            Kind::Setup => describe!(setup::Profile, setup::Hook, setup::Link, setup::Vscode),
+            Kind::Setup => describe!(
+                setup::Profile,
+                setup::Hook,
+                setup::Link,
+                setup::Vscode,
+                setup::RustProjectJson
+            ),
             Kind::Clean => describe!(clean::CleanAll, clean::Rustc, clean::Std),
             Kind::Vendor => describe!(vendor::Vendor),
             // special-cased in Build::build()
@@ -2323,7 +2329,7 @@ impl<'a> Builder<'a> {
 ///
 /// `-Z crate-attr` flags will be applied recursively on the target code using the `rustc_parse::parser::Parser`.
 /// See `rustc_builtin_macros::cmdline_attrs::inject` for more information.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 struct Rustflags(String, TargetSelection);
 
 impl Rustflags {
@@ -2638,5 +2644,17 @@ impl From<Cargo> for Command {
         }
 
         cargo.command
+    }
+}
+
+impl From<Command> for Cargo {
+    fn from(command: Command) -> Cargo {
+        Cargo {
+            command,
+            rustflags: Default::default(),
+            rustdocflags: Default::default(),
+            hostflags: Default::default(),
+            allow_features: Default::default(),
+        }
     }
 }
