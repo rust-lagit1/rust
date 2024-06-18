@@ -1906,6 +1906,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             }
             // Final step in the import chain, point out if the ADT is `non_exhaustive`
             // which is probably why this privacy violation occurred.
+            let mut err_help = None;
             if next_binding.is_none()
                 && let Some(span) = non_exhaustive
             {
@@ -1913,6 +1914,8 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     span,
                     "cannot be constructed because it is `#[non_exhaustive]`",
                 );
+                err_help =
+                    Some(format!("consider using a struct pattern instead: `{ident} {{ .. }}`"));
             }
             let note = errors::NoteAndRefersToTheItemDefinedHere {
                 span: note_span,
@@ -1922,6 +1925,9 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 dots: next_binding.is_some(),
             };
             err.subdiagnostic(self.tcx.dcx(), note);
+            if let Some(err_help) = err_help {
+                err.span_help(ident.span, err_help);
+            }
         }
         // We prioritize shorter paths, non-core imports and direct imports over the alternatives.
         sugg_paths.sort_by_key(|(p, reexport)| (p.len(), p[0] == "core", *reexport));
