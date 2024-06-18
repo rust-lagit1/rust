@@ -20,9 +20,9 @@ extern crate proc_macro;
 
 fn main() {
     [crate::TokenStream::from(crate::TokenTree::Ident(crate::Ident::new("let",
-                                    crate::Span::recover_proc_macro_span(0)))),
+                                    crate::Span::def_site()))),
                         crate::TokenStream::from(crate::TokenTree::Ident(crate::Ident::new("hello",
-                                    crate::Span::recover_proc_macro_span(1)))),
+                                    crate::Span::def_site()))),
                         crate::TokenStream::from(crate::TokenTree::Punct(crate::Punct::new('=',
                                     crate::Spacing::Alone))),
                         crate::TokenStream::from(crate::TokenTree::Literal({
@@ -30,7 +30,7 @@ fn main() {
                                         "\"world\"".parse::<crate::TokenStream>().unwrap().into_iter();
                                     if let (Some(crate::TokenTree::Literal(mut lit)), None) =
                                                 (iter.next(), iter.next()) {
-                                            lit.set_span(crate::Span::recover_proc_macro_span(2));
+                                            lit.set_span(crate::Span::def_site());
                                             lit
                                         } else {
                                            ::core::panicking::panic("internal error: entered unreachable code")

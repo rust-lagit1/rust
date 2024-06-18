@@ -1,4 +1,3 @@
-//@ aux-build:custom-quote.rs
 //@ aux-build:span-from-proc-macro.rs
 //@ compile-flags: -Z macro-backtrace
 
@@ -13,5 +12,4 @@ struct Kept;
 
 fn main() {
     error_from_bang!(); //~ ERROR mismatched types
-    other_error_from_bang!(); //~ ERROR cannot find value `my_ident`
 }
