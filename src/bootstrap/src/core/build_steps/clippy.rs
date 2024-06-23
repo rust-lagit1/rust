@@ -320,7 +320,6 @@ lint_any!(
     OptDist, "src/tools/opt-dist", "opt-dist";
     RemoteTestClient, "src/tools/remote-test-client", "remote-test-client";
     RemoteTestServer, "src/tools/remote-test-server", "remote-test-server";
-    Rls, "src/tools/rls", "rls";
     RustAnalyzer, "src/tools/rust-analyzer", "rust-analyzer";
     Rustdoc, "src/tools/rustdoc", "clippy";
     Rustfmt, "src/tools/rustfmt", "rustfmt";

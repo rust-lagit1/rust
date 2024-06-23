@@ -153,7 +153,6 @@ pub fn prepare_tool_cargo(
     let mut features = extra_features.to_vec();
     if builder.build.config.cargo_native_static {
         if path.ends_with("cargo")
-            || path.ends_with("rls")
             || path.ends_with("clippy")
             || path.ends_with("miri")
             || path.ends_with("rustfmt")
@@ -960,10 +959,6 @@ tool_extended!((self, builder),
     Clippy, "src/tools/clippy", "clippy-driver", stable=true, add_bins_to_sysroot = ["clippy-driver", "cargo-clippy"];
     Miri, "src/tools/miri", "miri", stable=false, add_bins_to_sysroot = ["miri"];
     CargoMiri, "src/tools/miri/cargo-miri", "cargo-miri", stable=true, add_bins_to_sysroot = ["cargo-miri"];
-    // FIXME: tool_std is not quite right, we shouldn't allow nightly features.
-    // But `builder.cargo` doesn't know how to handle ToolBootstrap in stages other than 0,
-    // and this is close enough for now.
-    Rls, "src/tools/rls", "rls", stable=true, tool_std=true;
     Rustfmt, "src/tools/rustfmt", "rustfmt", stable=true, add_bins_to_sysroot = ["rustfmt", "cargo-fmt"];
 );
 

@@ -23,7 +23,6 @@ pub(crate) enum OverlayKind {
     Clippy,
     Miri,
     Rustfmt,
-    Rls,
     RustAnalyzer,
     RustcCodegenCranelift,
     LlvmBitcodeLinker,
@@ -57,7 +56,6 @@ impl OverlayKind {
                 "src/tools/rustfmt/LICENSE-APACHE",
                 "src/tools/rustfmt/LICENSE-MIT",
             ],
-            OverlayKind::Rls => &["src/tools/rls/README.md", "LICENSE-APACHE", "LICENSE-MIT"],
             OverlayKind::RustAnalyzer => &[
                 "src/tools/rust-analyzer/README.md",
                 "src/tools/rust-analyzer/LICENSE-APACHE",
@@ -91,7 +89,6 @@ impl OverlayKind {
             OverlayKind::Rustfmt => {
                 builder.rustfmt_info.version(builder, &builder.release_num("rustfmt"))
             }
-            OverlayKind::Rls => builder.release(&builder.release_num("rls")),
             OverlayKind::RustAnalyzer => builder
                 .rust_analyzer_info
                 .version(builder, &builder.release_num("rust-analyzer/crates/rust-analyzer")),
