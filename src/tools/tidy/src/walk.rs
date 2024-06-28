@@ -28,8 +28,6 @@ pub fn filter_dirs(path: &Path) -> bool {
         "src/doc/rust-by-example",
         "src/doc/rustc-dev-guide",
         "src/doc/reference",
-        // Filter RLS output directories
-        "target/rls",
         "src/bootstrap/target",
         "vendor",
     ];
