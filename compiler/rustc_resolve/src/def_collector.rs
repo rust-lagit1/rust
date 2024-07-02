@@ -129,7 +129,9 @@ impl<'a, 'b, 'tcx> DefCollector<'a, 'b, 'tcx> {
 
 impl<'a, 'b, 'tcx> mut_visit::MutVisitor for DefCollector<'a, 'b, 'tcx> {
     fn visit_span(&mut self, span: &mut Span) {
-        *span = span.with_parent(Some(self.parent_def));
+        if self.resolver.tcx.sess.opts.incremental.is_some() {
+            *span = span.with_parent(Some(self.parent_def));
+        }
     }
 
     #[tracing::instrument(level = "trace", skip(self))]
