@@ -871,7 +871,8 @@ fn visit_constness<T: MutVisitor>(constness: &mut Const, vis: &mut T) {
 fn noop_visit_closure_binder<T: MutVisitor>(binder: &mut ClosureBinder, vis: &mut T) {
     match binder {
         ClosureBinder::NotPresent => {}
-        ClosureBinder::For { span: _, generic_params } => {
+        ClosureBinder::For { span, generic_params } => {
+            vis.visit_span(span);
             generic_params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
         }
     }
@@ -904,7 +905,10 @@ fn noop_visit_fn_ret_ty<T: MutVisitor>(fn_ret_ty: &mut FnRetTy, vis: &mut T) {
 
 fn noop_visit_param_bound<T: MutVisitor>(pb: &mut GenericBound, vis: &mut T) {
     match pb {
-        GenericBound::Trait(ty, _modifier) => vis.visit_poly_trait_ref(ty),
+        GenericBound::Trait(ty, modifier) => {
+            vis.visit_poly_trait_ref(ty);
+            visit_trait_bound_modifier(modifier, vis);
+        }
         GenericBound::Outlives(lifetime) => noop_visit_lifetime(lifetime, vis),
         GenericBound::Use(args, span) => {
             for arg in args {
@@ -912,6 +916,22 @@ fn noop_visit_param_bound<T: MutVisitor>(pb: &mut GenericBound, vis: &mut T) {
             }
             vis.visit_span(span);
         }
+    }
+}
+
+fn visit_trait_bound_modifier<T: MutVisitor>(tbm: &mut TraitBoundModifiers, vis: &mut T) {
+    let TraitBoundModifiers { constness, asyncness, polarity } = tbm;
+    match constness {
+        BoundConstness::Never => {}
+        BoundConstness::Always(span) | BoundConstness::Maybe(span) => vis.visit_span(span),
+    }
+    match asyncness {
+        BoundAsyncness::Normal => {}
+        BoundAsyncness::Async(span) => vis.visit_span(span),
+    }
+    match polarity {
+        BoundPolarity::Positive => {}
+        BoundPolarity::Negative(span) | BoundPolarity::Maybe(span) => vis.visit_span(span),
     }
 }
 
@@ -1369,21 +1389,24 @@ pub fn noop_visit_pat<T: MutVisitor>(pat: &mut P<Pat>, vis: &mut T) {
     vis.visit_span(span);
 }
 
-fn noop_visit_anon_const<T: MutVisitor>(AnonConst { id, value }: &mut AnonConst, vis: &mut T) {
+pub fn noop_visit_anon_const<T: MutVisitor>(AnonConst { id, value }: &mut AnonConst, vis: &mut T) {
     vis.visit_id(id);
     vis.visit_expr(value);
 }
 
 fn noop_visit_inline_asm<T: MutVisitor>(asm: &mut InlineAsm, vis: &mut T) {
-    // FIXME: Visit spans inside all this currently ignored stuff.
-    let InlineAsm {
-        template: _,
-        template_strs: _,
-        operands,
-        clobber_abis: _,
-        options: _,
-        line_spans: _,
-    } = asm;
+    let InlineAsm { template, template_strs, operands, clobber_abis, options: _, line_spans } = asm;
+    for piece in template.iter_mut() {
+        match piece {
+            InlineAsmTemplatePiece::String(_str) => {}
+            InlineAsmTemplatePiece::Placeholder { operand_idx: _, modifier: _, span } => {
+                vis.visit_span(span)
+            }
+        }
+    }
+    for (_s1, _s2, span) in template_strs.iter_mut() {
+        vis.visit_span(span)
+    }
     for (op, span) in operands {
         match op {
             InlineAsmOperand::In { expr, reg: _ }
@@ -1402,6 +1425,12 @@ fn noop_visit_inline_asm<T: MutVisitor>(asm: &mut InlineAsm, vis: &mut T) {
         }
         vis.visit_span(span);
     }
+    for (_s1, span) in clobber_abis.iter_mut() {
+        vis.visit_span(span)
+    }
+    for span in line_spans.iter_mut() {
+        vis.visit_span(span)
+    }
 }
 
 fn noop_visit_inline_asm_sym<T: MutVisitor>(
@@ -1414,8 +1443,7 @@ fn noop_visit_inline_asm_sym<T: MutVisitor>(
 }
 
 fn noop_visit_format_args<T: MutVisitor>(fmt: &mut FormatArgs, vis: &mut T) {
-    // FIXME: visit the template exhaustively.
-    let FormatArgs { span, template: _, arguments } = fmt;
+    let FormatArgs { span, template, arguments } = fmt;
     for FormatArgument { kind, expr } in arguments.all_args_mut() {
         match kind {
             FormatArgumentKind::Named(ident) | FormatArgumentKind::Captured(ident) => {
@@ -1425,7 +1453,46 @@ fn noop_visit_format_args<T: MutVisitor>(fmt: &mut FormatArgs, vis: &mut T) {
         }
         vis.visit_expr(expr);
     }
+    for piece in template.iter_mut() {
+        match piece {
+            FormatArgsPiece::Literal(_symbol) => {}
+            FormatArgsPiece::Placeholder(placeholder) => visit_format_placeholder(placeholder, vis),
+        }
+    }
     vis.visit_span(span);
+}
+
+fn visit_format_placeholder<T: MutVisitor>(
+    FormatPlaceholder { argument, span, format_options, format_trait: _ }: &mut FormatPlaceholder,
+    vis: &mut T,
+) {
+    visit_opt(span, |span| vis.visit_span(span));
+    let FormatArgPosition { span, index: _, kind: _ } = argument;
+    visit_opt(span, |span| vis.visit_span(span));
+    let FormatOptions {
+        width,
+        precision,
+        alignment: _,
+        fill: _,
+        sign: _,
+        alternate: _,
+        zero_pad: _,
+        debug_hex: _,
+    } = format_options;
+    match width {
+        None => {}
+        Some(FormatCount::Literal(_)) => {}
+        Some(FormatCount::Argument(FormatArgPosition { span, index: _, kind: _ })) => {
+            visit_opt(span, |span| vis.visit_span(span))
+        }
+    }
+    match precision {
+        None => {}
+        Some(FormatCount::Literal(_)) => {}
+        Some(FormatCount::Argument(FormatArgPosition { span, index: _, kind: _ })) => {
+            visit_opt(span, |span| vis.visit_span(span))
+        }
+    }
 }
 
 pub fn noop_visit_expr<T: MutVisitor>(
@@ -1461,7 +1528,8 @@ pub fn noop_visit_expr<T: MutVisitor>(
             visit_thin_exprs(call_args, vis);
             vis.visit_span(span);
         }
-        ExprKind::Binary(_binop, lhs, rhs) => {
+        ExprKind::Binary(Spanned { node: _binop, span }, lhs, rhs) => {
+            vis.visit_span(span);
             vis.visit_expr(lhs);
             vis.visit_expr(rhs);
         }
@@ -1529,9 +1597,10 @@ pub fn noop_visit_expr<T: MutVisitor>(
             visit_opt(label, |label| vis.visit_label(label));
             vis.visit_block(blk);
         }
-        ExprKind::Gen(_capture_by, body, _kind, decl_span) => {
+        ExprKind::Gen(capture_clause, body, _kind, decl_span) => {
             vis.visit_block(body);
             vis.visit_span(decl_span);
+            vis.visit_capture_by(capture_clause);
         }
         ExprKind::Await(expr, await_kw_span) => {
             vis.visit_expr(expr);
@@ -1542,7 +1611,8 @@ pub fn noop_visit_expr<T: MutVisitor>(
             vis.visit_expr(er);
             vis.visit_span(span);
         }
-        ExprKind::AssignOp(_op, el, er) => {
+        ExprKind::AssignOp(Spanned { node: _binop, span }, el, er) => {
+            vis.visit_span(span);
             vis.visit_expr(el);
             vis.visit_expr(er);
         }
@@ -1594,7 +1664,7 @@ pub fn noop_visit_expr<T: MutVisitor>(
             fields.flat_map_in_place(|field| vis.flat_map_expr_field(field));
             match rest {
                 StructRest::Base(expr) => vis.visit_expr(expr),
-                StructRest::Rest(_span) => {}
+                StructRest::Rest(span) => vis.visit_span(span),
                 StructRest::None => {}
             }
         }
@@ -1627,6 +1697,7 @@ pub fn noop_flat_map_stmt<T: MutVisitor>(
     vis: &mut T,
 ) -> SmallVec<[Stmt; 1]> {
     vis.visit_id(&mut id);
+    vis.visit_span(&mut span);
     let stmts: SmallVec<_> = noop_flat_map_stmt_kind(kind, vis)
         .into_iter()
         .map(|kind| Stmt { id, kind, span })
@@ -1637,7 +1708,6 @@ pub fn noop_flat_map_stmt<T: MutVisitor>(
              the visitor should implement custom statement visiting"
         );
     }
-    vis.visit_span(&mut span);
     stmts
 }
 
