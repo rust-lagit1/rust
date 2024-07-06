@@ -17,11 +17,19 @@ use rustc_query_system::dep_graph::{DepContext, DepKind, DepNode};
 use std::fmt;
 
 fn track_span_parent(def_id: rustc_span::def_id::LocalDefId) {
-    tls::with_opt(|tcx| {
-        if let Some(tcx) = tcx {
-            let _span = tcx.source_span(def_id);
-            // Sanity check: relative span's parent must be an absolute span.
-            debug_assert_eq!(_span.data_untracked().parent, None);
+    tls::with_context_opt(|icx| {
+        if let Some(icx) = icx {
+            // `track_span_parent` gets called a lot from HIR lowering code.
+            // Skip doing anything if we aren't tracking dependencies.
+            let tracks_deps = match icx.task_deps {
+                TaskDepsRef::Allow(..) => true,
+                TaskDepsRef::EvalAlways | TaskDepsRef::Ignore | TaskDepsRef::Forbid => false,
+            };
+            if tracks_deps {
+                let _span = icx.tcx.source_span(def_id);
+                // Sanity check: relative span's parent must be an absolute span.
+                debug_assert_eq!(_span.data_untracked().parent, None);
+            }
         }
     })
 }
