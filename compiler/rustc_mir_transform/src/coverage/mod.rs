@@ -94,10 +94,10 @@ fn instrument_function_for_coverage<'tcx>(tcx: TyCtxt<'tcx>, mir_body: &mut mir:
         return;
     }
 
-    let coverage_counters =
+    let mut coverage_counters =
         CoverageCounters::make_bcb_counters(&basic_coverage_blocks, &bcbs_with_counter_mappings);
 
-    let mappings = create_mappings(tcx, &hir_info, &extracted_mappings, &coverage_counters);
+    let mappings = create_mappings(tcx, &hir_info, &extracted_mappings, &mut coverage_counters);
     if mappings.is_empty() {
         // No spans could be converted into valid mappings, so skip this function.
         debug!("no spans could be converted into valid mappings; skipping");
@@ -139,7 +139,7 @@ fn create_mappings<'tcx>(
     tcx: TyCtxt<'tcx>,
     hir_info: &ExtractedHirInfo,
     extracted_mappings: &ExtractedMappings,
-    coverage_counters: &CoverageCounters,
+    coverage_counters: &mut CoverageCounters,
 ) -> Vec<Mapping> {
     let source_map = tcx.sess.source_map();
     let body_span = hir_info.body_span;
@@ -186,22 +186,25 @@ fn create_mappings<'tcx>(
         },
     ));
 
-    let term_for_bcb =
-        |bcb| coverage_counters.term_for_bcb(bcb).expect("all BCBs with spans were given counters");
+    let mut term_for_sum_of_bcbs = |bcbs| {
+        coverage_counters
+            .term_for_sum_of_bcbs(bcbs)
+            .expect("all BCBs with spans were given counters")
+    };
 
     // MCDC branch mappings are appended with their decisions in case decisions were ignored.
     mappings.extend(mcdc_degraded_branches.iter().filter_map(
         |&mappings::MCDCBranch {
              span,
-             true_bcb,
-             false_bcb,
+             ref true_bcbs,
+             ref false_bcbs,
              condition_info: _,
              true_index: _,
              false_index: _,
          }| {
             let source_region = region_for_span(span)?;
-            let true_term = term_for_bcb(true_bcb);
-            let false_term = term_for_bcb(false_bcb);
+            let true_term = term_for_sum_of_bcbs(true_bcbs);
+            let false_term = term_for_sum_of_bcbs(false_bcbs);
             Some(Mapping { kind: MappingKind::Branch { true_term, false_term }, source_region })
         },
     ));
@@ -213,15 +216,15 @@ fn create_mappings<'tcx>(
             .filter_map(
                 |&mappings::MCDCBranch {
                      span,
-                     true_bcb,
-                     false_bcb,
+                     ref true_bcbs,
+                     ref false_bcbs,
                      condition_info,
                      true_index: _,
                      false_index: _,
                  }| {
                     let source_region = region_for_span(span)?;
-                    let true_term = term_for_bcb(true_bcb);
-                    let false_term = term_for_bcb(false_bcb);
+                    let true_term = term_for_sum_of_bcbs(true_bcbs);
+                    let false_term = term_for_sum_of_bcbs(false_bcbs);
                     Some(Mapping {
                         kind: MappingKind::MCDCBranch {
                             true_term,
@@ -341,25 +344,27 @@ fn inject_mcdc_statements<'tcx>(
             );
         }
 
-        for &mappings::MCDCBranch {
+        for mappings::MCDCBranch {
             span: _,
-            true_bcb,
-            false_bcb,
+            true_bcbs,
+            false_bcbs,
             condition_info: _,
             true_index,
             false_index,
         } in conditions
         {
-            for (index, bcb) in [(false_index, false_bcb), (true_index, true_bcb)] {
-                let bb = basic_coverage_blocks[bcb].leader_bb();
-                inject_statement(
-                    mir_body,
-                    CoverageKind::CondBitmapUpdate {
-                        index: index as u32,
-                        decision_depth: decision.decision_depth,
-                    },
-                    bb,
-                );
+            for (&index, bcbs) in [(false_index, false_bcbs), (true_index, true_bcbs)] {
+                for &bcb in bcbs {
+                    let bb = basic_coverage_blocks[bcb].leader_bb();
+                    inject_statement(
+                        mir_body,
+                        CoverageKind::CondBitmapUpdate {
+                            index: index as u32,
+                            decision_depth: decision.decision_depth,
+                        },
+                        bb,
+                    );
+                }
             }
         }
     }
