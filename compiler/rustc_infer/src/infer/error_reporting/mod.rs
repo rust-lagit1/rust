@@ -2039,7 +2039,6 @@ impl<'tcx> ObligationCause<'tcx> {
                 {
                     FailureCode::Error0644
                 }
-                TypeError::IntrinsicCast => FailureCode::Error0308,
                 _ => FailureCode::Error0308,
             },
         }
@@ -2104,9 +2103,6 @@ impl<'tcx> ObligationCause<'tcx> {
                     if ty.is_closure() || ty.is_coroutine() || ty.is_coroutine_closure() =>
                 {
                     ObligationCauseFailureCode::ClosureSelfref { span }
-                }
-                TypeError::IntrinsicCast => {
-                    ObligationCauseFailureCode::CantCoerce { span, subdiags }
                 }
                 _ => ObligationCauseFailureCode::Generic { span, subdiags },
             },
