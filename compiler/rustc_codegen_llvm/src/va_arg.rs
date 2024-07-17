@@ -294,8 +294,9 @@ fn emit_xtensa_va_arg<'ll, 'tcx>(
     //   int32_t va_ndx; // Offset into the arguments, in bytes
     // };
     //
-    // Whether an argument is loaded from va_stk or va_reg depends on the value of va_ndx.
     // The first 24 bytes (equivalent to 6 registers) come from va_reg, the rest from va_stk.
+    // Thus if va_ndx is less than 24, the next va_arg *may* read from va_reg,
+    // otherwise it must come from va_stk.
     //
     // Arguments are never split between registers and the stack. For example, if loading an 8 byte
     // value and va_ndx = 20, we instead bump the offset and read everything from va_stk.
