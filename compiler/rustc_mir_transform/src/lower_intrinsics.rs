@@ -333,6 +333,12 @@ impl<'tcx> MirPass<'tcx> for LowerIntrinsics {
                         });
                         terminator.kind = TerminatorKind::Goto { target };
                     }
+                    sym::contract_check => {
+                        if tcx.sess.opts.unstable_opts.contract_checking.no_checks() {
+                            let target = target.unwrap();
+                            terminator.kind = TerminatorKind::Goto { target };
+                        }
+                    }
                     _ => {}
                 }
             }

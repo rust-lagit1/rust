@@ -76,7 +76,7 @@ pub fn check_attr(features: &Features, psess: &ParseSess, attr: &Attribute) {
     // Check input tokens for built-in and key-value attributes.
     match attr_info {
         // `rustc_dummy` doesn't have any restrictions specific to built-in attributes.
-        Some(BuiltinAttribute { name, template, .. }) if *name != sym::rustc_dummy => {
+        Some(BuiltinAttribute { name, template, .. }) if input_restricted_by_parser(*name) => {
             match parse_meta(psess, attr) {
                 Ok(meta) => check_builtin_meta_item(psess, &meta, attr.style, *name, *template),
                 Err(err) => {
@@ -95,6 +95,11 @@ pub fn check_attr(features: &Features, psess: &ParseSess, attr: &Attribute) {
         }
         _ => {}
     }
+}
+
+fn input_restricted_by_parser(name: Symbol) -> bool {
+    name != sym::rustc_dummy &&
+        name != sym::rustc_contracts_requires
 }
 
 pub fn parse_meta<'a>(psess: &'a ParseSess, attr: &Attribute) -> PResult<'a, MetaItem> {

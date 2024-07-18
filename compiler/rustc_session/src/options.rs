@@ -395,6 +395,7 @@ mod desc {
     pub const parse_optimization_fuel: &str = "crate=integer";
     pub const parse_dump_mono_stats: &str = "`markdown` (default) or `json`";
     pub const parse_instrument_coverage: &str = parse_bool;
+    pub const parse_contract_checking_options: &str = "`none` (default) or `dynamic`";
     pub const parse_coverage_options: &str =
         "`block` | `branch` | `condition` | `mcdc` | `no-mir-spans`";
     pub const parse_instrument_xray: &str = "either a boolean (`yes`, `no`, `on`, `off`, etc), or a comma separated list of settings: `always` or `never` (mutually exclusive), `ignore-loops`, `instruction-threshold=N`, `skip-entry`, `skip-exit`";
@@ -964,6 +965,23 @@ mod parse {
             "0" => InstrumentCoverage::No,
             _ => return false,
         };
+        true
+    }
+
+    pub(crate) fn parse_contract_checking_options(slot: &mut ContractCheckingOptions, v: Option<&str>) -> bool {
+        let Some(v) =  v else { return true; };
+
+        match v {
+            "none" => {
+                *slot = ContractCheckingOptions::None;
+            }
+            "dynamic" => {
+                *slot = ContractCheckingOptions::Dynamic;
+            }
+            _ => {
+                return false;
+            }
+        }
         true
     }
 
@@ -1625,6 +1643,8 @@ options! {
         "the backend to use"),
     combine_cgu: bool = (false, parse_bool, [TRACKED],
         "combine CGUs into a single one"),
+    contract_checking: ContractCheckingOptions = (ContractCheckingOptions::default(), parse_contract_checking_options, [TRACKED],
+        "select how rustc_contracts are handled: static, dynamic, or no checking (default: none)"),
     coverage_options: CoverageOptions = (CoverageOptions::default(), parse_coverage_options, [TRACKED],
         "control details of coverage instrumentation"),
     crate_attr: Vec<String> = (Vec::new(), parse_string_push, [TRACKED],

@@ -1677,6 +1677,20 @@ pub(crate) mod builtin {
         /* compiler built-in */
     }
 
+    #[cfg(not(bootstrap))]
+    /// Attribute macro applied to a function to give it a precondition.
+    ///
+    /// This one is not prefixed with rustc_ because pnkfelix is trying to
+    /// debug whether that name is ignored specially which can make things
+    /// hard to track down when adding a new feature like this.
+    #[unstable(feature = "rustc_contracts", issue = "none")]
+    // #[allow_internal_unstable(rustc_attrs)]
+    #[allow_internal_unstable(core_intrinsics)]
+    #[rustc_builtin_macro]
+    pub macro contracts_requires($item:item) {
+        /* compiler built-in */
+    }
+
     /// Attribute macro applied to a function to register it as a handler for allocation failure.
     ///
     /// See also [`std::alloc::handle_alloc_error`](../../../std/alloc/fn.handle_alloc_error.html).

@@ -79,6 +79,15 @@ pub use crate::macros::builtin::{
 #[unstable(feature = "derive_const", issue = "none")]
 pub use crate::macros::builtin::derive_const;
 
+/*
+#[cfg(not(bootstrap))]
+#[unstable(feature = "rustc_contracts", issue = "none")]
+pub use crate::macros::builtin::{rustc_contracts_requires, rustc_contracts_ensures};
+*/
+#[cfg(not(bootstrap))]
+#[unstable(feature = "rustc_contracts", issue = "none")]
+pub use crate::contracts;
+
 #[unstable(
     feature = "cfg_accessible",
     issue = "64797",

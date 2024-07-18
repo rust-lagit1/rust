@@ -234,6 +234,7 @@ impl Annotatable {
 
 /// Result of an expansion that may need to be retried.
 /// Consider using this for non-`MultiItemModifier` expanders as well.
+#[derive(Debug)]
 pub enum ExpandResult<T, U> {
     /// Expansion produced a result (possibly dummy).
     Ready(T),

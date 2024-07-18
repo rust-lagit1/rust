@@ -295,6 +295,14 @@ pub mod assert_matches {
     pub use crate::macros::{assert_matches, debug_assert_matches};
 }
 
+#[cfg(not(bootstrap))]
+/// XXX
+#[unstable(feature = "rustc_contracts", issue = "none")]
+pub mod contracts {
+    #[unstable(feature = "rustc_contracts", issue = "none")]
+    pub use crate::macros::builtin::contracts_requires as requires;
+}
+
 #[unstable(feature = "cfg_match", issue = "115585")]
 pub use crate::macros::cfg_match;
 

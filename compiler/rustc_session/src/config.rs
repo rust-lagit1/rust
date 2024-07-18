@@ -145,6 +145,28 @@ pub enum InstrumentCoverage {
     Yes,
 }
 
+/// Individual flag values controlled by `-Z contract-checking`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ContractCheckingOptions {
+    Dynamic,
+    None,
+}
+
+impl Default for ContractCheckingOptions {
+    fn default() -> Self {
+        ContractCheckingOptions::None
+    }
+}
+
+impl ContractCheckingOptions {
+    pub fn no_checks(&self) -> bool {
+        match self {
+            ContractCheckingOptions::None => true,
+            ContractCheckingOptions::Dynamic => false,
+        }
+    }
+}
+
 /// Individual flag values controlled by `-Z coverage-options`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct CoverageOptions {
@@ -2959,8 +2981,8 @@ pub enum WasiExecModel {
 /// how the hash should be calculated when adding a new command-line argument.
 pub(crate) mod dep_tracking {
     use super::{
-        BranchProtection, CFGuard, CFProtection, CollapseMacroDebuginfo, CoverageOptions,
-        CrateType, DebugInfo, DebugInfoCompression, ErrorOutputType, FunctionReturn,
+        BranchProtection, CFGuard, CFProtection, CollapseMacroDebuginfo, ContractCheckingOptions, 
+        CoverageOptions, CrateType, DebugInfo, DebugInfoCompression, ErrorOutputType, FunctionReturn,
         InliningThreshold, InstrumentCoverage, InstrumentXRay, LinkerPluginLto, LocationDetail,
         LtoCli, NextSolverConfig, OomStrategy, OptLevel, OutFileName, OutputType, OutputTypes,
         Polonius, RemapPathScopeComponents, ResolveDocLinks, SourceFileHashAlgorithm,
@@ -3035,6 +3057,7 @@ pub(crate) mod dep_tracking {
         CodeModel,
         TlsModel,
         InstrumentCoverage,
+        ContractCheckingOptions,
         CoverageOptions,
         InstrumentXRay,
         CrateType,

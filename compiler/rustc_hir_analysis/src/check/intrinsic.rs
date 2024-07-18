@@ -103,6 +103,7 @@ pub fn intrinsic_operation_unsafety(tcx: TyCtxt<'_>, intrinsic_id: LocalDefId) -
         | sym::saturating_sub
         | sym::rotate_left
         | sym::rotate_right
+        | sym::contract_check
         | sym::ctpop
         | sym::ctlz
         | sym::cttz
@@ -652,6 +653,8 @@ pub fn check_intrinsic_type(
             | sym::simd_reduce_max => (2, 0, vec![param(0)], param(1)),
             sym::simd_shuffle => (3, 0, vec![param(0), param(0), param(1)], param(2)),
             sym::simd_shuffle_generic => (2, 1, vec![param(0), param(0)], param(1)),
+
+            sym::contract_check => (1, 0, vec![param(0), Ty::new_static_str(tcx)], tcx.types.unit),
 
             other => {
                 tcx.dcx().emit_err(UnrecognizedIntrinsicFunction { span, name: other });

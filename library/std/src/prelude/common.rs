@@ -45,6 +45,10 @@ pub use core::prelude::v1::{
     stringify, trace_macros, Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd,
 };
 
+#[cfg(not(bootstrap))]
+#[unstable(feature = "rustc_contracts", issue = "none")]
+pub use core::prelude::v1::contracts;
+
 #[unstable(
     feature = "concat_bytes",
     issue = "87555",

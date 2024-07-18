@@ -2834,6 +2834,14 @@ pub const fn ptr_metadata<P: ptr::Pointee<Metadata = M> + ?Sized, M>(_ptr: *cons
     unreachable!()
 }
 
+#[cfg(not(bootstrap))]
+#[rustc_nounwind]
+#[unstable(feature = "rustc_contracts", issue = "none" /* compiler-team#759 */)]
+#[rustc_intrinsic]
+pub fn contract_check<C: FnOnce() -> bool>(c: C, on_fail_msg: &'static str) {
+    assert!(c(), "{}", on_fail_msg);
+}
+
 // Some functions are defined here because they accidentally got made
 // available in this module on stable. See <https://github.com/rust-lang/rust/issues/15702>.
 // (`transmute` also falls into this category, but it cannot be wrapped due to the
