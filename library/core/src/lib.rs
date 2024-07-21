@@ -296,7 +296,9 @@ pub mod assert_matches {
 }
 
 #[cfg(not(bootstrap))]
-/// XXX
+/// Unstable trick to have contract_requires builtin attribute-macro appear as
+/// `#[contracts::requires(...)]`. Short-term intent is to have this be a tool
+/// named `rustc_contracts`, but for now it is instead named `contracts`.
 #[unstable(feature = "rustc_contracts", issue = "none")]
 pub mod contracts {
     #[unstable(feature = "rustc_contracts", issue = "none")]

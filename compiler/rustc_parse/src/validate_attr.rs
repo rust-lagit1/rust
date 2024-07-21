@@ -98,8 +98,7 @@ pub fn check_attr(features: &Features, psess: &ParseSess, attr: &Attribute) {
 }
 
 fn input_restricted_by_parser(name: Symbol) -> bool {
-    name != sym::rustc_dummy &&
-        name != sym::rustc_contracts_requires
+    name != sym::rustc_dummy && name != sym::rustc_contracts_requires
 }
 
 pub fn parse_meta<'a>(psess: &'a ParseSess, attr: &Attribute) -> PResult<'a, MetaItem> {

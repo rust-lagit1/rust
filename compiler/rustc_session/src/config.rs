@@ -2981,11 +2981,11 @@ pub enum WasiExecModel {
 /// how the hash should be calculated when adding a new command-line argument.
 pub(crate) mod dep_tracking {
     use super::{
-        BranchProtection, CFGuard, CFProtection, CollapseMacroDebuginfo, ContractCheckingOptions, 
-        CoverageOptions, CrateType, DebugInfo, DebugInfoCompression, ErrorOutputType, FunctionReturn,
-        InliningThreshold, InstrumentCoverage, InstrumentXRay, LinkerPluginLto, LocationDetail,
-        LtoCli, NextSolverConfig, OomStrategy, OptLevel, OutFileName, OutputType, OutputTypes,
-        Polonius, RemapPathScopeComponents, ResolveDocLinks, SourceFileHashAlgorithm,
+        BranchProtection, CFGuard, CFProtection, CollapseMacroDebuginfo, ContractCheckingOptions,
+        CoverageOptions, CrateType, DebugInfo, DebugInfoCompression, ErrorOutputType,
+        FunctionReturn, InliningThreshold, InstrumentCoverage, InstrumentXRay, LinkerPluginLto,
+        LocationDetail, LtoCli, NextSolverConfig, OomStrategy, OptLevel, OutFileName, OutputType,
+        OutputTypes, Polonius, RemapPathScopeComponents, ResolveDocLinks, SourceFileHashAlgorithm,
         SplitDwarfKind, SwitchWithOptPath, SymbolManglingVersion, WasiExecModel,
     };
     use crate::lint;

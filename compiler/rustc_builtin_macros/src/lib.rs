@@ -132,5 +132,8 @@ pub fn register_builtin_macros(resolver: &mut dyn ResolverExpand) {
 
     let client = proc_macro::bridge::client::Client::expand1(proc_macro::quote);
     register(sym::quote, SyntaxExtensionKind::Bang(Box::new(BangProcMacro { client })));
-    register(sym::contracts_requires, SyntaxExtensionKind::Attr(Box::new(contracts::ExpandRequires)));
+    register(
+        sym::contracts_requires,
+        SyntaxExtensionKind::Attr(Box::new(contracts::ExpandRequires)),
+    );
 }

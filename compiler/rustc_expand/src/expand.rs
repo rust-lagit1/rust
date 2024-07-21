@@ -699,8 +699,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                 }
                 _ => unreachable!(),
             },
-            InvocationKind::Attr { attr, pos, mut item, derives } => {
-                match ext {
+            InvocationKind::Attr { attr, pos, mut item, derives } => match ext {
                 SyntaxExtensionKind::Attr(expander) => {
                     self.gate_proc_macro_input(&item);
                     self.gate_proc_macro_attr_item(span, &item);
@@ -778,7 +777,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                     fragment_kind.expect_from_annotatables(iter::once(item))
                 }
                 _ => unreachable!(),
-            }},
+            },
             InvocationKind::Derive { path, item, is_const } => match ext {
                 SyntaxExtensionKind::Derive(expander)
                 | SyntaxExtensionKind::LegacyDerive(expander) => {

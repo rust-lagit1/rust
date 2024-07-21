@@ -968,8 +968,13 @@ mod parse {
         true
     }
 
-    pub(crate) fn parse_contract_checking_options(slot: &mut ContractCheckingOptions, v: Option<&str>) -> bool {
-        let Some(v) =  v else { return true; };
+    pub(crate) fn parse_contract_checking_options(
+        slot: &mut ContractCheckingOptions,
+        v: Option<&str>,
+    ) -> bool {
+        let Some(v) = v else {
+            return true;
+        };
 
         match v {
             "none" => {
