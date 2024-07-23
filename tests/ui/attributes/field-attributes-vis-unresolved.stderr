@@ -1,4 +1,4 @@
-error[E0433]: failed to resolve: maybe a missing crate `nonexistent`?
+error[E0433]: cannot find item `nonexistent` in this scope
   --> $DIR/field-attributes-vis-unresolved.rs:17:12
    |
 LL |     pub(in nonexistent) field: u8
@@ -6,7 +6,7 @@ LL |     pub(in nonexistent) field: u8
    |
    = help: consider adding `extern crate nonexistent` to use the `nonexistent` crate
 
-error[E0433]: failed to resolve: maybe a missing crate `nonexistent`?
+error[E0433]: cannot find item `nonexistent` in this scope
   --> $DIR/field-attributes-vis-unresolved.rs:22:12
    |
 LL |     pub(in nonexistent) u8
