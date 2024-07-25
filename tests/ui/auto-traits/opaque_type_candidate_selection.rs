@@ -1,3 +1,6 @@
+//@revisions: old next
+//@[next] compile-flags: -Znext-solver
+
 //! used to ICE: #119272
 
 #![feature(type_alias_impl_trait)]
@@ -23,6 +26,7 @@ impl<T> Trait<T> for T {
     type Assoc = Box<u32>;
 }
 impl<T> Trait<T> for defining_scope::Alias<T> {
+    //[next]~^ ERROR conflicting implementations of trait
     type Assoc = usize;
 }
 
