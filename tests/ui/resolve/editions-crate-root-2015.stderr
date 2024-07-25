@@ -1,4 +1,4 @@
-error[E0433]: failed to resolve: maybe a missing crate `nonexistant`?
+error[E0433]: cannot find item `nonexistant` in the crate root
   --> $DIR/editions-crate-root-2015.rs:4:26
    |
 LL |     fn global_inner(_: ::nonexistant::Foo) {
@@ -6,7 +6,7 @@ LL |     fn global_inner(_: ::nonexistant::Foo) {
    |
    = help: consider adding `extern crate nonexistant` to use the `nonexistant` crate
 
-error[E0433]: failed to resolve: maybe a missing crate `nonexistant`?
+error[E0433]: cannot find item `nonexistant` in the crate root
   --> $DIR/editions-crate-root-2015.rs:7:30
    |
 LL |     fn crate_inner(_: crate::nonexistant::Foo) {

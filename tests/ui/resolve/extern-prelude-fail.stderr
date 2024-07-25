@@ -6,7 +6,7 @@ LL |     use extern_prelude::S;
    |
    = help: consider adding `extern crate extern_prelude` to use the `extern_prelude` crate
 
-error[E0433]: failed to resolve: maybe a missing crate `extern_prelude`?
+error[E0433]: cannot find item `extern_prelude` in the crate root
   --> $DIR/extern-prelude-fail.rs:8:15
    |
 LL |     let s = ::extern_prelude::S;
