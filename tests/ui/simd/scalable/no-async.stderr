@@ -1,0 +1,17 @@
+error[E0277]: the size for values of type `[i32]` cannot be known at compilation time
+  --> $DIR/no-async.rs:37:13
+   |
+LL |         let x = svdup_n_s32(1);
+   |             ^ doesn't have a size known at compile-time
+   |
+   = help: within `svint32_t`, the trait `Sized` is not implemented for `[i32]`, which is required by `svint32_t: Sized`
+note: required because it appears within the type `svint32_t`
+  --> $DIR/no-async.rs:17:12
+   |
+LL | pub struct svint32_t {
+   |            ^^^^^^^^^
+   = note: all values live across `await` must have a statically known size
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

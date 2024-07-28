@@ -642,6 +642,7 @@ pub fn check_intrinsic_type(
             sym::simd_extract => (2, 0, vec![param(0), tcx.types.u32], param(1)),
             sym::simd_cast
             | sym::simd_as
+            | sym::simd_reinterpret
             | sym::simd_cast_ptr
             | sym::simd_expose_provenance
             | sym::simd_with_exposed_provenance => (2, 0, vec![param(0)], param(1)),
@@ -672,5 +673,6 @@ pub fn check_intrinsic_type(
     };
     let sig = tcx.mk_fn_sig(inputs, output, false, safety, abi);
     let sig = ty::Binder::bind_with_vars(sig, bound_vars);
+
     equate_intrinsic_type(tcx, span, intrinsic_id, n_tps, n_lts, n_cts, sig)
 }

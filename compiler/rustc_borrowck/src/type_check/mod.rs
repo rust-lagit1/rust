@@ -522,7 +522,15 @@ impl<'a, 'b, 'tcx> TypeVerifier<'a, 'b, 'tcx> {
             place_ty = self.sanitize_projection(place_ty, elem, place, location, context);
         }
 
-        if let PlaceContext::NonMutatingUse(NonMutatingUseContext::Copy) = context {
+        // The Copy trait isn't implemented for scalable SIMD types.
+        // These types live somewhere between `Sized` and `Unsize`.
+        // The bounds on `Copy` disallow the trait from being
+        // implemented for them. As a result of this no bounds from
+        // `Copy` apply for the type, therefore, skipping this check
+        // should be perfectly legal.
+        if let PlaceContext::NonMutatingUse(NonMutatingUseContext::Copy) = context
+            && !place_ty.ty.is_scalable_simd()
+        {
             let tcx = self.tcx();
             let trait_ref = ty::TraitRef::new(
                 tcx,
@@ -1267,7 +1275,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                 }
 
                 self.check_rvalue(body, rv, location);
-                if !self.unsized_feature_enabled() {
+                if !(self.unsized_feature_enabled() || place_ty.is_scalable_simd()) {
                     let trait_ref = ty::TraitRef::new(
                         tcx,
                         tcx.require_lang_item(LangItem::Sized, Some(self.last_span)),
@@ -1788,7 +1796,9 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
         if !self.unsized_feature_enabled() {
             let span = local_decl.source_info.span;
             let ty = local_decl.ty;
-            self.ensure_place_sized(ty, span);
+            if !ty.is_scalable_simd() {
+                self.ensure_place_sized(ty, span);
+            }
         }
     }
 
@@ -1804,11 +1814,13 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
             // expressions evaluate through `as_temp` or `into` a return
             // slot or local, so to find all unsized rvalues it is enough
             // to check all temps, return slots and locals.
-            if self.reported_errors.replace((ty, span)).is_none() {
-                // While this is located in `nll::typeck` this error is not
-                // an NLL error, it's a required check to prevent creation
-                // of unsized rvalues in a call expression.
-                self.tcx().dcx().emit_err(MoveUnsized { ty, span });
+            if !ty.is_scalable_simd() {
+                if self.reported_errors.replace((ty, span)).is_none() {
+                    // While this is located in `nll::typeck` this error is not
+                    // an NLL error, it's a required check to prevent creation
+                    // of unsized rvalues in a call expression.
+                    self.tcx().dcx().emit_err(MoveUnsized { ty, span });
+                }
             }
         }
     }
