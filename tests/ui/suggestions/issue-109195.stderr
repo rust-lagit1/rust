@@ -4,10 +4,10 @@ error[E0223]: ambiguous associated type
 LL |     String::from::utf8;
    |     ^^^^^^^^^^^^
    |
-help: there is an associated function with a similar name: `from_utf8`
+help: if there were a trait named `Example` with associated type `from` implemented for `String`, you could use the fully-qualified path
    |
-LL |     String::from_utf8;
-   |             ~~~~~~~~~
+LL |     <String as Example>::from::utf8;
+   |     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 error[E0223]: ambiguous associated type
   --> $DIR/issue-109195.rs:5:5
@@ -15,10 +15,10 @@ error[E0223]: ambiguous associated type
 LL |     String::from::utf8();
    |     ^^^^^^^^^^^^
    |
-help: there is an associated function with a similar name: `from_utf8`
+help: if there were a trait named `Example` with associated type `from` implemented for `String`, you could use the fully-qualified path
    |
-LL |     String::from_utf8();
-   |             ~~~~~~~~~
+LL |     <String as Example>::from::utf8();
+   |     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 error[E0223]: ambiguous associated type
   --> $DIR/issue-109195.rs:8:5
@@ -26,10 +26,10 @@ error[E0223]: ambiguous associated type
 LL |     String::from::utf16();
    |     ^^^^^^^^^^^^
    |
-help: there is an associated function with a similar name: `from_utf16`
+help: if there were a trait named `Example` with associated type `from` implemented for `String`, you could use the fully-qualified path
    |
-LL |     String::from_utf16();
-   |             ~~~~~~~~~~
+LL |     <String as Example>::from::utf16();
+   |     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 error[E0223]: ambiguous associated type
   --> $DIR/issue-109195.rs:11:5
