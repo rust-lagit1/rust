@@ -78,7 +78,7 @@ pub struct Iter<'a, T: 'a> {
 #[stable(feature = "core_impl_debug", since = "1.9.0")]
 impl<T: fmt::Debug> fmt::Debug for Iter<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Iter").field(&self.as_slice()).finish()
+        f.debug_tuple("Iter").field(&self.make_shortlived_slice()).finish()
     }
 }
 
@@ -129,11 +129,32 @@ impl<'a, T> Iter<'a, T> {
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
     #[inline]
     pub fn as_slice(&self) -> &'a [T] {
-        self.make_slice()
+        // SAFETY: the type invariant guarantees the pointer represents a valid slice
+        unsafe { self.make_nonnull_slice().as_ref() }
+    }
+
+    #[inline]
+    unsafe fn non_null_to_item(p: NonNull<T>) -> <Self as Iterator>::Item {
+        // SAFETY: the type invariant guarantees the pointer represents a valid reference
+        unsafe { p.as_ref() }
     }
 }
 
-iterator! {struct Iter -> *const T, &'a T, const, {/* no mut */}, as_ref, {
+#[stable(feature = "default_iters", since = "1.70.0")]
+impl<T> Default for Iter<'_, T> {
+    /// Creates an empty slice iterator.
+    ///
+    /// ```
+    /// # use core::slice::Iter;
+    /// let iter: Iter<'_, u8> = Default::default();
+    /// assert_eq!(iter.len(), 0);
+    /// ```
+    fn default() -> Self {
+        (&[]).into_iter()
+    }
+}
+
+iterator! {struct Iter<'a, T> => *const T, &'a T, {
     fn is_sorted_by<F>(self, mut compare: F) -> bool
     where
         Self: Sized,
@@ -201,7 +222,7 @@ pub struct IterMut<'a, T: 'a> {
 #[stable(feature = "core_impl_debug", since = "1.9.0")]
 impl<T: fmt::Debug> fmt::Debug for IterMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("IterMut").field(&self.make_slice()).finish()
+        f.debug_tuple("IterMut").field(&self.make_shortlived_slice()).finish()
     }
 }
 
@@ -307,7 +328,8 @@ impl<'a, T> IterMut<'a, T> {
     #[stable(feature = "slice_iter_mut_as_slice", since = "1.53.0")]
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.make_slice()
+        // SAFETY: the type invariant guarantees the pointer represents a valid slice
+        unsafe { self.make_nonnull_slice().as_ref() }
     }
 
     /// Views the underlying data as a mutable subslice of the original data.
@@ -350,6 +372,26 @@ impl<'a, T> IterMut<'a, T> {
         // for `from_raw_parts_mut` are fulfilled.
         unsafe { from_raw_parts_mut(self.ptr.as_ptr(), len!(self)) }
     }
+
+    #[inline]
+    unsafe fn non_null_to_item(mut p: NonNull<T>) -> <Self as Iterator>::Item {
+        // SAFETY: the type invariant guarantees the pointer represents a valid item
+        unsafe { p.as_mut() }
+    }
+}
+
+#[stable(feature = "default_iters", since = "1.70.0")]
+impl<T> Default for IterMut<'_, T> {
+    /// Creates an empty slice iterator.
+    ///
+    /// ```
+    /// # use core::slice::IterMut;
+    /// let iter: IterMut<'_, u8> = Default::default();
+    /// assert_eq!(iter.len(), 0);
+    /// ```
+    fn default() -> Self {
+        (&mut []).into_iter()
+    }
 }
 
 #[stable(feature = "slice_iter_mut_as_slice", since = "1.53.0")]
@@ -367,7 +409,79 @@ impl<T> AsRef<[T]> for IterMut<'_, T> {
 //     }
 // }
 
-iterator! {struct IterMut -> *mut T, &'a mut T, mut, {mut}, as_mut, {}}
+iterator! {struct IterMut<'a, T> => *mut T, &'a mut T, {}}
+
+/// Iterator over all the `NonNull<T>` pointers to the elements of a slice.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+pub struct NonNullIter<T> {
+    /// The pointer to the next element to return, or the past-the-end location
+    /// if the iterator is empty.
+    ///
+    /// This address will be used for all ZST elements, never changed.
+    ptr: NonNull<T>,
+    /// For non-ZSTs, the non-null pointer to the past-the-end element.
+    ///
+    /// For ZSTs, this is `ptr::without_provenance(len)`.
+    end_or_len: *const T,
+}
+
+impl<T: fmt::Debug> fmt::Debug for NonNullIter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("NonNullIter").field(&self.make_shortlived_slice()).finish()
+    }
+}
+
+impl<T> NonNullIter<T> {
+    /// Creates a new iterator over the `len` items starting at `ptr`
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` through `ptr.add(len)` must be a single allocated object
+    ///   such that that it's sound to `offset` through it.
+    /// - All those elements must be readable
+    /// - The caller must ensure both as long as the iterator is in use.
+    #[inline]
+    pub unsafe fn from_parts(ptr: NonNull<T>, len: usize) -> Self {
+        // SAFETY: There are several things here:
+        //
+        // `ptr` has been obtained by `slice.as_ptr()` where `slice` is a valid
+        // reference thus it is non-NUL and safe to use and pass to
+        // `NonNull::new_unchecked` .
+        //
+        // Adding `slice.len()` to the starting pointer gives a pointer
+        // at the end of `slice`. `end` will never be dereferenced, only checked
+        // for direct pointer equality with `ptr` to check if the iterator is
+        // done.
+        //
+        // In the case of a ZST, the end pointer is just the length.  It's never
+        // used as a pointer at all, and thus it's fine to have no provenance.
+        //
+        // See the `next_unchecked!` and `is_empty!` macros as well as the
+        // `post_inc_start` method for more information.
+        unsafe {
+            let end_or_len =
+                if T::IS_ZST { without_provenance_mut(len) } else { ptr.as_ptr().add(len) };
+
+            Self { ptr, end_or_len }
+        }
+    }
+
+    #[inline]
+    pub fn exhaust(&mut self) {
+        if T::IS_ZST {
+            self.end_or_len = without_provenance_mut(0);
+        } else {
+            self.end_or_len = self.ptr.as_ptr();
+        }
+    }
+
+    #[inline]
+    fn non_null_to_item(p: NonNull<T>) -> <Self as Iterator>::Item {
+        p
+    }
+}
+
+iterator! {struct NonNullIter<T> => *const T, NonNull<T>, {}}
 
 /// An internal abstraction over the splitting iterators, so that
 /// splitn, splitn_mut etc can be implemented once.

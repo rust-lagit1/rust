@@ -63,14 +63,12 @@ macro_rules! len {
 // The shared definition of the `Iter` and `IterMut` iterators
 macro_rules! iterator {
     (
-        struct $name:ident -> $ptr:ty,
+        struct $name:ty => $ptr:ty,
         $elem:ty,
-        $raw_mut:tt,
-        {$( $mut_:tt )?},
-        $into_ref:ident,
         {$($extra:tt)*}
     ) => {
-        impl<'a, T> $name<'a, T> {
+        #[allow(unused_lifetimes)]
+        impl<'a, T> $name {
             /// Returns the last element and moves the end of the iterator backwards by 1.
             ///
             /// # Safety
@@ -80,16 +78,22 @@ macro_rules! iterator {
             unsafe fn next_back_unchecked(&mut self) -> $elem {
                 // SAFETY: the caller promised it's not empty, so
                 // the offsetting is in-bounds and there's an element to return.
-                unsafe { self.pre_dec_end(1).$into_ref() }
+                unsafe { Self::non_null_to_item(self.pre_dec_end(1)) }
             }
 
             // Helper function for creating a slice from the iterator.
-            #[inline(always)]
-            fn make_slice(&self) -> &'a [T] {
-                // SAFETY: the iterator was created from a slice with pointer
-                // `self.ptr` and length `len!(self)`. This guarantees that all
-                // the prerequisites for `from_raw_parts` are fulfilled.
-                unsafe { from_raw_parts(self.ptr.as_ptr(), len!(self)) }
+            #[inline]
+            pub(crate) fn make_nonnull_slice(&self) -> NonNull<[T]> {
+                NonNull::slice_from_raw_parts(self.ptr, len!(self))
+            }
+
+            #[inline]
+            pub(crate) fn make_shortlived_slice<'b>(&'b self) -> &'b [T] {
+                // SAFETY: Everything expanded with this macro is readable while
+                // the iterator exists and is unchanged, so by tying this to the
+                // shorter-than-`'a` self borrow we can make this safe to call.
+                // (Elision would be fine here, but using `'b` for emphasis.)
+                unsafe { self.make_nonnull_slice().as_ref() }
             }
 
             // Helper function for moving the start of the iterator forwards by `offset` elements,
@@ -133,10 +137,31 @@ macro_rules! iterator {
                     },
                 )
             }
+
+            // This is not used on every type that uses this macro, but is more
+            // convenient to implement here so it can use `post_inc_start`.
+            #[allow(dead_code)]
+            #[inline]
+            pub(crate) unsafe fn skip_forward_unchecked(&mut self, offset: usize) -> NonNull<[T]> {
+                // SAFETY: The caller guarantees the provided offset is in-bounds.
+                let old_begin = unsafe { self.post_inc_start(offset) };
+                NonNull::slice_from_raw_parts(old_begin, offset)
+            }
+
+            // This is not used on every type that uses this macro, but is more
+            // convenient to implement here so it can use `pre_dec_end`.
+            #[allow(dead_code)]
+            #[inline]
+            pub(crate) unsafe fn skip_backward_unchecked(&mut self, offset: usize) -> NonNull<[T]> {
+                // SAFETY: The caller guarantees the provided offset is in-bounds.
+                let new_end = unsafe { self.pre_dec_end(offset) };
+                NonNull::slice_from_raw_parts(new_end, offset)
+            }
         }
 
+        #[allow(unused_lifetimes)]
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<T> ExactSizeIterator for $name<'_, T> {
+        impl<'a, T> ExactSizeIterator for $name {
             #[inline(always)]
             fn len(&self) -> usize {
                 len!(self)
@@ -148,8 +173,9 @@ macro_rules! iterator {
             }
         }
 
+        #[allow(unused_lifetimes)]
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<'a, T> Iterator for $name<'a, T> {
+        impl<'a, T> Iterator for $name {
             type Item = $elem;
 
             #[inline]
@@ -229,7 +255,7 @@ macro_rules! iterator {
                 loop {
                     // SAFETY: the loop iterates `i in 0..len`, which always is in bounds of
                     // the slice allocation
-                    acc = f(acc, unsafe { & $( $mut_ )? *self.ptr.add(i).as_ptr() });
+                    acc = f(acc, unsafe { Self::non_null_to_item(self.ptr.add(i)) });
                     // SAFETY: `i` can't overflow since it'll only reach usize::MAX if the
                     // slice had that length, in which case we'll break out of the loop
                     // after the increment
@@ -380,14 +406,15 @@ macro_rules! iterator {
                 // that will access this subslice are called, so it is valid
                 // for the returned reference to be mutable in the case of
                 // `IterMut`
-                unsafe { & $( $mut_ )? * self.ptr.as_ptr().add(idx) }
+                unsafe { Self::non_null_to_item(self.ptr.add(idx)) }
             }
 
             $($extra)*
         }
 
+        #[allow(unused_lifetimes)]
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<'a, T> DoubleEndedIterator for $name<'a, T> {
+        impl<'a, T> DoubleEndedIterator for $name {
             #[inline]
             fn next_back(&mut self) -> Option<$elem> {
                 // could be implemented with slices, but this avoids bounds checks
@@ -429,33 +456,22 @@ macro_rules! iterator {
             }
         }
 
+        #[allow(unused_lifetimes)]
         #[stable(feature = "fused", since = "1.26.0")]
-        impl<T> FusedIterator for $name<'_, T> {}
+        impl<'a, T> FusedIterator for $name {}
 
+        #[allow(unused_lifetimes)]
         #[unstable(feature = "trusted_len", issue = "37572")]
-        unsafe impl<T> TrustedLen for $name<'_, T> {}
+        unsafe impl<'a, T> TrustedLen for $name {}
 
-        impl<'a, T> UncheckedIterator for $name<'a, T> {
+        #[allow(unused_lifetimes)]
+        impl<'a, T> UncheckedIterator for $name {
             #[inline]
             unsafe fn next_unchecked(&mut self) -> $elem {
                 // SAFETY: The caller promised there's at least one more item.
                 unsafe {
-                    self.post_inc_start(1).$into_ref()
+                    Self::non_null_to_item(self.post_inc_start(1))
                 }
-            }
-        }
-
-        #[stable(feature = "default_iters", since = "1.70.0")]
-        impl<T> Default for $name<'_, T> {
-            /// Creates an empty slice iterator.
-            ///
-            /// ```
-            #[doc = concat!("# use core::slice::", stringify!($name), ";")]
-            #[doc = concat!("let iter: ", stringify!($name<'_, u8>), " = Default::default();")]
-            /// assert_eq!(iter.len(), 0);
-            /// ```
-            fn default() -> Self {
-                (& $( $mut_ )? []).into_iter()
             }
         }
     }
