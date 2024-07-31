@@ -124,6 +124,7 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
                 }
                 [sym::inline] => self.check_inline(hir_id, attr, span, target),
                 [sym::coverage] => self.check_coverage(attr, span, target),
+                [sym::defines] => self.check_defines(attr, span, target),
                 [sym::non_exhaustive] => self.check_non_exhaustive(hir_id, attr, span, target),
                 [sym::marker] => self.check_marker(hir_id, attr, span, target),
                 [sym::target_feature] => {
@@ -379,6 +380,26 @@ impl<'tcx> CheckAttrVisitor<'tcx> {
             | Target::Method(MethodKind::Trait { body: true } | MethodKind::Inherent)
             | Target::Impl
             | Target::Mod => true,
+
+            _ => {
+                self.dcx().emit_err(errors::CoverageNotFnOrClosure {
+                    attr_span: attr.span,
+                    defn_span: span,
+                });
+                false
+            }
+        }
+    }
+
+    /// Checks that `#[defines(..)]` is applied to a function/const/static.
+    fn check_defines(&self, attr: &Attribute, span: Span, target: Target) -> bool {
+        match target {
+            Target::Fn
+            | Target::Closure
+            | Target::Method(MethodKind::Trait { body: true } | MethodKind::Inherent)
+            | Target::Const
+            | Target::AssocConst
+            | Target::Static => true,
 
             _ => {
                 self.dcx().emit_err(errors::CoverageNotFnOrClosure {

@@ -69,6 +69,15 @@ pub struct CoverageNotFnOrClosure {
 }
 
 #[derive(Diagnostic)]
+#[diag(passes_defines_not_fn_or_const)]
+pub struct DefinesNotFnOrConst {
+    #[primary_span]
+    pub attr_span: Span,
+    #[label]
+    pub defn_span: Span,
+}
+
+#[derive(Diagnostic)]
 #[diag(passes_should_be_applied_to_fn)]
 pub struct AttrShouldBeAppliedToFn {
     #[primary_span]

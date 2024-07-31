@@ -3,13 +3,12 @@
 //@ check-pass
 
 #![feature(type_alias_impl_trait)]
-mod defining_scope {
-    use super::*;
-    pub type Alias<T> = impl Sized;
 
-    pub fn cast<T>(x: Container<Alias<T>, T>) -> Container<T, T> {
-        x
-    }
+type Alias<T> = impl Sized;
+
+#[defines(Alias)]
+fn cast<T>(x: Container<Alias<T>, T>) -> Container<T, T> {
+    x
 }
 
 struct Container<T: Trait<U>, U> {
@@ -23,7 +22,7 @@ trait Trait<T> {
 impl<T> Trait<T> for T {
     type Assoc = Box<u32>;
 }
-impl<T> Trait<T> for defining_scope::Alias<T> {
+impl<T> Trait<T> for Alias<T> {
     type Assoc = usize;
 }
 

@@ -1343,6 +1343,32 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
         }
     }
 
+    fn resolve_defines_attr(&mut self, attrs: &[Attribute]) {
+        for attr in attrs {
+            // for `#[defines(Path, other::Path)]` attributes we need to resolve the paths
+            if attr.has_name(sym::defines) {
+                for item in attr.meta_item_list().unwrap() {
+                    let item = item.meta_item().unwrap();
+                    match self.resolve_path(
+                        &Segment::from_path(&item.path),
+                        Some(Namespace::TypeNS),
+                        None,
+                    ) {
+                        // TODO: error reporting and tests that go through these code paths
+                        PathResult::Module(_) => todo!(),
+                        PathResult::NonModule(partial_res) => {
+                            let id = self.r.next_node_id();
+                            self.r.record_partial_res(id, partial_res);
+                            self.r.defines.entry(attr.id).or_default().push(id);
+                        }
+                        PathResult::Indeterminate => todo!(),
+                        PathResult::Failed { .. } => todo!(),
+                    }
+                }
+            }
+        }
+    }
+
     fn maybe_resolve_ident_in_lexical_scope(
         &mut self,
         ident: Ident,
@@ -2445,6 +2471,8 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
         let name = item.ident.name;
         debug!("(resolving item) resolving {} ({:?})", name, item.kind);
 
+        self.resolve_defines_attr(&item.attrs);
+
         let def_kind = self.r.local_def_kind(item.id);
         match item.kind {
             ItemKind::TyAlias(box TyAlias { ref generics, .. }) => {
@@ -2884,7 +2912,10 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
                     &generics.params,
                     RibKind::AssocItem,
                     LifetimeRibKind::Generics { binder: item.id, span: generics.span, kind },
-                    |this| visit::walk_assoc_item(this, item, AssocCtxt::Trait),
+                    |this| {
+                        this.resolve_defines_attr(&item.attrs);
+                        visit::walk_assoc_item(this, item, AssocCtxt::Trait)
+                    },
                 );
             };
 
@@ -3087,6 +3118,8 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
         seen_trait_items: &mut FxHashMap<DefId, Span>,
         trait_id: Option<DefId>,
     ) {
+        self.resolve_defines_attr(&item.attrs);
+
         use crate::ResolutionError::*;
         self.resolve_doc_links(&item.attrs, MaybeExported::ImplItem(trait_id.ok_or(&item.vis)));
         match &item.kind {

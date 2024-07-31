@@ -1,0 +1,27 @@
+warning: type `Container<Alias<T>, T>` is more private than the item `cast`
+  --> $DIR/opaques.rs:13:1
+   |
+LL | pub fn cast<T>(x: Container<Alias<T>, T>) -> Container<T, T> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `cast` is reachable at visibility `pub`
+   |
+note: but type `Container<Alias<T>, T>` is only usable at visibility `pub(crate)`
+  --> $DIR/opaques.rs:18:1
+   |
+LL | struct Container<T: Trait<U>, U> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `Container<T, T>` is more private than the item `cast`
+  --> $DIR/opaques.rs:13:1
+   |
+LL | pub fn cast<T>(x: Container<Alias<T>, T>) -> Container<T, T> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `cast` is reachable at visibility `pub`
+   |
+note: but type `Container<T, T>` is only usable at visibility `pub(crate)`
+  --> $DIR/opaques.rs:18:1
+   |
+LL | struct Container<T: Trait<U>, U> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: 2 warnings emitted
+

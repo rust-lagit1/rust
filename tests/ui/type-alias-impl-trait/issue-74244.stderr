@@ -5,7 +5,7 @@ LL | impl<T> Allocator for DefaultAllocator {
    |      ^ unconstrained type parameter
 
 error[E0282]: type annotations needed
-  --> $DIR/issue-74244.rs:16:13
+  --> $DIR/issue-74244.rs:17:13
    |
 LL | fn foo() -> A {
    |             ^ cannot infer type for type parameter `T`

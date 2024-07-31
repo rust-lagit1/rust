@@ -9,7 +9,7 @@ LL |         vec![Foo { field: () }].into_iter()
    |
    = note: expected opaque type `<Bar as Trait>::Assoc2`
                 found unit type `()`
-note: this item must have the opaque type in its signature in order to be able to register hidden types
+note: this item must have a `#[defines(<Bar as Trait>::Assoc2)]` attribute to be able to define hidden types
   --> $DIR/hidden_behind_struct_field3.rs:18:8
    |
 LL |     fn foo() -> Self::Assoc {

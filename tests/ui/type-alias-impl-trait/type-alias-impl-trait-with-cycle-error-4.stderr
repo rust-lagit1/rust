@@ -10,17 +10,13 @@ note: required by a bound on the type alias `Ty`
 LL |     Ty: Id<Assoc = Ty>,
    |         ^^^^^^^^^^^^^^ required by this bound
 
-error[E0275]: overflow evaluating the requirement `Ty: Id`
-  --> $DIR/type-alias-impl-trait-with-cycle-error-4.rs:15:19
+error: unconstrained opaque type
+  --> $DIR/type-alias-impl-trait-with-cycle-error-4.rs:14:3
    |
-LL | fn define() -> Ty {}
-   |                   ^^
+LL | = impl Sized;
+   |   ^^^^^^^^^^
    |
-note: required by a bound on the type alias `Ty`
-  --> $DIR/type-alias-impl-trait-with-cycle-error-4.rs:13:9
-   |
-LL |     Ty: Id<Assoc = Ty>,
-   |         ^^^^^^^^^^^^^^ required by this bound
+   = note: `Ty` must be used in combination with a concrete type within the same crate
 
 error[E0275]: overflow evaluating the requirement `Ty: Id`
   --> $DIR/type-alias-impl-trait-with-cycle-error-4.rs:15:16

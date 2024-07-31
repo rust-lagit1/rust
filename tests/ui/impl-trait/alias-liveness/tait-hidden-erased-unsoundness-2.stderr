@@ -1,5 +1,5 @@
 error[E0700]: hidden type for `Step2<'a>` captures lifetime that does not appear in bounds
-  --> $DIR/tait-hidden-erased-unsoundness-2.rs:28:9
+  --> $DIR/tait-hidden-erased-unsoundness-2.rs:32:9
    |
 LL |     pub type Step2<'a> = impl Send + 'a;
    |                          -------------- opaque type defined here
@@ -10,6 +10,28 @@ LL |     pub fn step2<'a, 'b: 'a>() -> Step2<'a>
 LL |         crate::step1::step1::<'a, 'b>()
    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: aborting due to 1 previous error
+error[E0391]: cycle detected when computing type of opaque `step1::Step1::{opaque#0}`
+  --> $DIR/tait-hidden-erased-unsoundness-2.rs:13:34
+   |
+LL |     pub type Step1<'a, 'b: 'a> = impl Sized + Captures<'b> + 'a;
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: ...which requires type-checking `step2::step2`...
+  --> $DIR/tait-hidden-erased-unsoundness-2.rs:28:5
+   |
+LL | /     pub fn step2<'a, 'b: 'a>() -> Step2<'a>
+LL | |     where
+LL | |         crate::step1::Step1<'a, 'b>: Send,
+   | |__________________________________________^
+   = note: ...which again requires computing type of opaque `step1::Step1::{opaque#0}`, completing the cycle
+note: cycle used when computing type of `step1::Step1::{opaque#0}`
+  --> $DIR/tait-hidden-erased-unsoundness-2.rs:13:34
+   |
+LL |     pub type Step1<'a, 'b: 'a> = impl Sized + Captures<'b> + 'a;
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: see https://rustc-dev-guide.rust-lang.org/overview.html#queries and https://rustc-dev-guide.rust-lang.org/query.html for more information
 
-For more information about this error, try `rustc --explain E0700`.
+error: aborting due to 2 previous errors
+
+Some errors have detailed explanations: E0391, E0700.
+For more information about an error, try `rustc --explain E0391`.

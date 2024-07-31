@@ -8,7 +8,7 @@ LL |     let _: &'static _ = &FOO;
    = help: add `#![feature(const_refs_to_cell)]` to the crate attributes to enable
    = note: this compiler was built on YYYY-MM-DD; consider upgrading it if it is out of date
 
-error[E0493]: destructor of `helper::Foo` cannot be evaluated at compile-time
+error[E0493]: destructor of `Foo` cannot be evaluated at compile-time
   --> $DIR/const-promoted-opaque.rs:28:26
    |
 LL |     let _: &'static _ = &FOO;

@@ -4,6 +4,7 @@
 
 type Bar<'a, 'b> = impl PartialEq<Bar<'a, 'b>> + std::fmt::Debug;
 
+#[defines(Bar)]
 fn bar<'a, 'b>(i: &'a i32) -> Bar<'a, 'b> {
     //~^ ERROR can't compare `&i32` with `Bar<'a, 'b>`
     i
