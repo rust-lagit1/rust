@@ -19,6 +19,7 @@ use crate::token::{self, CommentKind, Delimiter, Token};
 use crate::tokenstream::{DelimSpan, LazyAttrTokenStream, Spacing, TokenStream, TokenTree};
 use crate::util::comments;
 use crate::util::literal::escape_string_symbol;
+use crate::NodeId;
 
 pub struct MarkedAttrs(GrowableBitSet<AttrId>);
 
@@ -456,6 +457,16 @@ impl MetaItemKind {
                 _ => None,
             },
             AttrArgs::Eq(_, AttrArgsEq::Hir(lit)) => Some(MetaItemKind::NameValue(lit.clone())),
+        }
+    }
+
+    pub fn defines(&self) -> Vec<NodeId> {
+        match self {
+            MetaItemKind::Word => vec![],
+            MetaItemKind::List(things) => {
+                things.iter().filter_map(|i| Some(i.meta_item()?.path.segments[0].id)).collect()
+            }
+            MetaItemKind::NameValue(_) => vec![],
         }
     }
 }

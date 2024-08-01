@@ -100,6 +100,8 @@ struct LoweringContext<'a, 'hir> {
 
     /// Bodies inside the owner being lowered.
     bodies: Vec<(hir::ItemLocalId, &'hir hir::Body<'hir>)>,
+    /// Bodies inside the owner being lowered.
+    defines: SortedMap<hir::ItemLocalId, &'hir [LocalDefId]>,
     /// Attributes inside the owner being lowered.
     attrs: SortedMap<hir::ItemLocalId, &'hir [Attribute]>,
     /// Collect items that were created by lowering the current owner.
@@ -173,6 +175,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
 
             // HirId handling.
             bodies: Vec::new(),
+            defines: SortedMap::default(),
             attrs: SortedMap::default(),
             children: Vec::default(),
             current_hir_id_owner: hir::CRATE_OWNER_ID,
@@ -590,6 +593,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
 
         let current_attrs = std::mem::take(&mut self.attrs);
         let current_bodies = std::mem::take(&mut self.bodies);
+        let current_defines = std::mem::take(&mut self.defines);
         let current_node_ids = std::mem::take(&mut self.node_id_to_local_id);
         let current_trait_map = std::mem::take(&mut self.trait_map);
         let current_owner =
@@ -615,6 +619,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         let info = self.make_owner_info(item);
 
         self.attrs = current_attrs;
+        self.defines = current_defines;
         self.bodies = current_bodies;
         self.node_id_to_local_id = current_node_ids;
         self.trait_map = current_trait_map;
@@ -656,6 +661,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
     }
 
     fn make_owner_info(&mut self, node: hir::OwnerNode<'hir>) -> &'hir hir::OwnerInfo<'hir> {
+        let defines = std::mem::take(&mut self.defines);
         let attrs = std::mem::take(&mut self.attrs);
         let mut bodies = std::mem::take(&mut self.bodies);
         let trait_map = std::mem::take(&mut self.trait_map);
@@ -673,11 +679,11 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
 
         // Don't hash unless necessary, because it's expensive.
         let (opt_hash_including_bodies, attrs_hash) =
-            self.tcx.hash_owner_nodes(node, &bodies, &attrs);
+            self.tcx.hash_owner_nodes(node, &bodies, &attrs, &defines);
         let num_nodes = self.item_local_id_counter.as_usize();
         let (nodes, parenting) = index::index_hir(self.tcx, node, &bodies, num_nodes);
         let nodes = hir::OwnerNodes { opt_hash_including_bodies, nodes, bodies };
-        let attrs = hir::AttributeMap { map: attrs, opt_hash: attrs_hash };
+        let attrs = hir::AttributeMap { map: attrs, defines, opt_hash: attrs_hash };
 
         self.arena.alloc(hir::OwnerInfo { nodes, parenting, attrs, trait_map })
     }
@@ -922,6 +928,17 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
             debug_assert_eq!(id.owner, self.current_hir_id_owner);
             let ret = self.arena.alloc_from_iter(attrs.iter().map(|a| self.lower_attr(a)));
             debug_assert!(!ret.is_empty());
+
+            let defines = &*self.arena.alloc_from_iter(
+                ret.iter()
+                    .filter(|attr| attr.has_name(sym::defines))
+                    .filter_map(|attr| self.resolver.defines.get(&attr.id))
+                    // TODO: error reporting for non-local items being mentioned and tests that go through these code paths
+                    .flat_map(|defines| defines.into_iter().map(|did| did.expect_local())),
+            );
+            trace!(?id, ?ret, ?defines, "lower_attrs");
+
+            self.defines.insert(id.local_id, defines);
             self.attrs.insert(id.local_id, ret);
             ret
         }

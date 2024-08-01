@@ -4,11 +4,14 @@
 #![feature(async_closure, type_alias_impl_trait)]
 
 type Tait = impl async Fn();
+#[defines(Tait)]
 fn tait() -> Tait {
     || async {}
 }
 
-fn foo(x: impl async Fn()) -> impl async Fn() { x }
+fn foo(x: impl async Fn()) -> impl async Fn() {
+    x
+}
 
 fn param<T: async Fn()>() {}
 
