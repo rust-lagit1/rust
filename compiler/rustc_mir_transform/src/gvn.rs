@@ -528,7 +528,7 @@ impl<'body, 'tcx> VnState<'body, 'tcx> {
                         .tcx
                         .offset_of_subfield(self.ecx.param_env(), layout, fields.iter())
                         .bytes(),
-                    NullOp::UbChecks => return None,
+                    NullOp::RuntimeChecks(_) => return None,
                 };
                 let usize_layout = self.ecx.layout_of(self.tcx.types.usize).unwrap();
                 let imm = ImmTy::from_uint(val, usize_layout);

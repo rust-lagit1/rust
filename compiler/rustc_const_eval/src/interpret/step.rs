@@ -257,7 +257,9 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                             .bytes();
                         Scalar::from_target_usize(val, self)
                     }
-                    mir::NullOp::UbChecks => Scalar::from_bool(self.tcx.sess.ub_checks()),
+                    mir::NullOp::RuntimeChecks(kind) => {
+                        Scalar::from_bool(kind.value(self.tcx.sess))
+                    }
                 };
                 self.write_scalar(val, &dest)?;
             }
