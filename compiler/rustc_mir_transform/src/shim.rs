@@ -326,6 +326,7 @@ fn new_body<'tcx>(
         None,
         // FIXME(compiler-errors): is this correct?
         None,
+        false,
     );
     // Shims do not directly mention any consts.
     body.set_required_consts(Vec::new());

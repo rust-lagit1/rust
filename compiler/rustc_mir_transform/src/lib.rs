@@ -554,6 +554,10 @@ fn run_runtime_cleanup_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
 }
 
 fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
+    if body.optimization_disabled {
+        return;
+    }
+
     fn o1<T>(x: T) -> WithMinOptLevel<T> {
         WithMinOptLevel(1, x)
     }
