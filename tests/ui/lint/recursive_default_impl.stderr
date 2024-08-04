@@ -1,0 +1,21 @@
+error[E0601]: `main` function not found in crate `recursive_default_impl`
+  --> $DIR/recursive_default_impl.rs:12:2
+   |
+LL | }
+   |  ^ consider adding a `main` function to `$DIR/recursive_default_impl.rs`
+
+error: recursive default impl
+  --> $DIR/recursive_default_impl.rs:6:5
+   |
+LL |     fn default() -> Self {
+   |     ^^^^^^^^^^^^^^^^^^^^ will result in infinite recursion
+LL |         Self {
+LL |             ..Default::default()
+   |               ------------------ recursive call site
+   |
+   = help: ..default() in the Default impl does not apply a default for each struct field
+   = note: `#[deny(recursive_default_impl)]` on by default
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0601`.

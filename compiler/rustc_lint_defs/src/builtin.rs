@@ -1704,6 +1704,39 @@ declare_lint! {
 }
 
 declare_lint! {
+    /// The `recursive_dafault_impl` lint detects functions that cannot
+    /// return without calling themselves.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// struct Foo {
+    ///     bar: u32
+    /// }
+    /// impl Default for Foo {
+    ///     fn default() -> Self {
+    ///         Self {
+    ///             ..Default::default()
+    ///         }
+    /// }
+    ///
+    /// let _ = Foo::default();
+    /// ```
+    ///
+    /// {{produces}}
+    ///
+    /// ### Explanation
+    ///
+    /// This is a specific case of unconditional recursion where the default
+    /// trait is implemented recursively, errantly trying to apply the
+    /// default struct for this field. This will always lead to an infinite loop
+    /// so it is denied.
+    pub RECURSIVE_DEFAULT_IMPL,
+    Deny,
+    "functions that cannot return without calling themselves"
+}
+
+declare_lint! {
     /// The `single_use_lifetimes` lint detects lifetimes that are only used
     /// once.
     ///
