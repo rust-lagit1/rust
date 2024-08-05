@@ -4,7 +4,7 @@
 #
 # Versions of the toolchain components are configurable in `musl-cross-make/Makefile` and
 # musl unlike GLIBC is forward compatible so upgrading it shouldn't break old distributions.
-# Right now we have: Binutils 2.31.1, GCC 9.2.0, musl 1.2.3.
+# Right now we have: Binutils 2.31.1, GCC 9.2.0, musl 1.2.5.
 
 # ignore-tidy-linelength
 
@@ -43,13 +43,18 @@ shift
 # debuggers can't walk the stack, etc. Fixes #90103.
 export CFLAGS="-fPIC -g1 $CFLAGS"
 
+# The versions of the libc crate from 0.2.145 provide LFS64 aliases to their non-LFS64
+# counterparts. Configure the builtin musl to still provide LFS64 symbols to not break
+# pre-0.2.145 versions until enough of the ecosystem has updated.
+export CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+
 git clone https://github.com/richfelker/musl-cross-make # -b v0.9.9
 cd musl-cross-make
-# A version that includes support for building musl 1.2.3
-git checkout fe915821b652a7fa37b34a596f47d8e20bc72338
+# A version that includes support for building musl 1.2.5
+git checkout e149c31c48b4f4a4c9349ddf7bc0027b90245afc
 
-hide_output make -j$(nproc) TARGET=$TARGET MUSL_VER=1.2.3 LINUX_HEADERS_SITE=$LINUX_HEADERS_SITE LINUX_VER=$LINUX_VER
-hide_output make install TARGET=$TARGET MUSL_VER=1.2.3 LINUX_HEADERS_SITE=$LINUX_HEADERS_SITE LINUX_VER=$LINUX_VER OUTPUT=$OUTPUT
+hide_output make -j$(nproc) TARGET=$TARGET MUSL_VER=1.2.5 LINUX_HEADERS_SITE=$LINUX_HEADERS_SITE LINUX_VER=$LINUX_VER
+hide_output make install TARGET=$TARGET MUSL_VER=1.2.5 LINUX_HEADERS_SITE=$LINUX_HEADERS_SITE LINUX_VER=$LINUX_VER OUTPUT=$OUTPUT
 
 cd -
 
