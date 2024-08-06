@@ -1,5 +1,4 @@
 //@check-fail
-
 struct Foo{
     bar: u32,
 }
