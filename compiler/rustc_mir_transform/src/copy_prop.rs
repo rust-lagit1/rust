@@ -19,8 +19,8 @@ use crate::ssa::SsaLocals;
 pub struct CopyProp;
 
 impl<'tcx> MirPass<'tcx> for CopyProp {
-    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
-        sess.mir_opt_level() >= 1
+    fn min_mir_opt_level(&self) -> usize {
+        1
     }
 
     #[instrument(level = "trace", skip(self, tcx, body))]

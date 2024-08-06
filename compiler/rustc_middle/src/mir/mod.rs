@@ -153,9 +153,13 @@ pub trait MirPass<'tcx> {
         to_profiler_name(self.name())
     }
 
+    fn min_mir_opt_level(&self) -> usize {
+        0
+    }
+
     /// Returns `true` if this pass is enabled with the current combination of compiler flags.
-    fn is_enabled(&self, _sess: &Session) -> bool {
-        true
+    fn is_enabled(&self, sess: &Session) -> bool {
+        sess.mir_opt_level() >= self.min_mir_opt_level()
     }
 
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>);
@@ -443,9 +447,8 @@ pub struct Body<'tcx> {
     /// If `-Cinstrument-coverage` is not active, or if an individual function
     /// is not eligible for coverage, then this should always be `None`.
     pub function_coverage_info: Option<Box<coverage::FunctionCoverageInfo>>,
-
-    /// Whether optimization is disabled by `#[optimize(none)]`
-    pub optimization_disabled: bool,
+    // /// Whether optimization is disabled by `#[optimize(none)]`
+    // pub optimization_disabled: bool,
 }
 
 impl<'tcx> Body<'tcx> {
@@ -460,7 +463,6 @@ impl<'tcx> Body<'tcx> {
         span: Span,
         coroutine: Option<Box<CoroutineInfo<'tcx>>>,
         tainted_by_errors: Option<ErrorGuaranteed>,
-        optimization_disabled: bool,
     ) -> Self {
         // We need `arg_count` locals, and one for the return place.
         assert!(
@@ -490,7 +492,6 @@ impl<'tcx> Body<'tcx> {
             tainted_by_errors,
             coverage_info_hi: None,
             function_coverage_info: None,
-            optimization_disabled,
         };
         body.is_polymorphic = body.has_non_region_param();
         body
@@ -522,7 +523,6 @@ impl<'tcx> Body<'tcx> {
             tainted_by_errors: None,
             coverage_info_hi: None,
             function_coverage_info: None,
-            optimization_disabled: false,
         };
         body.is_polymorphic = body.has_non_region_param();
         body
