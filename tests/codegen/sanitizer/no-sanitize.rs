@@ -5,8 +5,6 @@
 //@ compile-flags: -Zunstable-options -Csanitize=address -Ctarget-feature=-crt-static -Copt-level=0
 
 #![crate_type = "lib"]
-#![feature(no_sanitize)]
-
 // CHECK-LABEL: ; no_sanitize::unsanitized
 // CHECK-NEXT:  ; Function Attrs:
 // CHECK-NOT:   sanitize_address
