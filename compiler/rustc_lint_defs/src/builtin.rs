@@ -1704,7 +1704,7 @@ declare_lint! {
 }
 
 declare_lint! {
-    /// The `recursive_dafault_impl` lint detects functions that cannot
+    /// The `recursive_default_impl` lint detects Default impls that cannot
     /// return without calling themselves.
     ///
     /// ### Example
@@ -1718,9 +1718,8 @@ declare_lint! {
     ///         Self {
     ///             ..Default::default()
     ///         }
+    ///     }
     /// }
-    ///
-    /// let _ = Foo::default();
     /// ```
     ///
     /// {{produces}}
