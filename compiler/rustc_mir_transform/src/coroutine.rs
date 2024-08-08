@@ -791,18 +791,13 @@ fn locals_live_across_suspend_points<'tcx>(
         .into_results_cursor(body);
 
     let param_env = tcx.param_env(body.source.def_id());
-    let move_data =
-        MoveData::gather_moves(body, tcx, param_env).unwrap_or_else(|(move_data, _)| {
-            tcx.sess.delay_span_bug(body.span, "gather_moves failed");
-            move_data
-        });
-    let mdpe = MoveDataParamEnv { move_data, param_env };
+    let move_data = MoveData::gather_moves(body, tcx, param_env, |_| true);
 
     // Calculate the set of locals which are initialized
-    let mut inits = MaybeInitializedPlaces::new(tcx, body, &mdpe)
+    let mut inits = MaybeInitializedPlaces::new(tcx, body, &move_data)
         .into_engine(tcx, body)
         .iterate_to_fixpoint()
-        .into_results_cursor(body_ref);
+        .into_results_cursor(body);
 
     let mut storage_liveness_map = IndexVec::from_elem(None, &body.basic_blocks);
     let mut live_locals_at_suspension_points = Vec::new();
@@ -851,8 +846,7 @@ fn locals_live_across_suspend_points<'tcx>(
             let mut init_locals: BitSet<_> = BitSet::new_empty(body.local_decls.len());
             if let MaybeReachable::Reachable(bitset) = inits.get() {
                 for move_path_index in bitset.iter() {
-                    if let Some(local) = mdpe.move_data.move_paths[move_path_index].place.as_local()
-                    {
+                    if let Some(local) = move_data.move_paths[move_path_index].place.as_local() {
                         init_locals.insert(local);
                     }
                 }
