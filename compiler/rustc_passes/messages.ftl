@@ -104,6 +104,10 @@ passes_coroutine_on_non_closure =
     attribute should be applied to closures
     .label = not a closure
 
+passes_invalid_instruction_set =
+    `[instruction_set]` attribute argument should be valid
+    .label = `[instruction_set]` containes invalid argument
+
 passes_coverage_not_fn_or_closure =
     attribute should be applied to a function definition or closure
     .label = not a function or closure
