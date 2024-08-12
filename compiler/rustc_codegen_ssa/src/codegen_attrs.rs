@@ -397,38 +397,10 @@ fn codegen_fn_attrs(tcx: TyCtxt<'_>, did: LocalDefId) -> CodegenFnAttrs {
                                         unreachable!()
                                     }
                                 }
-                                _ => {
-                                    struct_span_code_err!(
-                                        tcx.dcx(),
-                                        attr.span,
-                                        E0779,
-                                        "invalid instruction set specified",
-                                    )
-                                    .emit();
-                                    None
-                                }
+                                _ => None,
                             }
                         }
-                        [] => {
-                            struct_span_code_err!(
-                                tcx.dcx(),
-                                attr.span,
-                                E0778,
-                                "`#[instruction_set]` requires an argument"
-                            )
-                            .emit();
-                            None
-                        }
-                        _ => {
-                            struct_span_code_err!(
-                                tcx.dcx(),
-                                attr.span,
-                                E0779,
-                                "cannot specify more than one instruction set"
-                            )
-                            .emit();
-                            None
-                        }
+                        _ => None,
                     })
             }
             sym::repr => {
