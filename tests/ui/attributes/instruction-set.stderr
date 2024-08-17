@@ -1,0 +1,26 @@
+error: `[instruction_set]` attribute argument should be valid
+  --> $DIR/instruction-set.rs:9:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `[instruction_set]` attribute argument should be valid
+  --> $DIR/instruction-set.rs:12:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `[instruction_set]` attribute argument should be valid
+  --> $DIR/instruction-set.rs:15:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `[instruction_set]` attribute argument should be valid
+  --> $DIR/instruction-set.rs:18:1
+   |
+LL | #[instruction_set(asdfasdf)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 4 previous errors
+

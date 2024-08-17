@@ -287,6 +287,10 @@ passes_duplicate_lang_item_crate_depends =
 passes_empty_confusables =
     expected at least one confusable name
 
+passes_empty_instruction_set =
+    `[instruction_set]` requires an argument
+    .label = `[instruction_set]` requires an argument
+
 passes_export_name =
     attribute should be applied to a free function, impl method or static
     .label = not a free function, impl method or static
@@ -375,6 +379,10 @@ passes_invalid_attr_at_crate_level =
 
 passes_invalid_attr_at_crate_level_item =
     the inner attribute doesn't annotate this {$kind}
+
+passes_invalid_instruction_set =
+    `[instruction_set]` attribute argument should be valid
+    .label = `[instruction_set]` containes invalid argument
 
 passes_invalid_macro_export_arguments = `{$name}` isn't a valid `#[macro_export]` argument
 

@@ -1,4 +1,4 @@
-error[E0779]: invalid instruction set specified
+error: `[instruction_set]` attribute argument should be valid
   --> $DIR/E0779.rs:1:1
    |
 LL | #[instruction_set(arm::magic)]
@@ -6,4 +6,3 @@ LL | #[instruction_set(arm::magic)]
 
 error: aborting due to 1 previous error
 
-For more information about this error, try `rustc --explain E0779`.

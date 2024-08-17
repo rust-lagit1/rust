@@ -644,6 +644,20 @@ pub struct CoroutineOnNonClosure {
 }
 
 #[derive(Diagnostic)]
+#[diag(passes_invalid_instruction_set)]
+pub struct InvalidInstructionSet {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(passes_empty_instruction_set)]
+pub struct EmptyInstructionSet {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
 #[diag(passes_empty_confusables)]
 pub(crate) struct EmptyConfusables {
     #[primary_span]
