@@ -854,7 +854,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
             (Abi::Rust, fn_abi),
             &[FnArg::Copy(arg.into())],
             false,
-            &ret.into(),
+            &ret,
             Some(target),
             unwind,
         )

@@ -1045,6 +1045,7 @@ symbols! {
         integer_: "integer", // underscore to avoid clashing with the function `sym::integer` below
         integral,
         into_async_iter_into_iter,
+        into_fn,
         into_future,
         into_iter,
         intra_doc_pointers,

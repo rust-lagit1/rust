@@ -185,7 +185,7 @@ early_lint_methods!(
 late_lint_methods!(
     declare_combined_late_lint_pass,
     [
-        BuiltinCombinedModuleLateLintPass,
+        BuiltinCombinedModuleLateLintPass<'tcx>,
         [
             ForLoopsOverFallibles: ForLoopsOverFallibles,
             DerefIntoDynSupertrait: DerefIntoDynSupertrait,
@@ -203,6 +203,7 @@ late_lint_methods!(
             UnitBindings: UnitBindings,
             NonUpperCaseGlobals: NonUpperCaseGlobals,
             NonShorthandFieldPatterns: NonShorthandFieldPatterns,
+            SelfTypeConversion<'tcx>: SelfTypeConversion::new(),
             UnusedAllocation: UnusedAllocation,
             // Depends on types used in type definitions
             MissingCopyImplementations: MissingCopyImplementations,
@@ -268,6 +269,7 @@ fn register_builtins(store: &mut LintStore) {
     store.register_lints(&BuiltinCombinedModuleLateLintPass::get_lints());
     store.register_lints(&foreign_modules::get_lints());
 
+    store.register_late_pass(move |_tcx| Box::new(SelfTypeConversion::new()));
     add_lint_group!(
         "nonstandard_style",
         NON_CAMEL_CASE_TYPES,
@@ -298,6 +300,7 @@ fn register_builtins(store: &mut LintStore) {
         UNUSED_PARENS,
         UNUSED_BRACES,
         REDUNDANT_SEMICOLONS,
+        // SELF_TYPE_CONVERSION,
         MAP_UNIT_FN
     );
 

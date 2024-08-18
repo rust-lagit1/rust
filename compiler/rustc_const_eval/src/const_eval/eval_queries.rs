@@ -78,7 +78,7 @@ fn eval_body_using_ecx<'tcx, R: InterpretationResult<'tcx>>(
     ecx.push_stack_frame_raw(
         cid.instance,
         body,
-        &ret.clone().into(),
+        &ret.clone(),
         StackPopCleanup::Root { cleanup: false },
     )?;
     ecx.storage_live_for_always_live_locals()?;
