@@ -238,20 +238,21 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             ExprKind::Field(..)
                 if matches!(
                     self.diverges.get(),
-                    Diverges::Always(DivergeReason::UninhabitedExpr(_), _)
+                    Diverges::UninhabitedExpr(_, _)
                 ) && self.ty_is_uninhabited(ty) => {}
             _ => self.warn_if_unreachable(expr.hir_id, expr.span, "expression"),
         }
 
-        if !self.diverges.get().is_always() {
+        let cur_diverges = self.diverges.get();
+        if !cur_diverges.is_always() {
             if ty.is_never() {
                 // Any expression that produces a value of type `!` must have diverged.
-                self.diverges.set(Diverges::Always(DivergeReason::Other, expr.span));
+                self.diverges.set(cur_diverges | Diverges::Always(DivergeReason::Other, expr.span));
             } else if self.ty_is_uninhabited(ty) {
                 // This expression produces a value of uninhabited type.
                 // This means it has diverged somehow.
                 self.diverges
-                    .set(Diverges::Always(DivergeReason::UninhabitedExpr(expr.hir_id), expr.span));
+                    .set(cur_diverges | Diverges::UninhabitedExpr(expr.hir_id, expr.span));
             }
         }
 

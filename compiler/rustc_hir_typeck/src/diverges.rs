@@ -14,6 +14,14 @@ pub enum Diverges {
     /// others require a CFG to determine them.
     Maybe,
 
+    /// This expression is uninhabited, we want to
+    /// emit a diagnostic but not pollute type checking.
+    UninhabitedExpr(HirId, Span),
+
+    /// Same as `UninhabitedExpr` but with reachability
+    /// warning already emitted.
+    Warned,
+
     /// Definitely known to diverge and therefore
     /// not reach the next sibling or its parent.
     Always(DivergeReason, Span),
@@ -55,7 +63,7 @@ impl ops::BitOrAssign for Diverges {
 impl Diverges {
     pub(super) fn is_always(self) -> bool {
         match self {
-            Self::Maybe => false,
+            Self::Maybe | Diverges::UninhabitedExpr(..) | Diverges::Warned => false,
             Self::Always(..) | Self::WarnedAlways => true,
         }
     }
@@ -63,8 +71,10 @@ impl Diverges {
     fn ordinal(&self) -> u8 {
         match self {
             Self::Maybe => 0,
-            Self::Always { .. } => 1,
-            Self::WarnedAlways => 2,
+            Self::UninhabitedExpr(..) => 1,
+            Self::Warned => 2,
+            Self::Always { .. } => 3,
+            Self::WarnedAlways => 4,
         }
     }
 }

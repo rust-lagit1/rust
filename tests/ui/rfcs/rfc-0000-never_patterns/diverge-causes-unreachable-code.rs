@@ -33,4 +33,5 @@ fn never_match() -> u32 {
         //~^ ERROR unreachable arm
     }
     println!();
+    //~^ ERROR unreachable statement
 }

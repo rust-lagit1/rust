@@ -42,5 +42,16 @@ LL |         match *ptr { ! };
    |               |
    |               this expression has type `Void`, which is uninhabited
 
-error: aborting due to 4 previous errors
+error: unreachable statement
+  --> $DIR/diverge-causes-unreachable-code.rs:34:5
+   |
+LL |         match *ptr { ! };
+   |         ---------------- any code following this `match` expression is unreachable, as all arms diverge
+LL |     }
+LL |     println!();
+   |     ^^^^^^^^^^ unreachable statement
+   |
+   = note: this error originates in the macro `$crate::print` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 5 previous errors
 
