@@ -10,7 +10,7 @@ use rustc_trait_selection::traits::{
 };
 
 use crate::coercion::{AsCoercionSite, CoerceMany};
-use crate::{Diverges, Expectation, FnCtxt, Needs};
+use crate::{DivergeReason, Diverges, Expectation, FnCtxt, Needs};
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     #[instrument(skip(self), level = "debug", ret)]
@@ -30,7 +30,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         // If there are no arms, that is a diverging match; a special case.
         if arms.is_empty() {
-            self.diverges.set(self.diverges.get() | Diverges::always(expr.span));
+            self.diverges
+                .set(self.diverges.get() | Diverges::Always(DivergeReason::Other, expr.span));
             return tcx.types.never;
         }
 
@@ -151,13 +152,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         // we can emit a better note. Rather than pointing
         // at a diverging expression in an arbitrary arm,
         // we can point at the entire `match` expression
-        if let (Diverges::Always { .. }, hir::MatchSource::Normal) = (all_arms_diverge, match_src) {
-            all_arms_diverge = Diverges::Always {
-                span: expr.span,
-                custom_note: Some(
-                    "any code following this `match` expression is unreachable, as all arms diverge",
-                ),
-            };
+        if let (Diverges::Always(..), hir::MatchSource::Normal) = (all_arms_diverge, match_src) {
+            all_arms_diverge = Diverges::Always(DivergeReason::AllArmsDiverge, expr.span);
         }
 
         // We won't diverge unless the scrutinee or all arms diverge.

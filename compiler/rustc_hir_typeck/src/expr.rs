@@ -47,7 +47,7 @@ use crate::Expectation::{self, ExpectCastableToType, ExpectHasType, NoExpectatio
 use crate::TupleArgumentsFlag::DontTupleArguments;
 use crate::{
     cast, fatally_break_rust, report_unexpected_variant_res, type_error_struct, BreakableCtxt,
-    CoroutineTypes, Diverges, FnCtxt, Needs,
+    CoroutineTypes, DivergeReason, Diverges, FnCtxt, Needs,
 };
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
@@ -234,12 +234,26 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             ExprKind::MethodCall(segment, ..) => {
                 self.warn_if_unreachable(expr.hir_id, segment.ident.span, "call")
             }
+            // allow field access when the struct and the field are both uninhabited
+            ExprKind::Field(..)
+                if matches!(
+                    self.diverges.get(),
+                    Diverges::UninhabitedExpr(_, _)
+                ) && self.ty_is_uninhabited(ty) => {}
             _ => self.warn_if_unreachable(expr.hir_id, expr.span, "expression"),
         }
 
-        // Any expression that produces a value of type `!` must have diverged
-        if ty.is_never() {
-            self.diverges.set(self.diverges.get() | Diverges::always(expr.span));
+        let cur_diverges = self.diverges.get();
+        if !cur_diverges.is_always() {
+            if ty.is_never() {
+                // Any expression that produces a value of type `!` must have diverged.
+                self.diverges.set(cur_diverges | Diverges::Always(DivergeReason::Other, expr.span));
+            } else if self.ty_is_uninhabited(ty) {
+                // This expression produces a value of uninhabited type.
+                // This means it has diverged somehow.
+                self.diverges
+                    .set(cur_diverges | Diverges::UninhabitedExpr(expr.hir_id, expr.span));
+            }
         }
 
         // Record the type, which applies it effects.
@@ -254,6 +268,13 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         debug!("... {:?}, expected is {:?}", ty, expected);
 
         ty
+    }
+
+    fn ty_is_uninhabited(&self, ty: Ty<'tcx>) -> bool {
+        let ty = self.resolve_vars_if_possible(ty);
+        // Freshen the type as `is_inhabited_from` may call a query on `ty`.
+        let ty = self.freshen(ty);
+        !ty.is_inhabited_from(self.tcx, self.parent_module, self.param_env)
     }
 
     #[instrument(skip(self, expr), level = "debug")]
@@ -1307,7 +1328,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             // of a `break` or an outer `break` or `return`.
             self.diverges.set(Diverges::Maybe);
         } else {
-            self.diverges.set(self.diverges.get() | Diverges::always(expr.span));
+            self.diverges
+                .set(self.diverges.get() | Diverges::Always(DivergeReason::Other, expr.span));
         }
 
         // If we permit break with a value, then result type is
@@ -1410,7 +1432,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 })
                 .unwrap_or_else(|| self.next_ty_var(expr.span));
             let mut coerce = CoerceMany::with_coercion_sites(coerce_to, args);
-            assert_eq!(self.diverges.get(), Diverges::Maybe);
+            assert!(matches!(self.diverges.get(), Diverges::Maybe));
             for e in args {
                 let e_ty = self.check_expr_with_hint(e, coerce_to);
                 let cause = self.misc(e.span);

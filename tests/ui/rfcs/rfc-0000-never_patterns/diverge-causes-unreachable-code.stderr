@@ -34,6 +34,14 @@ LL |     println!();
    |
    = note: this error originates in the macro `$crate::print` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error: unreachable arm
+  --> $DIR/diverge-causes-unreachable-code.rs:32:22
+   |
+LL |         match *ptr { ! };
+   |               ----   ^ unreachable arm
+   |               |
+   |               this expression has type `Void`, which is uninhabited
+
 error: unreachable statement
   --> $DIR/diverge-causes-unreachable-code.rs:34:5
    |
@@ -45,5 +53,5 @@ LL |     println!();
    |
    = note: this error originates in the macro `$crate::print` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error: aborting due to 4 previous errors
+error: aborting due to 5 previous errors
 
