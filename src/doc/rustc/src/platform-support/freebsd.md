@@ -9,6 +9,7 @@
 ## Target maintainers
 
 - Alan Somers `asomers@FreeBSD.org`, https://github.com/asomers
+- Mikael Urankar `mikael@FreeBSD.org`, https://github.com/MikaelUrankar
 
 ## Requirements
 
