@@ -7,6 +7,7 @@ use rustc_middle::mir::{traversal, UnwindTerminateReason};
 use rustc_middle::ty::layout::{FnAbiOf, HasTyCtxt, TyAndLayout};
 use rustc_middle::ty::{self, Instance, Ty, TypeVisitableExt};
 use rustc_middle::{bug, mir, span_bug};
+use rustc_mir_transform::{add_call_guards, dump_mir, pass_manager};
 use rustc_target::abi::call::{FnAbi, PassMode};
 use tracing::{debug, instrument};
 
@@ -152,11 +153,23 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 
     let llfn = cx.get_fn(instance);
 
-    let mir = &instance.instantiate_mir_and_normalize_erasing_regions(
+    let mut mir = instance.instantiate_mir_and_normalize_erasing_regions(
         cx.tcx(),
         ty::ParamEnv::reveal_all(),
         ty::EarlyBinder::bind(cx.tcx().instance_mir(instance.def).clone()),
     );
+    pass_manager::run_passes(
+        cx.tcx(),
+        &mut mir,
+        &[
+            // Some cleanup necessary at least for LLVM and potentially other codegen backends.
+            &add_call_guards::CriticalCallEdges,
+            // Dump the end result for testing and debugging purposes.
+            &dump_mir::Marker("Monomorphic"),
+        ],
+        Some(mir::MirPhase::Runtime(mir::RuntimePhase::Monomorphic)),
+    );
+    let mir = &mir;
 
     let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
     debug!("fn_abi: {:?}", fn_abi);

@@ -38,12 +38,12 @@ use rustc_trait_selection::traits;
 use tracing::{debug, trace};
 
 #[macro_use]
-mod pass_manager;
+pub mod pass_manager;
 
 use pass_manager::{self as pm, Lint, MirLint, MirPass, WithMinOptLevel};
 
 mod abort_unwinding_calls;
-mod add_call_guards;
+pub mod add_call_guards;
 mod add_moves_for_packed_drops;
 mod add_retag;
 mod add_subtyping_projections;
@@ -606,8 +606,6 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
-            // Some cleanup necessary at least for LLVM and potentially other codegen backends.
-            &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.
             &prettify::ReorderBasicBlocks,
             &prettify::ReorderLocals,
