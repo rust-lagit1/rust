@@ -9,21 +9,21 @@ use crate::errors;
 use crate::mir::operand::OperandRef;
 use crate::traits::*;
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
+impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, '_, 'tcx, Bx> {
     pub fn eval_mir_constant_to_operand(
         &self,
         bx: &mut Bx,
         constant: &mir::ConstOperand<'tcx>,
     ) -> OperandRef<'tcx, Bx::Value> {
         let val = self.eval_mir_constant(constant);
-        let ty = self.monomorphize(constant.ty());
-        OperandRef::from_const(bx, val, ty)
+        OperandRef::from_const(bx, val, constant.ty())
     }
 
     pub fn eval_mir_constant(&self, constant: &mir::ConstOperand<'tcx>) -> mir::ConstValue<'tcx> {
         // `MirUsedCollector` visited all required_consts before codegen began, so if we got here
         // there can be no more constants that fail to evaluate.
-        self.monomorphize(constant.const_)
+        constant
+            .const_
             .eval(self.cx.tcx(), ty::ParamEnv::reveal_all(), constant.span)
             .expect("erroneous constant missed by mono item collection")
     }
@@ -37,7 +37,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         &self,
         constant: &mir::ConstOperand<'tcx>,
     ) -> Result<Result<ty::ValTree<'tcx>, Ty<'tcx>>, ErrorHandled> {
-        let uv = match self.monomorphize(constant.const_) {
+        let uv = match constant.const_ {
             mir::Const::Unevaluated(uv, _) => uv.shrink(),
             mir::Const::Ty(_, c) => match c.kind() {
                 // A constant that came from a const generic but was then used as an argument to old-style
@@ -55,7 +55,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             // const generic, and get rid of this entire function.
             other => span_bug!(constant.span, "{other:#?}"),
         };
-        let uv = self.monomorphize(uv);
         self.cx.tcx().const_eval_resolve_for_typeck(ty::ParamEnv::reveal_all(), uv, constant.span)
     }
 
@@ -65,7 +64,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         bx: &Bx,
         constant: &mir::ConstOperand<'tcx>,
     ) -> (Bx::Value, Ty<'tcx>) {
-        let ty = self.monomorphize(constant.ty());
+        let ty = constant.ty();
         let ty_is_simd = ty.is_simd();
         // FIXME: ideally we'd assert that this is a SIMD type, but simd_shuffle
         // in its current form relies on a regular array being passed as an

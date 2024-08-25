@@ -17,7 +17,7 @@ use crate::common::IntPredicate;
 use crate::traits::*;
 use crate::{base, MemFlags};
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
+impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, '_, 'tcx, Bx> {
     #[instrument(level = "trace", skip(self, bx))]
     pub fn codegen_rvalue(
         &mut self,
@@ -112,9 +112,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     }
                 }
 
-                let count = self
-                    .monomorphize(count)
-                    .eval_target_usize(bx.cx().tcx(), ty::ParamEnv::reveal_all());
+                let count = count.eval_target_usize(bx.cx().tcx(), ty::ParamEnv::reveal_all());
 
                 bx.write_operand_repeatedly(cg_elem, count, dest);
             }
@@ -454,7 +452,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             mir::Rvalue::Cast(ref kind, ref source, mir_cast_ty) => {
                 let operand = self.codegen_operand(bx, source);
                 debug!("cast operand is {:?}", operand);
-                let cast = bx.cx().layout_of(self.monomorphize(mir_cast_ty));
+                let cast = bx.cx().layout_of(mir_cast_ty);
 
                 let val = match *kind {
                     mir::CastKind::PointerExposeProvenance => {
@@ -679,7 +677,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
 
             mir::Rvalue::Discriminant(ref place) => {
                 let discr_ty = rvalue.ty(self.mir, bx.tcx());
-                let discr_ty = self.monomorphize(discr_ty);
                 let discr = self.codegen_place(bx, place.as_ref()).codegen_get_discr(bx, discr_ty);
                 OperandRef {
                     val: OperandValue::Immediate(discr),
@@ -688,7 +685,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             }
 
             mir::Rvalue::NullaryOp(ref null_op, ty) => {
-                let ty = self.monomorphize(ty);
                 let layout = bx.cx().layout_of(ty);
                 let val = match null_op {
                     mir::NullOp::SizeOf => {
@@ -747,7 +743,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             mir::Rvalue::Repeat(..) => bug!("{rvalue:?} in codegen_rvalue_operand"),
             mir::Rvalue::Aggregate(_, ref fields) => {
                 let ty = rvalue.ty(self.mir, self.cx.tcx());
-                let ty = self.monomorphize(ty);
                 let layout = self.cx.layout_of(ty);
 
                 // `rvalue_creates_operand` has arranged that we only get here if
@@ -789,7 +784,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 let operand = self.codegen_operand(bx, operand);
                 let val = operand.immediate();
 
-                let content_ty = self.monomorphize(content_ty);
                 let box_layout = bx.cx().layout_of(Ty::new_box(bx.tcx(), content_ty));
 
                 OperandRef { val: OperandValue::Immediate(val), layout: box_layout }
@@ -1049,13 +1043,13 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
     }
 }
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
+impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, '_, 'tcx, Bx> {
     pub fn rvalue_creates_operand(&self, rvalue: &mir::Rvalue<'tcx>, span: Span) -> bool {
         match *rvalue {
             mir::Rvalue::Cast(mir::CastKind::Transmute, ref operand, cast_ty) => {
                 let operand_ty = operand.ty(self.mir, self.cx.tcx());
-                let cast_layout = self.cx.layout_of(self.monomorphize(cast_ty));
-                let operand_layout = self.cx.layout_of(self.monomorphize(operand_ty));
+                let cast_layout = self.cx.layout_of(cast_ty);
+                let operand_layout = self.cx.layout_of(operand_ty);
 
                 match (self.value_kind(operand_layout), self.value_kind(cast_layout)) {
                     // Can always load from a pointer as needed
@@ -1114,8 +1108,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                     mir::AggregateKind::Coroutine(..) | mir::AggregateKind::CoroutineClosure(..) => false,
                 };
                 allowed_kind && {
-                let ty = rvalue.ty(self.mir, self.cx.tcx());
-                let ty = self.monomorphize(ty);
+                    let ty = rvalue.ty(self.mir, self.cx.tcx());
                     let layout = self.cx.spanned_layout_of(ty, span);
                     !self.cx.is_backend_ref(layout)
                 }

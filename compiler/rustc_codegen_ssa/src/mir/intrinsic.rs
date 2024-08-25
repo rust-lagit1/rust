@@ -49,7 +49,7 @@ fn memset_intrinsic<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     bx.memset(dst, val, size, align, flags);
 }
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
+impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, '_, 'tcx, Bx> {
     /// In the `Err` case, returns the instance that should be called instead.
     pub fn codegen_intrinsic_call(
         bx: &mut Bx,

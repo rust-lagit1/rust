@@ -5,7 +5,7 @@ use rustc_index::IndexVec;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mir::{traversal, UnwindTerminateReason};
 use rustc_middle::ty::layout::{FnAbiOf, HasTyCtxt, TyAndLayout};
-use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeFoldable, TypeVisitableExt};
+use rustc_middle::ty::{self, Instance, Ty, TypeVisitableExt};
 use rustc_middle::{bug, mir, span_bug};
 use rustc_target::abi::call::{FnAbi, PassMode};
 use tracing::{debug, instrument};
@@ -42,10 +42,11 @@ enum CachedLlbb<T> {
 }
 
 /// Master context for codegenning from MIR.
-pub struct FunctionCx<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> {
+pub struct FunctionCx<'a, 'mir, 'tcx, Bx: BuilderMethods<'a, 'tcx>> {
     instance: Instance<'tcx>,
 
-    mir: &'tcx mir::Body<'tcx>,
+    /// Store the monomorphized MIR body directly.
+    mir: &'mir mir::Body<'tcx>,
 
     debug_context: Option<FunctionDebugContext<'tcx, Bx::DIScope, Bx::DILocation>>,
 
@@ -114,20 +115,6 @@ pub struct FunctionCx<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> {
     caller_location: Option<OperandRef<'tcx, Bx::Value>>,
 }
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
-    pub fn monomorphize<T>(&self, value: T) -> T
-    where
-        T: Copy + TypeFoldable<TyCtxt<'tcx>>,
-    {
-        debug!("monomorphize: self.instance={:?}", self.instance);
-        self.instance.instantiate_mir_and_normalize_erasing_regions(
-            self.cx.tcx(),
-            ty::ParamEnv::reveal_all(),
-            ty::EarlyBinder::bind(value),
-        )
-    }
-}
-
 enum LocalRef<'tcx, V> {
     Place(PlaceRef<'tcx, V>),
     /// `UnsizedPlace(p)`: `p` itself is a thin pointer (indirect place).
@@ -165,7 +152,11 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 
     let llfn = cx.get_fn(instance);
 
-    let mir = cx.tcx().instance_mir(instance.def);
+    let mir = &instance.instantiate_mir_and_normalize_erasing_regions(
+        cx.tcx(),
+        ty::ParamEnv::reveal_all(),
+        ty::EarlyBinder::bind(cx.tcx().instance_mir(instance.def).clone()),
+    );
 
     let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
     debug!("fn_abi: {:?}", fn_abi);
@@ -226,7 +217,7 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 
         let mut allocate_local = |local| {
             let decl = &mir.local_decls[local];
-            let layout = start_bx.layout_of(fx.monomorphize(decl.ty));
+            let layout = start_bx.layout_of(decl.ty);
             assert!(!layout.ty.has_erasable_regions());
 
             if local == mir::RETURN_PLACE {
@@ -296,7 +287,7 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 /// indirect.
 fn arg_local_refs<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     bx: &mut Bx,
-    fx: &mut FunctionCx<'a, 'tcx, Bx>,
+    fx: &mut FunctionCx<'a, '_, 'tcx, Bx>,
     memory_locals: &BitSet<mir::Local>,
 ) -> Vec<LocalRef<'tcx, Bx::Value>> {
     let mir = fx.mir;
@@ -316,7 +307,7 @@ fn arg_local_refs<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
         .enumerate()
         .map(|(arg_index, local)| {
             let arg_decl = &mir.local_decls[local];
-            let arg_ty = fx.monomorphize(arg_decl.ty);
+            let arg_ty = arg_decl.ty;
 
             if Some(local) == mir.spread_arg {
                 // This argument (e.g., the last argument in the "rust-call" ABI)
