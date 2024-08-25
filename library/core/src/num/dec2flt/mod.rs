@@ -105,7 +105,6 @@ pub mod decimal;
 pub mod decimal_seq;
 pub mod float;
 pub mod lemire;
-pub mod number;
 pub mod parse;
 
 macro_rules! from_str_float_impl {
