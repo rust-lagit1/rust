@@ -73,6 +73,13 @@ pub struct BuiltinNonShorthandFieldPatterns {
 }
 
 #[derive(LintDiagnostic)]
+#[diag(lint_self_type_conversion)]
+pub struct SelfTypeConversionDiag<'t> {
+    pub source: Ty<'t>,
+    pub target: Ty<'t>,
+}
+
+#[derive(LintDiagnostic)]
 pub enum BuiltinUnsafe {
     #[diag(lint_builtin_allow_internal_unsafe)]
     AllowInternalUnsafe,

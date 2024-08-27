@@ -2533,7 +2533,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     other_generic_param.name.ident() == generic_param.name.ident()
                 },
             ) {
-                idxs_matched.push(other_idx.into());
+                idxs_matched.push(other_idx);
             }
 
             if idxs_matched.is_empty() {
