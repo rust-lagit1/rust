@@ -2062,6 +2062,7 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
                     self.lower_fn_ty(hir_ty.hir_id, bf.safety, bf.abi, bf.decl, None, Some(hir_ty)),
                 )
             }
+            hir::TyKind::UnsafeBinder(_binder) => todo!(),
             hir::TyKind::TraitObject(bounds, lifetime, repr) => {
                 self.prohibit_or_lint_bare_trait_object_ty(hir_ty);
 

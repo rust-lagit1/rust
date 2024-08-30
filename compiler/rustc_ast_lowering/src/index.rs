@@ -285,6 +285,12 @@ impl<'a, 'hir> Visitor<'hir> for NodeCollector<'a, 'hir> {
         self.insert(ty.span, ty.hir_id, Node::Ty(ty));
 
         self.with_parent(ty.hir_id, |this| {
+            // FIXME(unsafe_binders): Should we split this out into a separate
+            // visit function?
+            if let TyKind::UnsafeBinder(binder) = ty.kind {
+                this.insert(ty.span, binder.hir_id, Node::UnsafeBinder(binder));
+            };
+
             intravisit::walk_ty(this, ty);
         });
     }

@@ -2748,6 +2748,14 @@ pub struct BareFnTy<'hir> {
 }
 
 #[derive(Debug, Clone, Copy, HashStable_Generic)]
+pub struct UnsafeBinderTy<'hir> {
+    pub hir_id: HirId,
+    pub span: Span,
+    pub generic_params: &'hir [GenericParam<'hir>],
+    pub inner_ty: &'hir Ty<'hir>,
+}
+
+#[derive(Debug, Clone, Copy, HashStable_Generic)]
 pub struct OpaqueTy<'hir> {
     pub generics: &'hir Generics<'hir>,
     pub bounds: GenericBounds<'hir>,
@@ -2839,6 +2847,8 @@ pub enum TyKind<'hir> {
     Ref(&'hir Lifetime, MutTy<'hir>),
     /// A bare function (e.g., `fn(usize) -> bool`).
     BareFn(&'hir BareFnTy<'hir>),
+    /// Uwu
+    UnsafeBinder(&'hir UnsafeBinderTy<'hir>),
     /// The never type (`!`).
     Never,
     /// A tuple (`(A, B, C, D, ...)`).
@@ -3810,6 +3820,7 @@ pub enum Node<'hir> {
     // FIXME: Merge into `Node::Infer`.
     ArrayLenInfer(&'hir InferArg),
     PreciseCapturingNonLifetimeArg(&'hir PreciseCapturingNonLifetimeArg),
+    UnsafeBinder(&'hir UnsafeBinderTy<'hir>),
     // Created by query feeding
     Synthetic,
     Err(Span),
@@ -3862,6 +3873,7 @@ impl<'hir> Node<'hir> {
             | Node::Infer(..)
             | Node::WhereBoundPredicate(..)
             | Node::ArrayLenInfer(..)
+            | Node::UnsafeBinder(..)
             | Node::Synthetic
             | Node::Err(..) => None,
         }
