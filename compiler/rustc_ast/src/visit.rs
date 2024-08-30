@@ -512,6 +512,10 @@ pub fn walk_ty<'a, V: Visitor<'a>>(visitor: &mut V, typ: &'a Ty) -> V::Result {
             walk_list!(visitor, visit_generic_param, generic_params);
             try_visit!(walk_fn_decl(visitor, decl));
         }
+        TyKind::UnsafeBinder(binder) => {
+            walk_list!(visitor, visit_generic_param, &binder.generic_params);
+            try_visit!(visitor.visit_ty(&binder.inner_ty));
+        }
         TyKind::Path(maybe_qself, path) => {
             try_visit!(walk_qself(visitor, maybe_qself));
             try_visit!(visitor.visit_path(path, *id));
