@@ -426,7 +426,8 @@ impl<'tcx> Interner for TyCtxt<'tcx> {
             | ty::CoroutineClosure(..)
             | ty::Coroutine(_, _)
             | ty::Never
-            | ty::Tuple(_) => {
+            | ty::Tuple(_)
+            | ty::UnsafeBinder(_) => {
                 let simp = ty::fast_reject::simplify_type(
                     tcx,
                     self_ty,
@@ -2264,6 +2265,7 @@ impl<'tcx> TyCtxt<'tcx> {
                     Ref,
                     FnDef,
                     FnPtr,
+                    UnsafeBinder,
                     Placeholder,
                     Coroutine,
                     CoroutineWitness,

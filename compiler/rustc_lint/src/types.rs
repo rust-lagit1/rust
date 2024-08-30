@@ -1154,6 +1154,8 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
                 FfiSafe
             }
 
+            ty::UnsafeBinder(_) => todo!("FIXME(unsafe_binder)"),
+
             ty::Param(..)
             | ty::Alias(ty::Projection | ty::Inherent | ty::Weak, ..)
             | ty::Infer(..)

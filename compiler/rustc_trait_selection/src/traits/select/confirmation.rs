@@ -1413,6 +1413,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 | ty::Never
                 | ty::Foreign(_) => {}
 
+                ty::UnsafeBinder(_) => todo!(),
+
                 // `ManuallyDrop` is trivially drop
                 ty::Adt(def, _) if def.is_manually_drop() => {}
 

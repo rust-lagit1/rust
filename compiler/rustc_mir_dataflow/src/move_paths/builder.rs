@@ -161,6 +161,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Slice(_)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(..)
                     | ty::Dynamic(_, _, _)
                     | ty::Closure(..)
                     | ty::CoroutineClosure(..)
@@ -204,6 +205,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Ref(_, _, _)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(_)
                     | ty::Dynamic(_, _, _)
                     | ty::CoroutineWitness(..)
                     | ty::Never

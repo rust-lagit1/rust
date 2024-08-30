@@ -2145,6 +2145,9 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
                 }
             }
 
+            // FIXME(unsafe_binders): This binder needs to be squashed
+            ty::UnsafeBinder(binder_ty) => Where(binder_ty.map_bound(|ty| vec![ty])),
+
             ty::Alias(..) | ty::Param(_) | ty::Placeholder(..) => None,
             ty::Infer(ty::TyVar(_)) => Ambiguous,
 
@@ -2182,6 +2185,10 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
                 // Implementations provided in libcore
                 None
             }
+
+            // FIXME(unsafe_binder): Should we conditionally
+            // (i.e. universally) implement copy/clone?
+            ty::UnsafeBinder(_) => todo!(),
 
             ty::Dynamic(..)
             | ty::Str
@@ -2334,6 +2341,9 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
             | ty::Infer(ty::IntVar(_) | ty::FloatVar(_))
             | ty::Never
             | ty::Char => ty::Binder::dummy(Vec::new()),
+
+            // TODO: binder needs opening
+            ty::UnsafeBinder(_) => todo!(),
 
             // Treat this like `struct str([u8]);`
             ty::Str => ty::Binder::dummy(vec![Ty::new_slice(self.tcx(), self.tcx().types.u8)]),

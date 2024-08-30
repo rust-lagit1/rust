@@ -138,6 +138,7 @@ pub fn simplify_type<I: Interner>(
         ty::FnPtr(sig_tys, _hdr) => {
             Some(SimplifiedType::Function(sig_tys.skip_binder().inputs().len()))
         }
+        ty::UnsafeBinder(binder) => simplify_type(cx, binder.skip_binder(), treat_params),
         ty::Placeholder(..) => Some(SimplifiedType::Placeholder),
         ty::Param(_) => match treat_params {
             TreatParams::AsRigid => Some(SimplifiedType::Placeholder),
@@ -270,7 +271,8 @@ impl<I: Interner, const INSTANTIATE_LHS_WITH_INFER: bool, const INSTANTIATE_RHS_
             | ty::Coroutine(..)
             | ty::CoroutineWitness(..)
             | ty::Foreign(_)
-            | ty::Placeholder(_) => {}
+            | ty::Placeholder(_)
+            | ty::UnsafeBinder(_) => {}
         };
 
         // For purely rigid types, use structural equivalence.
@@ -412,6 +414,13 @@ impl<I: Interner, const INSTANTIATE_LHS_WITH_INFER: bool, const INSTANTIATE_RHS_
                 // FIXME(pattern_types): take pattern into account
                 matches!(rhs.kind(), ty::Pat(rhs_ty, _) if self.types_may_unify(lhs_ty, rhs_ty))
             }
+
+            ty::UnsafeBinder(lhs_ty) => match rhs.kind() {
+                ty::UnsafeBinder(rhs_ty) => {
+                    self.types_may_unify(lhs_ty.skip_binder(), rhs_ty.skip_binder())
+                }
+                _ => false,
+            },
 
             ty::Error(..) => true,
         }
