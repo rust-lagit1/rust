@@ -2760,7 +2760,7 @@ ${item.displayPath}<span class="${type}">${name}</span>\
      * @param {boolean} go_to_first
      * @param {string} filterCrates
      */
-    async function showResults(results, go_to_first, filterCrates) {
+    async function showResults(results, go_to_first, _filterCrates) {
         const search = searchState.outputElement();
         if (go_to_first || (results.others.length === 1
             && getSettingValue("go-to-only-result") === "true")
@@ -2815,17 +2815,7 @@ ${item.displayPath}<span class="${type}">${name}</span>\
             }
         }
 
-        let crates = "";
-        if (rawSearchIndex.size > 1) {
-            crates = " in&nbsp;<div id=\"crate-search-div\"><select id=\"crate-search\">" +
-                "<option value=\"all crates\">all crates</option>";
-            for (const c of rawSearchIndex.keys()) {
-                crates += `<option value="${c}" ${c === filterCrates && "selected"}>${c}</option>`;
-            }
-            crates += "</select></div>";
-        }
-
-        let output = `<h1 class="search-results-title">Results${crates}</h1>`;
+        let output = "<h1 class=\"search-results-title\">Results</h1>";
         if (results.query.error !== null) {
             const error = results.query.error;
             error.forEach((value, index) => {
@@ -3885,6 +3875,21 @@ ${item.displayPath}<span class="${type}">${name}</span>\
         exports.execQuery = execQuery;
         exports.parseQuery = parseQuery;
     }
+
+
+    let crates = "Searching in ";
+    if (rawSearchIndex.size > 1) {
+        crates += "<select id=\"crate-search\">" +
+            "<option value=\"all crates\" selected>all crates</option>";
+        for (const c of rawSearchIndex.keys()) {
+            console.log(c);
+            crates += `<option value="${c}">${c}</option>`;
+        }
+        crates += "</select>";
+    } else {
+        crates += rawSearchIndex.keys().next().value;
+    }
+    document.getElementById("crate-search-div").innerHTML = crates;
 }
 
 if (typeof window !== "undefined") {

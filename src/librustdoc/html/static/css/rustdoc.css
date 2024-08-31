@@ -1036,7 +1036,7 @@ table,
 }
 /* pseudo-element for holding the dropdown-arrow image; needs to be a separate thing
 so that we can apply CSS-filters to change the arrow color in themes */
-#crate-search-div::after {
+#crate-search::after {
 	/* lets clicks through! */
 	pointer-events: none;
 	/* completely covers the underlying div */
@@ -1667,6 +1667,28 @@ a.tooltip:hover::after {
 
 .search-corrections {
 	font-weight: normal;
+}
+
+/* panel that only shows up during searches */
+#search-focus-panel {
+	position: absolute;
+	display: none;
+	background-color: var(--main-background-color);
+	border-width: 1px;
+	border-color: var(--border-color);
+	border-style: solid;
+	padding: 3px;
+	text-wrap: nowrap;
+	z-index: 1;
+	top: 0;
+}
+
+rustdoc-search {
+	position: relative;
+}
+
+rustdoc-search:focus-within #search-focus-panel {
+	display: block;
 }
 
 #src-sidebar {
