@@ -283,6 +283,20 @@ function getFilteredNextElem(query, parserState, elems, isInGenerics) {
         parserState.pos += 1;
         parserState.totalElems -= 1;
         query.literalSearch = false;
+        if (parserState.typeFilter === "crate") {
+            while (parserState.userQuery[parserState.pos] === " ") {
+                parserState.pos += 1;
+            }
+            const start = parserState.pos;
+            const foundCrate = consumeIdent(parserState);
+            if (!foundCrate) {
+                throw ["Expected ident after ", "crate:", ", found ", parserState.userQuery[start]];
+            }
+            const name = parserState.userQuery.substring(start, parserState.pos);
+            elems.push(makePrimitiveElement(name, { typeFilter: "crate" }));
+            parserState.typeFilter = null;
+            return getFilteredNextElem(query, parserState, elems, isInGenerics);
+        }
         getNextElem(query, parserState, elems, isInGenerics);
     }
 }
@@ -1930,7 +1944,7 @@ class DocSearch {
             query.error = err;
             return query;
         }
-        
+
         const nonCrateElems = query.elems.filter(function (elem) {
             if (elem.typeFilter === TY_CRATE) {
                 query.filterCrates = elem.name;
