@@ -47,11 +47,14 @@ const itemTypes = [
     "derive",
     "traitalias", // 25
     "generic",
+    "crate",
 ];
 
 // used for special search precedence
 const TY_GENERIC = itemTypes.indexOf("generic");
 const TY_IMPORT = itemTypes.indexOf("import");
+// minor hack to implement the `crate:` syntax
+const TY_CRATE = itemTypes.indexOf("crate");
 const ROOT_PATH = typeof window !== "undefined" ? window.rootPath : "../";
 
 // Hard limit on how deep to recurse into generics when doing type-driven search.
@@ -1799,6 +1802,7 @@ class DocSearch {
                 correction: null,
                 proposeCorrectionFrom: null,
                 proposeCorrectionTo: null,
+                filterCrates: null,
                 // bloom filter build from type ids
                 typeFingerprint: new Uint32Array(4),
             };
@@ -1926,6 +1930,19 @@ class DocSearch {
             query.error = err;
             return query;
         }
+        
+        const nonCrateElems = query.elems.filter(function (elem) {
+            if (elem.typeFilter === TY_CRATE) {
+                query.filterCrates = elem.name;
+                return false;
+            }
+            return true;
+        });
+        if (nonCrateElems.length !== query.elems.length) {
+            query.elems = nonCrateElems;
+            query.userQuery = query.elems.join(", ");
+        }
+
         if (!query.literalSearch) {
             // If there is more than one element in the query, we switch to literalSearch in any
             // case.
@@ -3713,6 +3730,9 @@ async function search(forced) {
 
     const params = searchState.getQueryStringParams();
 
+    if (query.filterCrates !== null) {
+        filterCrates = query.filterCrates;
+    }
     // In case we have no information about the saved crate and there is a URL query parameter,
     // we override it with the URL query parameter.
     if (filterCrates === null && params["filter-crate"] !== undefined) {
