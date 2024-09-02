@@ -1945,13 +1945,15 @@ class DocSearch {
             return query;
         }
 
-        const nonCrateElems = query.elems.filter(function (elem) {
+        function handleCrateFilters(elem) {
             if (elem.typeFilter === TY_CRATE) {
                 query.filterCrates = elem.name;
                 return false;
             }
             return true;
-        });
+
+        }
+        const nonCrateElems = query.elems.filter(handleCrateFilters);
         if (nonCrateElems.length !== query.elems.length) {
             query.elems = nonCrateElems;
             query.userQuery = query.elems.join(", ");
