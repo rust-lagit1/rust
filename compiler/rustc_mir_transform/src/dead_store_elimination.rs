@@ -13,7 +13,7 @@
 //!
 
 use rustc_middle::bug;
-use rustc_middle::mir::visit::Visitor;
+use rustc_middle::mir::visit::*;
 use rustc_middle::mir::*;
 use rustc_middle::ty::TyCtxt;
 use rustc_mir_dataflow::debuginfo::debuginfo_locals;
@@ -21,6 +21,7 @@ use rustc_mir_dataflow::impls::{
     borrowed_locals, LivenessTransferFunction, MaybeTransitiveLiveLocals,
 };
 use rustc_mir_dataflow::Analysis;
+use rustc_session::config::DebugInfo;
 
 use crate::util::is_within_packed;
 
@@ -31,10 +32,15 @@ use crate::util::is_within_packed;
 pub fn eliminate<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
     let borrowed_locals = borrowed_locals(body);
 
-    // If the user requests complete debuginfo, mark the locals that appear in it as live, so
-    // we don't remove assignements to them.
-    let mut always_live = debuginfo_locals(body);
-    always_live.union(&borrowed_locals);
+    let always_live = if tcx.sess.opts.debuginfo == DebugInfo::Full {
+        // If the user requests complete debuginfo, mark the locals that appear in it as live, so
+        // we don't remove assignements to them.
+        let mut always_live = debuginfo_locals(body);
+        always_live.union(&borrowed_locals);
+        always_live
+    } else {
+        borrowed_locals.clone()
+    };
 
     let mut live = MaybeTransitiveLiveLocals::new(&always_live)
         .into_engine(tcx, body)
@@ -89,7 +95,7 @@ pub fn eliminate<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
                     if !place.is_indirect() && !always_live.contains(place.local) {
                         live.seek_before_primary_effect(loc);
                         if !live.get().contains(place.local) {
-                            patch.push(loc);
+                            patch.push((place.local, loc));
                         }
                     }
                 }
@@ -114,8 +120,29 @@ pub fn eliminate<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
     }
 
     let bbs = body.basic_blocks.as_mut_preserves_cfg();
-    for Location { block, statement_index } in patch {
+    for (local, Location { block, statement_index }) in patch {
         bbs[block].statements[statement_index].make_nop();
+        // Remove a pair of unused `StorageLive` and `StorageDead` statements if we found it.
+        if bbs[block].statements.iter().all(|stmt| match stmt.kind {
+            StatementKind::Assign(box (place, _))
+            | StatementKind::SetDiscriminant { place: box place, .. }
+            | StatementKind::Deinit(box place) => place.local != local,
+            _ => true,
+        }) && let Some(storage_live_index) = bbs[block]
+            .statements
+            .iter()
+            .take(statement_index)
+            .position(|stmt| stmt.kind == StatementKind::StorageLive(local))
+            && let Some(storage_dead_index) = bbs[block]
+                .statements
+                .iter()
+                .skip(statement_index)
+                .position(|stmt| stmt.kind == StatementKind::StorageDead(local))
+                .map(|p| p + statement_index)
+        {
+            bbs[block].statements[storage_live_index].make_nop();
+            bbs[block].statements[storage_dead_index].make_nop();
+        }
     }
     for (block, argument_index) in call_operands_to_move {
         let TerminatorKind::Call { ref mut args, .. } = bbs[block].terminator_mut().kind else {
