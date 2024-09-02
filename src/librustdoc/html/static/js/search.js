@@ -3588,7 +3588,7 @@ async function showResults(results, go_to_first, filterCrates) {
         results.query = DocSearch.parseQuery(searchState.input.value);
     }
 
-    currentResults = results.query.userQuery;
+    currentResults = results.query.original;
 
     const [ret_others, ret_in_args, ret_returned] = await Promise.all([
         addTab(results.others, results.query, true),
@@ -3719,7 +3719,7 @@ async function search(forced) {
     const query = DocSearch.parseQuery(searchState.input.value.trim());
     let filterCrates = getFilterCrates();
 
-    if (!forced && query.userQuery === currentResults) {
+    if (!forced && query.original === currentResults) {
         if (query.userQuery.length > 0) {
             putBackSearch();
         }
