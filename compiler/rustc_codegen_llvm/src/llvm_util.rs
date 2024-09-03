@@ -292,8 +292,10 @@ pub(crate) fn check_tied_features(
     None
 }
 
-/// Used to generate cfg variables and apply features
-/// Must express features in the way Rust understands them
+/// Used to generate cfg variables and apply features.
+/// Must express features in the way Rust understands them.
+///
+/// We do not have to worry about RUSTC_SPECIFIC_FEATURES here, those are handled outside codegen.
 pub fn target_features(sess: &Session, allow_unstable: bool) -> Vec<Symbol> {
     let mut features: FxHashSet<Symbol> = Default::default();
 
@@ -626,6 +628,8 @@ pub(crate) fn global_llvm_features(
                     }
                 };
 
+                // Get the backend feature name, if any.
+                // This excludes rustc-specific features, that do not get passed down to LLVM.
                 let feature = backend_feature_name(sess, s)?;
                 // Warn against use of LLVM specific feature names and unstable features on the CLI.
                 if diagnostics {
@@ -670,12 +674,7 @@ pub(crate) fn global_llvm_features(
                     featsmap.insert(feature, enable_disable == '+');
                 }
 
-                // rustc-specific features do not get passed down to LLVM…
-                if RUSTC_SPECIFIC_FEATURES.contains(&feature) {
-                    return None;
-                }
-
-                // ... otherwise though we run through `to_llvm_features` when
+                // We run through `to_llvm_features` when
                 // passing requests down to LLVM. This means that all in-language
                 // features also work on the command line instead of having two
                 // different names when the LLVM name and the Rust name differ.
