@@ -1956,7 +1956,6 @@ class DocSearch {
         const nonCrateElems = query.elems.filter(handleCrateFilters);
         if (nonCrateElems.length !== query.elems.length) {
             query.elems = nonCrateElems;
-            query.userQuery = query.elems.join(", ");
         }
 
         if (!query.literalSearch) {
