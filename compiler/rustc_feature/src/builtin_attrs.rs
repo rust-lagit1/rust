@@ -534,7 +534,7 @@ pub const BUILTIN_ATTRIBUTES: &[BuiltinAttribute] = &[
     ),
     // RFC 2412
     gated!(
-        optimize, Normal, template!(List: "size|speed"), ErrorPreceding,
+        optimize, Normal, template!(List: "none|size|speed"), ErrorPreceding,
         EncodeCrossCrate::No, optimize_attribute, experimental!(optimize)
     ),
 

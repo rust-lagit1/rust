@@ -140,8 +140,8 @@ impl<'tcx> MirPass<'tcx> for DeadStoreElimination {
         }
     }
 
-    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
-        sess.mir_opt_level() >= 2
+    fn min_mir_opt_level(&self) -> usize {
+        2
     }
 
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {

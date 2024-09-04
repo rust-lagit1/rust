@@ -151,7 +151,7 @@ use crate::MirPass;
 pub struct DestinationPropagation;
 
 impl<'tcx> MirPass<'tcx> for DestinationPropagation {
-    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
+    fn min_mir_opt_level(&self) -> usize {
         // For now, only run at MIR opt level 3. Two things need to be changed before this can be
         // turned on by default:
         //  1. Because of the overeager removal of storage statements, this can cause stack space
@@ -160,7 +160,7 @@ impl<'tcx> MirPass<'tcx> for DestinationPropagation {
         //  2. Despite being an overall perf improvement, this still causes a 30% regression in
         //     keccak. We can temporarily fix this by bounding function size, but in the long term
         //     we should fix this by being smarter about invalidating analysis results.
-        sess.mir_opt_level() >= 3
+        3
     }
 
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {

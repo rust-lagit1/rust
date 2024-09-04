@@ -375,8 +375,8 @@ impl<'tcx> MirPass<'tcx> for SimplifyLocals {
         }
     }
 
-    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
-        sess.mir_opt_level() > 0
+    fn min_mir_opt_level(&self) -> usize {
+        1
     }
 
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
