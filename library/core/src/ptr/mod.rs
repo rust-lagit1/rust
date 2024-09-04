@@ -1195,6 +1195,7 @@ pub const unsafe fn swap_nonoverlapping<T>(x: *mut T, y: *mut T, count: usize) {
 /// `swap_nonoverlapping` tries to use) so no need to manually SIMD it.
 #[inline]
 #[rustc_const_unstable(feature = "const_swap", issue = "83163")]
+#[cfg_attr(not(bootstrap), rustc_no_ubchecks)]
 const unsafe fn swap_nonoverlapping_simple_untyped<T>(x: *mut T, y: *mut T, count: usize) {
     let x = x.cast::<MaybeUninit<T>>();
     let y = y.cast::<MaybeUninit<T>>();
@@ -1425,7 +1426,7 @@ pub const unsafe fn read<T>(src: *const T) -> T {
 
     // SAFETY: the caller must guarantee that `src` is valid for reads.
     unsafe {
-        #[cfg(debug_assertions)] // Too expensive to always enable (for now?)
+        #[cfg(debug_assertions)]
         ub_checks::assert_unsafe_precondition!(
             check_language_ub,
             "ptr::read requires that the pointer argument is aligned and non-null",
@@ -1634,7 +1635,6 @@ pub const unsafe fn write<T>(dst: *mut T, src: T) {
     // `dst` cannot overlap `src` because the caller has mutable access
     // to `dst` while `src` is owned by this function.
     unsafe {
-        #[cfg(debug_assertions)] // Too expensive to always enable (for now?)
         ub_checks::assert_unsafe_precondition!(
             check_language_ub,
             "ptr::write requires that the pointer argument is aligned and non-null",
