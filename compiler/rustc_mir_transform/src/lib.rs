@@ -91,8 +91,8 @@ mod remove_noop_landing_pads;
 mod remove_place_mention;
 mod remove_storage_markers;
 mod remove_uninit_drops;
-mod remove_unneeded_drops;
-mod remove_zsts;
+pub mod remove_unneeded_drops;
+pub mod remove_zsts;
 mod required_consts;
 mod reveal_all;
 mod sanity_check;
@@ -104,8 +104,8 @@ mod simplify_branches;
 mod simplify_comparison_integral;
 mod single_use_consts;
 mod sroa;
-mod unreachable_enum_branching;
-mod unreachable_prop;
+pub mod unreachable_enum_branching;
+pub mod unreachable_prop;
 mod validate;
 
 rustc_fluent_macro::fluent_messages! { "../messages.ftl" }

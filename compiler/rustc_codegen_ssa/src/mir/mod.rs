@@ -7,7 +7,10 @@ use rustc_middle::mir::{traversal, UnwindTerminateReason};
 use rustc_middle::ty::layout::{FnAbiOf, HasTyCtxt, TyAndLayout};
 use rustc_middle::ty::{self, Instance, Ty, TypeVisitableExt};
 use rustc_middle::{bug, mir, span_bug};
-use rustc_mir_transform::{add_call_guards, dump_mir, pass_manager};
+use rustc_mir_transform::{
+    add_call_guards, dump_mir, pass_manager, remove_unneeded_drops, remove_zsts, simplify,
+    unreachable_enum_branching, unreachable_prop,
+};
 use rustc_target::abi::call::{FnAbi, PassMode};
 use tracing::{debug, instrument};
 
@@ -162,6 +165,14 @@ pub fn codegen_mir<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
         cx.tcx(),
         &mut mir,
         &[
+            // Inlining and instantiation may introduce ZST and useless drops.
+            &remove_zsts::RemoveZsts,
+            &remove_unneeded_drops::RemoveUnneededDrops,
+            // Type instantiation may create uninhabited enums.
+            // Also eliminates some unreachable branches based on variants of enums.
+            &unreachable_enum_branching::UnreachableEnumBranching,
+            &unreachable_prop::UnreachablePropagation,
+            &simplify::SimplifyCfg::AfterUnreachableEnumBranching,
             // Some cleanup necessary at least for LLVM and potentially other codegen backends.
             &add_call_guards::CriticalCallEdges,
             // Dump the end result for testing and debugging purposes.
