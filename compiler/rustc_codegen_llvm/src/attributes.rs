@@ -1,6 +1,8 @@
 //! Set and unset common attributes on LLVM values.
 
 use rustc_attr::{InlineAttr, InstructionSetAttr, OptimizeAttr};
+// FIXME(ZuseZ4): Re-enable once the middle-end is merged.
+//use rustc_ast::expand::autodiff_attrs::AutoDiffAttrs;
 use rustc_codegen_ssa::traits::*;
 use rustc_hir::def_id::DefId;
 use rustc_middle::middle::codegen_fn_attrs::{CodegenFnAttrFlags, PatchableFunctionEntry};
@@ -333,6 +335,8 @@ pub(crate) fn llfn_attrs_from_instance<'ll, 'tcx>(
     instance: ty::Instance<'tcx>,
 ) {
     let codegen_fn_attrs = cx.tcx.codegen_fn_attrs(instance.def_id());
+    // FIXME(ZuseZ4): Re-enable once the middle-end is merged.
+    //let autodiff_attrs: &AutoDiffAttrs = cx.tcx.autodiff_attrs(instance.def_id());
 
     let mut to_add = SmallVec::<[_; 16]>::new();
 
@@ -350,6 +354,9 @@ pub(crate) fn llfn_attrs_from_instance<'ll, 'tcx>(
     let inline =
         if codegen_fn_attrs.inline == InlineAttr::None && instance.def.requires_inline(cx.tcx) {
             InlineAttr::Hint
+        // FIXME(ZuseZ4): re-enable once the middle-end is merged.
+        //} else if autodiff_attrs.is_active() {
+        //    InlineAttr::Never
         } else {
             codegen_fn_attrs.inline
         };
