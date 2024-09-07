@@ -85,7 +85,7 @@ pub unsafe fn check_from_empty_array(x: [u32; 0]) -> [u32; 5] {
 
 // CHECK-LABEL: @check_to_uninhabited(
 #[no_mangle]
-#[custom_mir(dialect = "runtime", phase = "optimized")]
+#[custom_mir(dialect = "runtime", phase = "monomorphic")]
 pub unsafe fn check_to_uninhabited(x: u16) {
     // CHECK-NOT: trap
     // CHECK: call void @llvm.trap
