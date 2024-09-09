@@ -201,7 +201,7 @@ fn calculate_debuginfo_offset<
     DebugInfoOffset { direct_offset, indirect_offsets, result: place }
 }
 
-impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
+impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, '_, 'tcx, Bx> {
     pub fn set_debug_loc(&self, bx: &mut Bx, source_info: mir::SourceInfo) {
         bx.set_span(source_info.span);
         if let Some(dbg_loc) = self.dbg_loc(source_info) {
@@ -279,9 +279,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                             // FIXME(eddyb) is this `+ 1` needed at all?
                             let kind = VariableKind::ArgumentVariable(arg_index + 1);
 
-                            let arg_ty = self.monomorphize(decl.ty);
-
-                            self.cx.create_dbg_var(name, arg_ty, dbg_scope, kind, span)
+                            self.cx.create_dbg_var(name, decl.ty, dbg_scope, kind, span)
                         },
                     )
                 } else {
@@ -457,13 +455,13 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             };
 
             let var_ty = if let Some(ref fragment) = var.composite {
-                self.monomorphize(fragment.ty)
+                fragment.ty
             } else {
                 match var.value {
                     mir::VarDebugInfoContents::Place(place) => {
                         self.monomorphized_place_ty(place.as_ref())
                     }
-                    mir::VarDebugInfoContents::Const(c) => self.monomorphize(c.ty()),
+                    mir::VarDebugInfoContents::Const(c) => c.ty(),
                 }
             };
 

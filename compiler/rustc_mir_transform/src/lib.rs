@@ -38,12 +38,12 @@ use rustc_trait_selection::traits;
 use tracing::{debug, trace};
 
 #[macro_use]
-mod pass_manager;
+pub mod pass_manager;
 
 use pass_manager::{self as pm, Lint, MirLint, MirPass, WithMinOptLevel};
 
 mod abort_unwinding_calls;
-mod add_call_guards;
+pub mod add_call_guards;
 mod add_moves_for_packed_drops;
 mod add_retag;
 mod add_subtyping_projections;
@@ -59,7 +59,7 @@ mod coverage;
 mod cross_crate_inline;
 mod ctfe_limit;
 mod dataflow_const_prop;
-mod dead_store_elimination;
+pub mod dead_store_elimination;
 mod deduce_param_attrs;
 mod deduplicate_blocks;
 mod deref_separator;
@@ -71,7 +71,7 @@ mod elaborate_drops;
 mod errors;
 mod ffi_unwind_calls;
 mod function_item_references;
-mod gvn;
+pub mod gvn;
 pub mod inline;
 mod instsimplify;
 mod jump_threading;
@@ -91,21 +91,20 @@ mod remove_noop_landing_pads;
 mod remove_place_mention;
 mod remove_storage_markers;
 mod remove_uninit_drops;
-mod remove_unneeded_drops;
-mod remove_zsts;
+pub mod remove_unneeded_drops;
+pub mod remove_zsts;
 mod required_consts;
 mod reveal_all;
 mod sanity_check;
 mod shim;
-mod ssa;
-// This pass is public to allow external drivers to perform MIR cleanup
 pub mod simplify;
-mod simplify_branches;
+pub mod simplify_branches;
 mod simplify_comparison_integral;
 mod single_use_consts;
 mod sroa;
-mod unreachable_enum_branching;
-mod unreachable_prop;
+mod ssa;
+pub mod unreachable_enum_branching;
+pub mod unreachable_prop;
 mod validate;
 
 rustc_fluent_macro::fluent_messages! { "../messages.ftl" }
@@ -606,8 +605,6 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
-            // Some cleanup necessary at least for LLVM and potentially other codegen backends.
-            &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.
             &prettify::ReorderBasicBlocks,
             &prettify::ReorderLocals,

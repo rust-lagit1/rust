@@ -99,6 +99,7 @@ impl MirPhase {
             MirPhase::Runtime(RuntimePhase::Initial) => "runtime",
             MirPhase::Runtime(RuntimePhase::PostCleanup) => "runtime-post-cleanup",
             MirPhase::Runtime(RuntimePhase::Optimized) => "runtime-optimized",
+            MirPhase::Runtime(RuntimePhase::Monomorphic) => "runtime-monomorphic",
         }
     }
 
@@ -153,6 +154,8 @@ pub enum RuntimePhase {
     /// * [`ProjectionElem::Deref`] of `Box`
     PostCleanup = 1,
     Optimized = 2,
+    /// This corresponds to monomorphised MIR that is being processed by codegen.
+    Monomorphic = 3,
 }
 
 ///////////////////////////////////////////////////////////////////////////
