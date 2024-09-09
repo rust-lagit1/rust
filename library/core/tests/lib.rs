@@ -12,6 +12,7 @@
 #![feature(async_iterator)]
 #![feature(bigint_helper_methods)]
 #![feature(cell_update)]
+#![feature(char_max_len)]
 #![feature(clone_to_uninit)]
 #![feature(const_align_of_val_raw)]
 #![feature(const_align_offset)]

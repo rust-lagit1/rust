@@ -1,5 +1,6 @@
 use rand::RngCore;
 
+use crate::char::MAX_LEN_UTF8;
 #[cfg(target_os = "macos")]
 use crate::ffi::{c_char, c_int};
 use crate::fs::{self, File, FileTimes, OpenOptions};
@@ -170,7 +171,7 @@ fn file_test_io_non_positional_read() {
 #[test]
 fn file_test_io_seek_and_tell_smoke_test() {
     let message = "ten-four";
-    let mut read_mem = [0; 4];
+    let mut read_mem = [0; MAX_LEN_UTF8];
     let set_cursor = 4 as u64;
     let tell_pos_pre_read;
     let tell_pos_post_read;
@@ -225,7 +226,7 @@ fn file_test_io_seek_shakedown() {
     let chunk_one: &str = "qwer";
     let chunk_two: &str = "asdf";
     let chunk_three: &str = "zxcv";
-    let mut read_mem = [0; 4];
+    let mut read_mem = [0; MAX_LEN_UTF8];
     let tmpdir = tmpdir();
     let filename = &tmpdir.join("file_rt_io_file_test_seek_shakedown.txt");
     {
@@ -490,7 +491,7 @@ fn file_test_directoryinfo_readdir() {
         check!(w.write(msg));
     }
     let files = check!(fs::read_dir(dir));
-    let mut mem = [0; 4];
+    let mut mem = [0; MAX_LEN_UTF8];
     for f in files {
         let f = f.unwrap().path();
         {
