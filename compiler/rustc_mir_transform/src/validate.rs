@@ -376,9 +376,12 @@ impl<'a, 'tcx> Visitor<'tcx> for CfgChecker<'a, 'tcx> {
                     );
                 }
             }
-            TerminatorKind::Drop { target, unwind, .. } => {
+            TerminatorKind::Drop { target, unwind, drop, .. } => {
                 self.check_edge(location, *target, EdgeKind::Normal);
                 self.check_unwind_edge(location, *unwind);
+                if let Some(drop) = drop {
+                    self.check_edge(location, *drop, EdgeKind::Normal);
+                }
             }
             TerminatorKind::Call { args, .. } | TerminatorKind::TailCall { args, .. } => {
                 // FIXME(explicit_tail_calls): refactor this & add tail-call specific checks
@@ -715,7 +718,9 @@ impl<'a, 'tcx> Visitor<'tcx> for TypeChecker<'a, 'tcx> {
                             // since we may be in the process of computing this MIR in the
                             // first place.
                             let layout = if def_id == self.caller_body.source.def_id() {
-                                self.caller_body.coroutine_layout_raw()
+                                self.caller_body
+                                    .coroutine_layout_raw()
+                                    .or_else(|| self.tcx.coroutine_layout(def_id, args))
                             } else if let Some(hir::CoroutineKind::Desugared(
                                 _,
                                 hir::CoroutineSource::Closure,
@@ -728,7 +733,7 @@ impl<'a, 'tcx> Visitor<'tcx> for TypeChecker<'a, 'tcx> {
                                 // Same if this is the by-move body of a coroutine-closure.
                                 self.caller_body.coroutine_layout_raw()
                             } else {
-                                self.tcx.coroutine_layout(def_id, args.as_coroutine().kind_ty())
+                                self.tcx.coroutine_layout(def_id, args)
                             };
 
                             let Some(layout) = layout else {
