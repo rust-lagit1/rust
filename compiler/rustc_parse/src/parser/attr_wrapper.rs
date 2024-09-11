@@ -3,8 +3,7 @@ use std::mem;
 
 use rustc_ast::token::Token;
 use rustc_ast::tokenstream::{
-    AttrsTarget, LazyAttrTokenStream, LazyAttrTokenStreamImpl, NodeRange, ParserRange, Spacing,
-    TokenCursor,
+    AttrsTarget, LazyAttrTokenStream, NodeRange, ParserRange, Spacing, TokenCursor,
 };
 use rustc_ast::{self as ast, AttrVec, Attribute, HasAttrs, HasTokens};
 use rustc_data_structures::fx::FxHashSet;
@@ -333,13 +332,13 @@ impl<'a> Parser<'a> {
         //     - `attrs`: includes the outer and the inner attr.
         //     - `tokens`: lazy tokens for `g` (with its inner attr deleted).
 
-        let tokens = LazyAttrTokenStream::new(LazyAttrTokenStreamImpl {
-            start_token: collect_pos.start_token,
-            cursor_snapshot: collect_pos.cursor_snapshot,
+        let tokens = LazyAttrTokenStream::new_pending(
+            collect_pos.start_token,
+            collect_pos.cursor_snapshot,
             num_calls,
-            break_last_token: self.break_last_token,
+            self.break_last_token,
             node_replacements,
-        });
+        );
         let mut tokens_used = false;
 
         // If in "definite capture mode" we need to register a replace range
