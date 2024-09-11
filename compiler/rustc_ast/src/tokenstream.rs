@@ -22,6 +22,7 @@ use rustc_data_structures::sync::{self, Lrc};
 use rustc_macros::{Decodable, Encodable, HashStable_Generic};
 use rustc_serialize::{Decodable, Encodable};
 use rustc_span::{sym, Span, SpanDecoder, SpanEncoder, Symbol, DUMMY_SP};
+use thin_vec::ThinVec;
 
 use crate::ast::{AttrStyle, StmtKind};
 use crate::ast_traits::{HasAttrs, HasTokens};
@@ -122,7 +123,7 @@ impl LazyAttrTokenStream {
         cursor_snapshot: TokenCursor,
         num_calls: u32,
         break_last_token: bool,
-        node_replacements: Box<[NodeReplacement]>,
+        node_replacements: ThinVec<NodeReplacement>,
     ) -> LazyAttrTokenStream {
         LazyAttrTokenStream(Lrc::new(LazyAttrTokenStreamInner::Pending {
             start_token,
@@ -218,7 +219,8 @@ pub struct LazyAttrTokenStreamImpl {
     pub cursor_snapshot: TokenCursor,
     pub num_calls: u32,
     pub break_last_token: bool,
-    pub node_replacements: Box<[NodeReplacement]>,
+    /// This vec is almost alway empty.
+    pub node_replacements: ThinVec<NodeReplacement>,
 }
 
 enum LazyAttrTokenStreamInner {
@@ -241,7 +243,7 @@ enum LazyAttrTokenStreamInner {
         cursor_snapshot: TokenCursor,
         num_calls: u32,
         break_last_token: bool,
-        node_replacements: Box<[NodeReplacement]>,
+        node_replacements: ThinVec<NodeReplacement>,
     },
 }
 
@@ -1088,7 +1090,7 @@ mod size_asserts {
     static_assert_size!(AttrTokenStream, 8);
     static_assert_size!(AttrTokenTree, 32);
     static_assert_size!(LazyAttrTokenStream, 8);
-    static_assert_size!(LazyAttrTokenStreamInner, 96);
+    static_assert_size!(LazyAttrTokenStreamInner, 88);
     static_assert_size!(Option<LazyAttrTokenStream>, 8); // must be small, used in many AST nodes
     static_assert_size!(TokenStream, 8);
     static_assert_size!(TokenTree, 32);
