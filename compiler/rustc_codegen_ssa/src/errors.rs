@@ -1024,6 +1024,7 @@ pub struct ForbiddenTargetFeature<'a> {
     #[primary_span]
     pub span: Span,
     pub feature: &'a str,
+    pub reason: &'a str,
 }
 
 #[derive(Diagnostic)]

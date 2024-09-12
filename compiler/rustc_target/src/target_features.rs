@@ -25,7 +25,7 @@ pub enum Stability {
     Unstable(Symbol),
     /// This feature can not be set via `-Ctarget-feature` or `#[target_feature]`, it can only be set in the basic
     /// target definition. Used in particular for features that change the floating-point ABI.
-    Forbidden,
+    Forbidden { reason: &'static str },
 }
 use Stability::*;
 
@@ -38,7 +38,7 @@ impl<CTX> HashStable<CTX> for Stability {
             Unstable(sym) => {
                 sym.hash_stable(hcx, hasher);
             }
-            Forbidden => {}
+            Forbidden { .. } => {}
         }
     }
 }
@@ -50,7 +50,7 @@ impl Stability {
 
     /// Forbidden features are not supported.
     pub fn is_supported(self) -> bool {
-        !matches!(self, Forbidden)
+        !matches!(self, Forbidden { .. })
     }
 }
 
@@ -101,13 +101,13 @@ const ARM_FEATURES: &[(&str, Stability, ImpliedFeatures)] = &[
     ("dotprod", Unstable(sym::arm_target_feature), &["neon"]),
     ("dsp", Unstable(sym::arm_target_feature), &[]),
     ("fp-armv8", Unstable(sym::arm_target_feature), &["vfp4"]),
-    ("fpregs", Forbidden, &[]), // changes float ABI
+    ("fpregs", Forbidden { reason: "unsound because it changes float ABI" }, &[]),
     ("i8mm", Unstable(sym::arm_target_feature), &["neon"]),
     ("mclass", Unstable(sym::arm_target_feature), &[]),
     ("neon", Unstable(sym::arm_target_feature), &["vfp3"]),
     ("rclass", Unstable(sym::arm_target_feature), &[]),
     ("sha2", Unstable(sym::arm_target_feature), &["neon"]),
-    ("soft-float", Forbidden, &[]), // changes float ABI
+    ("soft-float", Forbidden { reason: "unsound because it changes float ABI" }, &[]),
     // This is needed for inline assembly, but shouldn't be stabilized as-is
     // since it should be enabled per-function using #[instruction_set], not
     // #[target_feature].
@@ -362,7 +362,7 @@ const X86_FEATURES: &[(&str, Stability, ImpliedFeatures)] = &[
     ("sha512", Unstable(sym::sha512_sm_x86), &["avx2"]),
     ("sm3", Unstable(sym::sha512_sm_x86), &["avx"]),
     ("sm4", Unstable(sym::sha512_sm_x86), &["avx2"]),
-    ("soft-float", Forbidden, &[]), // changes float ABI
+    ("soft-float", Forbidden { reason: "unsound because it changes float ABI" }, &[]),
     ("sse", Stable, &[]),
     ("sse2", Stable, &["sse"]),
     ("sse3", Stable, &["sse2"]),
@@ -373,7 +373,7 @@ const X86_FEATURES: &[(&str, Stability, ImpliedFeatures)] = &[
     ("tbm", Unstable(sym::tbm_target_feature), &[]),
     ("vaes", Unstable(sym::avx512_target_feature), &["avx2", "aes"]),
     ("vpclmulqdq", Unstable(sym::avx512_target_feature), &["avx", "pclmulqdq"]),
-    ("x87", Forbidden, &[]), // changes float ABI
+    ("x87", Forbidden { reason: "unsound because it changes float ABI" }, &[]),
     ("xop", Unstable(sym::xop_target_feature), &[/*"fma4", */ "avx", "sse4a"]),
     ("xsave", Stable, &[]),
     ("xsavec", Stable, &["xsave"]),

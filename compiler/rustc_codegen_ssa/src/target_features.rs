@@ -66,7 +66,7 @@ pub(crate) fn from_target_feature_attr(
 
             // Only allow features whose feature gates have been enabled.
             let allowed = match stability {
-                Stability::Forbidden => false,
+                Stability::Forbidden { .. } => false,
                 Stability::Stable => true,
                 Stability::Unstable(sym::arm_target_feature) => rust_features.arm_target_feature,
                 Stability::Unstable(sym::hexagon_target_feature) => {
@@ -125,10 +125,11 @@ pub(crate) fn from_target_feature_attr(
                         )
                         .emit();
                     }
-                    Stability::Forbidden => {
+                    Stability::Forbidden { reason } => {
                         tcx.dcx().emit_err(errors::ForbiddenTargetFeature {
                             span: item.span(),
                             feature,
+                            reason,
                         });
                     }
                 }

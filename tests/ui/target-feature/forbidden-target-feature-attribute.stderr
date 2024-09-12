@@ -1,4 +1,4 @@
-error: target feature `soft-float` cannot be toggled with `#[target_feature]`
+error: target feature `soft-float` cannot be toggled with `#[target_feature]`: unsound because it changes float ABI
   --> $DIR/forbidden-target-feature-attribute.rs:10:18
    |
 LL | #[target_feature(enable = "soft-float")]

@@ -665,8 +665,8 @@ pub(crate) fn global_llvm_features(
                             // An unstable feature. Warn about using it.
                             sess.dcx().emit_warn(UnstableCTargetFeature { feature });
                         }
-                        Some((_, Stability::Forbidden, _)) => {
-                            sess.dcx().emit_err(ForbiddenCTargetFeature { feature });
+                        Some((_, Stability::Forbidden { reason }, _)) => {
+                            sess.dcx().emit_warn(ForbiddenCTargetFeature { feature, reason });
                         }
                     }
 
