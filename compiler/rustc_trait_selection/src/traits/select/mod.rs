@@ -2188,7 +2188,7 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
 
             // FIXME(unsafe_binder): Should we conditionally
             // (i.e. universally) implement copy/clone?
-            ty::UnsafeBinder(_) => todo!(),
+            ty::UnsafeBinder(_) => None,
 
             ty::Dynamic(..)
             | ty::Str
