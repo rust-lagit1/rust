@@ -41,7 +41,9 @@ impl Category {
             | ExprKind::UpvarRef { .. }
             | ExprKind::VarRef { .. }
             | ExprKind::PlaceTypeAscription { .. }
-            | ExprKind::ValueTypeAscription { .. } => Some(Category::Place),
+            | ExprKind::ValueTypeAscription { .. }
+            | ExprKind::PlaceUnsafeBinderCast { .. }
+            | ExprKind::ValueUnsafeBinderCast { .. } => Some(Category::Place),
 
             ExprKind::LogicalOp { .. }
             | ExprKind::Match { .. }

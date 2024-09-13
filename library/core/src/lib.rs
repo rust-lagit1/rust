@@ -398,6 +398,8 @@ pub mod pin;
 pub mod range;
 pub mod result;
 pub mod sync;
+#[unstable(feature = "unsafe_binders", issue = "none")]
+pub mod unsafe_binder;
 
 pub mod fmt;
 pub mod hash;

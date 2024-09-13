@@ -1537,6 +1537,19 @@ impl<'a> State<'a> {
 
                 self.word(")");
             }
+            hir::ExprKind::UnsafeBinderCast(kind, expr, ty) => {
+                match kind {
+                    hir::UnsafeBinderCastKind::Wrap => self.word("wrap_unsafe_binder!("),
+                    hir::UnsafeBinderCastKind::Unwrap => self.word("unwrap_unsafe_binder!("),
+                }
+                self.print_expr(expr);
+                if let Some(ty) = ty {
+                    self.word(",");
+                    self.space();
+                    self.print_type(ty);
+                }
+                self.word(")");
+            }
             hir::ExprKind::Yield(expr, _) => {
                 self.word_space("yield");
                 self.print_expr_maybe_paren(expr, parser::PREC_JUMP);

@@ -340,7 +340,10 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 self.check_expr_index(base, idx, expr, brackets_span)
             }
             ExprKind::Yield(value, _) => self.check_expr_yield(value, expr),
-            hir::ExprKind::Err(guar) => Ty::new_error(tcx, guar),
+            ExprKind::UnsafeBinderCast(kind, expr, ty) => {
+                self.check_expr_unsafe_binder_cast(kind, expr, ty, expected)
+            }
+            ExprKind::Err(guar) => Ty::new_error(tcx, guar),
         }
     }
 
@@ -1400,6 +1403,75 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     t_cast
                 }
                 Err(guar) => Ty::new_error(self.tcx, guar),
+            }
+        }
+    }
+
+    fn check_expr_unsafe_binder_cast(
+        &self,
+        kind: hir::UnsafeBinderCastKind,
+        expr: &'tcx hir::Expr<'tcx>,
+        hir_ty: Option<&'tcx hir::Ty<'tcx>>,
+        expected: Expectation<'tcx>,
+    ) -> Ty<'tcx> {
+        match kind {
+            hir::UnsafeBinderCastKind::Wrap => {
+                let ascribed_ty =
+                    hir_ty.map(|hir_ty| self.lower_ty_saving_user_provided_ty(hir_ty));
+                let expected_ty = expected.only_has_type(self);
+                let binder_ty = match (ascribed_ty, expected_ty) {
+                    (Some(ascribed_ty), Some(expected_ty)) => {
+                        self.demand_eqtype(expr.span, expected_ty, ascribed_ty);
+                        expected_ty
+                    }
+                    (Some(ty), None) | (None, Some(ty)) => ty,
+                    (None, None) => self.next_ty_var(expr.span),
+                };
+
+                // Unwrap the binder eagerly if we can use it to guide inference on
+                // the inner expr. If not, then we'll error *after* type checking.
+                let hint_ty = if let ty::UnsafeBinder(binder) =
+                    *self.try_structurally_resolve_type(expr.span, binder_ty).kind()
+                {
+                    self.instantiate_binder_with_fresh_vars(
+                        expr.span,
+                        infer::BoundRegionConversionTime::HigherRankedType,
+                        binder.into(),
+                    )
+                } else {
+                    self.next_ty_var(expr.span)
+                };
+
+                self.check_expr_has_type_or_error(expr, hint_ty, |_| {});
+
+                let binder_ty = self.structurally_resolve_type(expr.span, binder_ty);
+                match *binder_ty.kind() {
+                    ty::UnsafeBinder(..) => {
+                        // Ok
+                    }
+                    _ => todo!(),
+                }
+
+                binder_ty
+            }
+            hir::UnsafeBinderCastKind::Unwrap => {
+                let ascribed_ty =
+                    hir_ty.map(|hir_ty| self.lower_ty_saving_user_provided_ty(hir_ty));
+                let hint_ty = ascribed_ty.unwrap_or_else(|| self.next_ty_var(expr.span));
+                // FIXME(unsafe_binders): coerce here if needed?
+                let binder_ty = self.check_expr_has_type_or_error(expr, hint_ty, |_| {});
+
+                // Unwrap the binder. This will be ambiguous if it's an infer var, and will error
+                // if it's not an unsafe binder.
+                let binder_ty = self.structurally_resolve_type(expr.span, binder_ty);
+                match *binder_ty.kind() {
+                    ty::UnsafeBinder(binder) => self.instantiate_binder_with_fresh_vars(
+                        expr.span,
+                        infer::BoundRegionConversionTime::HigherRankedType,
+                        binder.into(),
+                    ),
+                    _ => todo!(),
+                }
             }
         }
     }

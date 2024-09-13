@@ -522,6 +522,22 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 block.and(PlaceBuilder::from(temp))
             }
 
+            ExprKind::PlaceUnsafeBinderCast { source, kind: _ } => {
+                let place_builder = unpack!(
+                    block = this.expr_as_place(block, source, mutability, fake_borrow_temps,)
+                );
+                // TODO: stick on a projection elem
+                block.and(place_builder)
+            }
+            ExprKind::ValueUnsafeBinderCast { source, kind: _ } => {
+                let source_expr = &this.thir[source];
+                let temp = unpack!(
+                    block = this.as_temp(block, source_expr.temp_lifetime, source, mutability)
+                );
+                // TODO: stick on a projection elem
+                block.and(PlaceBuilder::from(temp))
+            }
+
             ExprKind::Array { .. }
             | ExprKind::Tuple { .. }
             | ExprKind::Adt { .. }

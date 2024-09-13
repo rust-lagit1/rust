@@ -132,6 +132,9 @@ pub fn walk_expr<'thir, 'tcx: 'thir, V: Visitor<'thir, 'tcx>>(
         PlaceTypeAscription { source, user_ty: _ } | ValueTypeAscription { source, user_ty: _ } => {
             visitor.visit_expr(&visitor.thir()[source])
         }
+        PlaceUnsafeBinderCast { source, kind: _ } | ValueUnsafeBinderCast { source, kind: _ } => {
+            visitor.visit_expr(&visitor.thir()[source])
+        }
         Closure(box ClosureExpr {
             closure_id: _,
             args: _,

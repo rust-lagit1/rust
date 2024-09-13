@@ -512,7 +512,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             ExprKind::VarRef { .. }
             | ExprKind::UpvarRef { .. }
             | ExprKind::PlaceTypeAscription { .. }
-            | ExprKind::ValueTypeAscription { .. } => {
+            | ExprKind::ValueTypeAscription { .. }
+            | ExprKind::PlaceUnsafeBinderCast { .. }
+            | ExprKind::ValueUnsafeBinderCast { .. } => {
                 debug_assert!(Category::of(&expr.kind) == Some(Category::Place));
 
                 let place = unpack!(block = this.as_place(block, expr_id));

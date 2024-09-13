@@ -422,6 +422,8 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             | ExprKind::NeverToAny { .. }
             | ExprKind::PlaceTypeAscription { .. }
             | ExprKind::ValueTypeAscription { .. }
+            | ExprKind::PlaceUnsafeBinderCast { .. }
+            | ExprKind::ValueUnsafeBinderCast { .. }
             | ExprKind::PointerCoercion { .. }
             | ExprKind::Repeat { .. }
             | ExprKind::StaticRef { .. }

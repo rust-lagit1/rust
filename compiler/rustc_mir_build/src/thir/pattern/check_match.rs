@@ -314,7 +314,9 @@ impl<'p, 'tcx> MatchVisitor<'p, 'tcx> {
             | Use { source }
             | PointerCoercion { source, .. }
             | PlaceTypeAscription { source, .. }
-            | ValueTypeAscription { source, .. } => {
+            | ValueTypeAscription { source, .. }
+            | ExprKind::PlaceUnsafeBinderCast { source, .. }
+            | ExprKind::ValueUnsafeBinderCast { source, .. } => {
                 self.is_known_valid_scrutinee(&self.thir()[*source])
             }
 
