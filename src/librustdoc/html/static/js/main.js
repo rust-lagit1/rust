@@ -1823,6 +1823,19 @@ href="https://doc.rust-lang.org/${channel}/rustdoc/read-documentation/search.htm
         copyButtonAnimation(but);
     };
 
+    // Copy button that appears next to the crate version.
+    const crate_version_copy_button = document.getElementById("copy-cargo-snippet");
+    if (!crate_version_copy_button) {
+        return;
+    }
+    crate_version_copy_button.onclick = () => {
+        let crate_version = crate_version_copy_button.parentElement.textContent;
+        let snippet = `${window.currentCrate} = "${crate_version}"`;
+
+        copyContentToClipboard(snippet);
+        copyButtonAnimation(crate_version_copy_button);
+    };
+
     // Copy buttons on code examples.
     function copyCode(codeElem) {
         if (!codeElem) {
