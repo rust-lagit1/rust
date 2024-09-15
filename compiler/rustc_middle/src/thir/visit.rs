@@ -259,5 +259,9 @@ pub fn walk_pat<'thir, 'tcx: 'thir, V: Visitor<'thir, 'tcx>>(
                 visitor.visit_pat(pat);
             }
         }
+        Guard { subpattern, condition } => {
+            visitor.visit_pat(subpattern);
+            visitor.visit_expr(&visitor.thir()[*condition]);
+        }
     };
 }
