@@ -995,10 +995,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     ) {
         let span = path.span;
         if let Some(stability) = &ext.stability {
-            if let StabilityLevel::Unstable { reason, issue, is_soft, implied_by } = stability.level
+            if let StabilityLevel::Unstable { feature, reason, issue, is_soft, implied_by } = stability.level
             {
-                let feature = stability.feature;
-
                 let is_allowed = |feature| {
                     self.tcx.features().declared_features.contains(&feature)
                         || span.allows_unstable(feature)
