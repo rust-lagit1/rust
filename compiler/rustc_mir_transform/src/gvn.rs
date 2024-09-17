@@ -905,6 +905,9 @@ impl<'body, 'tcx> VnState<'body, 'tcx> {
             ProjectionElem::Downcast(symbol, idx) => ProjectionElem::Downcast(symbol, idx),
             ProjectionElem::OpaqueCast(idx) => ProjectionElem::OpaqueCast(idx),
             ProjectionElem::Subtype(idx) => ProjectionElem::Subtype(idx),
+            ProjectionElem::UnsafeBinderCast(kind, ty) => {
+                ProjectionElem::UnsafeBinderCast(kind, ty)
+            }
         })
     }
 

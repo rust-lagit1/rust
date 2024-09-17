@@ -226,6 +226,12 @@ impl<'a, 'tcx> DropElaborator<'a, 'tcx> for ElaborateDropsCtxt<'a, 'tcx> {
         })
     }
 
+    fn unsafe_binder_subpath(&self, path: Self::Path) -> Option<Self::Path> {
+        rustc_mir_dataflow::move_path_children_matching(self.move_data(), path, |e| {
+            matches!(e, ProjectionElem::UnsafeBinderCast(..))
+        })
+    }
+
     fn get_drop_flag(&mut self, path: Self::Path) -> Option<Operand<'tcx>> {
         self.drop_flag(path).map(Operand::Copy)
     }

@@ -1,5 +1,6 @@
 use std::{fmt, iter};
 
+use rustc_hir::UnsafeBinderCastKind;
 use rustc_hir::lang_items::LangItem;
 use rustc_index::Idx;
 use rustc_middle::mir::patch::MirPatch;
@@ -152,6 +153,11 @@ pub trait DropElaborator<'a, 'tcx>: fmt::Debug {
     ///
     /// This is only relevant for array patterns, which can move out of individual array elements.
     fn array_subpath(&self, path: Self::Path, index: u64, size: u64) -> Option<Self::Path>;
+
+    /// Returns the subpath of casting an unsafe binder.
+    ///
+    /// If this returns `None`, elements of `path` will not get a dedicated drop flag.
+    fn unsafe_binder_subpath(&self, path: Self::Path) -> Option<Self::Path>;
 }
 
 #[derive(Debug)]
@@ -847,7 +853,7 @@ where
     /// ADT, both in the success case or if one of the destructors fail.
     fn open_drop(&mut self) -> BasicBlock {
         let ty = self.place_ty(self.place);
-        match ty.kind() {
+        match *ty.kind() {
             ty::Closure(_, args) => self.open_drop_for_tuple(args.as_closure().upvar_tys()),
             ty::CoroutineClosure(_, args) => {
                 self.open_drop_for_tuple(args.as_coroutine_closure().upvar_tys())
@@ -860,13 +866,26 @@ where
             // See librustc_body/transform/coroutine.rs for more details.
             ty::Coroutine(_, args) => self.open_drop_for_tuple(args.as_coroutine().upvar_tys()),
             ty::Tuple(fields) => self.open_drop_for_tuple(fields),
-            ty::Adt(def, args) => self.open_drop_for_adt(*def, args),
+            ty::Adt(def, args) => self.open_drop_for_adt(def, args),
             ty::Dynamic(..) => self.complete_drop(self.succ, self.unwind),
             ty::Array(ety, size) => {
                 let size = size.try_eval_target_usize(self.tcx(), self.elaborator.param_env());
-                self.open_drop_for_array(*ety, size)
+                self.open_drop_for_array(ety, size)
             }
-            ty::Slice(ety) => self.drop_loop_pair(*ety),
+            ty::Slice(ety) => self.drop_loop_pair(ety),
+            ty::UnsafeBinder(binder) => {
+                let ty = self.tcx().instantiate_bound_regions_with_erased(binder.into());
+                let fields = vec![(
+                    self.place.project_deeper(
+                        &[ProjectionElem::UnsafeBinderCast(UnsafeBinderCastKind::Unwrap, ty)],
+                        self.tcx(),
+                    ),
+                    self.elaborator.unsafe_binder_subpath(self.path),
+                )];
+
+                let (succ, unwind) = self.drop_ladder_bottom();
+                self.drop_ladder(fields, succ, unwind).0
+            }
 
             _ => span_bug!(self.source_info.span, "open drop from non-ADT `{:?}`", ty),
         }

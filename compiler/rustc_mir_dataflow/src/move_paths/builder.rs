@@ -1,5 +1,6 @@
 use std::mem;
 
+use rustc_hir::UnsafeBinderCastKind;
 use rustc_index::IndexVec;
 use rustc_middle::mir::tcx::{PlaceTy, RvalueInitializationState};
 use rustc_middle::mir::*;
@@ -215,7 +216,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Infer(_)
                     | ty::Error(_)
                     | ty::Placeholder(_) => bug!(
-                        "When Place contains ProjectionElem::Field it's type shouldn't be {place_ty:#?}"
+                        "When Place contains ProjectionElem::Field its type shouldn't be {place_ty:#?}"
                     ),
                 },
                 ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. } => {
@@ -233,6 +234,10 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     }
                     _ => bug!("Unexpected type {place_ty:#?}"),
                 },
+                ProjectionElem::UnsafeBinderCast(UnsafeBinderCastKind::Unwrap, _) => {}
+                ProjectionElem::UnsafeBinderCast(UnsafeBinderCastKind::Wrap, _) => {
+                    union_path.get_or_insert(base);
+                }
                 // `OpaqueCast`:Only transmutes the type, so no moves there.
                 // `Downcast`  :Only changes information about a `Place` without moving.
                 // `Subtype`   :Only transmutes the type, so moves.
@@ -240,8 +245,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                 // So it's safe to skip these.
                 ProjectionElem::OpaqueCast(_)
                 | ProjectionElem::Subtype(_)
-                | ProjectionElem::Downcast(_, _)
-                | ProjectionElem::UnsafeBinderCast(_, _) => (),
+                | ProjectionElem::Downcast(_, _) => (),
             }
             let elem_ty = PlaceTy::from_ty(place_ty).projection_ty(tcx, elem).ty;
             if !(self.filter)(elem_ty) {

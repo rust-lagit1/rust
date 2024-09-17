@@ -1953,12 +1953,15 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                 ProjectionElem::OpaqueCast(_) |
                 ProjectionElem::ConstantIndex { .. } |
                 // assigning to P[i] requires P to be valid.
-                ProjectionElem::Downcast(_/*adt_def*/, _/*variant_idx*/) |
-                ProjectionElem::UnsafeBinderCast(..) =>
+                ProjectionElem::Downcast(_/*adt_def*/, _/*variant_idx*/) =>
                 // assigning to (P->variant) is okay if assigning to `P` is okay
                 //
                 // FIXME: is this true even if P is an adt with a dtor?
                 { }
+
+                ProjectionElem::UnsafeBinderCast(..) => {
+                    check_parent_of_field(self, location, place_base, span, state);
+                }
 
                 // assigning to (*P) requires P to be initialized
                 ProjectionElem::Deref => {

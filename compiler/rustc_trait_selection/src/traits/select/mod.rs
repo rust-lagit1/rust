@@ -2342,8 +2342,8 @@ impl<'tcx> SelectionContext<'_, 'tcx> {
             | ty::Never
             | ty::Char => ty::Binder::dummy(Vec::new()),
 
-            // TODO: binder needs opening
-            ty::UnsafeBinder(_) => todo!(),
+            // FIXME(unsafe_binders): Squash the double binder for now, I guess.
+            ty::UnsafeBinder(_) => return Err(SelectionError::Unimplemented),
 
             // Treat this like `struct str([u8]);`
             ty::Str => ty::Binder::dummy(vec![Ty::new_slice(self.tcx(), self.tcx().types.u8)]),
