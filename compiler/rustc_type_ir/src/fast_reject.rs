@@ -41,6 +41,7 @@ pub enum SimplifiedType<DefId> {
     Coroutine(DefId),
     CoroutineWitness(DefId),
     Function(usize),
+    UnsafeBinder,
     Placeholder,
     Error,
 }
@@ -138,7 +139,7 @@ pub fn simplify_type<I: Interner>(
         ty::FnPtr(sig_tys, _hdr) => {
             Some(SimplifiedType::Function(sig_tys.skip_binder().inputs().len()))
         }
-        ty::UnsafeBinder(binder) => simplify_type(cx, binder.skip_binder(), treat_params),
+        ty::UnsafeBinder(_) => Some(SimplifiedType::UnsafeBinder),
         ty::Placeholder(..) => Some(SimplifiedType::Placeholder),
         ty::Param(_) => match treat_params {
             TreatParams::AsRigid => Some(SimplifiedType::Placeholder),
