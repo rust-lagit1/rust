@@ -153,6 +153,7 @@ fn never_loop_expr<'tcx>(
         ExprKind::Unary(_, e)
         | ExprKind::Cast(e, _)
         | ExprKind::Type(e, _)
+        | ExprKind::UnsafeBinderCast(_, e, _)
         | ExprKind::Field(e, _)
         | ExprKind::AddrOf(_, _, e)
         | ExprKind::Repeat(e, _)

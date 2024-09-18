@@ -686,6 +686,9 @@ pub fn for_each_unconsumed_temporary<'tcx, B>(
             ExprKind::Type(e, _) => {
                 helper(typeck, consume, e, f)?;
             },
+            ExprKind::UnsafeBinderCast(_, e, _) => {
+                helper(typeck, consume, e, f)?;
+            },
 
             // Either drops temporaries, jumps out of the current expression, or has no sub expression.
             ExprKind::DropTemps(_)

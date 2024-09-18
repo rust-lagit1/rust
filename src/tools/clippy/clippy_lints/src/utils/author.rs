@@ -626,6 +626,10 @@ impl<'a, 'tcx> PrintVisitor<'a, 'tcx> {
                 kind!("DropTemps({expr})");
                 self.expr(expr);
             },
+            ExprKind::UnsafeBinderCast(..) => {
+                // FIXME(unsafe_binders): Implement this.
+                todo!()
+            }
         }
     }
 

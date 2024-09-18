@@ -576,7 +576,7 @@ impl FromWithTcx<clean::Type> for Type {
     fn from_tcx(ty: clean::Type, tcx: TyCtxt<'_>) -> Self {
         use clean::Type::{
             Array, BareFunction, BorrowedRef, Generic, ImplTrait, Infer, Primitive, QPath,
-            RawPointer, SelfTy, Slice, Tuple,
+            RawPointer, SelfTy, Slice, Tuple, UnsafeBinder,
         };
 
         match ty {
@@ -614,6 +614,8 @@ impl FromWithTcx<clean::Type> for Type {
                 self_type: Box::new(self_type.into_tcx(tcx)),
                 trait_: trait_.map(|trait_| trait_.into_tcx(tcx)),
             },
+            // FIXME(unsafe_binder): Implement rustdoc-json.
+            UnsafeBinder(_) => todo!(),
         }
     }
 }

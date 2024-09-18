@@ -822,7 +822,8 @@ fn get_index_type_id(
         | clean::Generic(_)
         | clean::SelfTy
         | clean::ImplTrait(_)
-        | clean::Infer => None,
+        | clean::Infer
+        | clean::UnsafeBinder(_) => None,
     }
 }
 

@@ -1844,6 +1844,9 @@ pub(crate) fn clean_ty<'tcx>(ty: &hir::Ty<'tcx>, cx: &mut DocContext<'tcx>) -> T
             DynTrait(bounds, lifetime)
         }
         TyKind::BareFn(barefn) => BareFunction(Box::new(clean_bare_fn_ty(barefn, cx))),
+        TyKind::UnsafeBinder(unsafe_binder_ty) => {
+            UnsafeBinder(Box::new(clean_unsafe_binder_ty(unsafe_binder_ty, cx)))
+        }
         // Rustdoc handles `TyKind::Err`s by turning them into `Type::Infer`s.
         TyKind::Infer | TyKind::Err(_) | TyKind::Typeof(..) | TyKind::InferDelegation(..) => Infer,
         TyKind::AnonAdt(..) => {
@@ -2068,6 +2071,11 @@ pub(crate) fn clean_middle_ty<'tcx>(
                 decl,
                 abi: sig.abi(),
             }))
+        }
+        ty::UnsafeBinder(inner) => {
+            let generic_params = clean_bound_vars(inner.bound_vars());
+            let ty = clean_middle_ty(inner.into(), cx, None, None);
+            UnsafeBinder(Box::new(UnsafeBinderTy { generic_params, ty }))
         }
         ty::Adt(def, args) => {
             let did = def.did();
@@ -2564,6 +2572,21 @@ fn clean_bare_fn_ty<'tcx>(
         (generic_params, decl)
     });
     BareFunctionDecl { safety: bare_fn.safety, abi: bare_fn.abi, decl, generic_params }
+}
+
+fn clean_unsafe_binder_ty<'tcx>(
+    unsafe_binder_ty: &hir::UnsafeBinderTy<'tcx>,
+    cx: &mut DocContext<'tcx>,
+) -> UnsafeBinderTy {
+    // NOTE: generics must be cleaned before args
+    let generic_params = unsafe_binder_ty
+        .generic_params
+        .iter()
+        .filter(|p| !is_elided_lifetime(p))
+        .map(|x| clean_generic_param(cx, None, x))
+        .collect();
+    let ty = clean_ty(unsafe_binder_ty.inner_ty, cx);
+    UnsafeBinderTy { generic_params, ty }
 }
 
 pub(crate) fn reexport_chain(

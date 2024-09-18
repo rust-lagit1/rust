@@ -294,6 +294,7 @@ fn expr_eagerness<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) -> EagernessS
                 | ExprKind::Lit(_)
                 | ExprKind::Cast(..)
                 | ExprKind::Type(..)
+                | ExprKind::UnsafeBinderCast(..)
                 | ExprKind::DropTemps(_)
                 | ExprKind::Let(..)
                 | ExprKind::If(..)

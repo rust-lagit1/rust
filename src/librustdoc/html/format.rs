@@ -1035,6 +1035,11 @@ fn fmt_type(
             }
             decl.decl.print(cx).fmt(f)
         }
+        clean::UnsafeBinder(ref binder) => {
+            // FIXME(unsafe_binders): This should print `unsafe<...>`
+            print_higher_ranked_params_with_space(&binder.generic_params, cx).fmt(f)?;
+            binder.ty.print(cx).fmt(f)
+        }
         clean::Tuple(ref typs) => match &typs[..] {
             &[] => primitive_link(f, PrimitiveType::Unit, format_args!("()"), cx),
             [one] => {
