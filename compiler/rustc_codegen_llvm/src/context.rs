@@ -25,6 +25,7 @@ use rustc_session::config::{
 use rustc_session::Session;
 use rustc_span::source_map::Spanned;
 use rustc_span::{Span, DUMMY_SP};
+use rustc_symbol_mangling::mangle_internal_symbol;
 use rustc_target::abi::call::FnAbi;
 use rustc_target::abi::{HasDataLayout, TargetDataLayout, VariantIdx};
 use rustc_target::spec::{HasTargetSpec, RelocModel, SmallDataThresholdSupport, Target, TlsModel};
@@ -1106,7 +1107,7 @@ impl<'ll> CodegenCx<'ll, '_> {
             Some(def_id) => self.get_static(def_id),
             _ => {
                 let ty = self.type_struct(&[self.type_ptr(), self.type_ptr()], false);
-                self.declare_global("rust_eh_catch_typeinfo", ty)
+                self.declare_global(&mangle_internal_symbol(self.tcx, "rust_eh_catch_typeinfo"), ty)
             }
         };
         self.eh_catch_typeinfo.set(Some(eh_catch_typeinfo));
