@@ -180,7 +180,7 @@ pub(crate) struct Pick<'tcx> {
     pub self_ty: Ty<'tcx>,
 
     /// Unstable candidates alongside the stable ones.
-    unstable_candidates: Vec<(Candidate<'tcx>, Symbol)>,
+    unstable_candidates: Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1063,7 +1063,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
 
     fn pick_all_method(
         &self,
-        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         self.steps
             .iter()
@@ -1128,7 +1128,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
         &self,
         step: &CandidateStep<'tcx>,
         self_ty: Ty<'tcx>,
-        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         if step.unsize {
             return None;
@@ -1172,7 +1172,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
         step: &CandidateStep<'tcx>,
         self_ty: Ty<'tcx>,
         mutbl: hir::Mutability,
-        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         let tcx = self.tcx;
 
@@ -1196,7 +1196,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
         &self,
         step: &CandidateStep<'tcx>,
         self_ty: Ty<'tcx>,
-        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         if !self.tcx.features().pin_ergonomics {
             return None;
@@ -1234,7 +1234,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
         &self,
         step: &CandidateStep<'tcx>,
         self_ty: Ty<'tcx>,
-        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         // Don't convert an unsized reference to ptr
         if step.unsize {
@@ -1258,7 +1258,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
     fn pick_method(
         &self,
         self_ty: Ty<'tcx>,
-        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         debug!("pick_method(self_ty={})", self.ty_to_string(self_ty));
 
@@ -1304,7 +1304,7 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
             Option<ty::Predicate<'tcx>>,
             Option<ObligationCause<'tcx>>,
         )>,
-        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, Symbol)>>,
+        mut unstable_candidates: Option<&mut Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>>,
     ) -> Option<PickResult<'tcx>> {
         let mut applicable_candidates: Vec<_> = candidates
             .iter()
@@ -1326,10 +1326,13 @@ impl<'a, 'tcx> ProbeContext<'a, 'tcx> {
 
         if let Some(uc) = &mut unstable_candidates {
             applicable_candidates.retain(|&(candidate, _)| {
-                if let stability::EvalResult::Deny { feature, .. } =
+                if let stability::EvalResult::Deny { denials, .. } =
                     self.tcx.eval_stability(candidate.item.def_id, None, self.span, None)
                 {
-                    uc.push((candidate.clone(), feature));
+                    uc.push((
+                        candidate.clone(),
+                        denials.iter().map(|d| d.unstability.feature).collect(),
+                    ));
                     return false;
                 }
                 true
@@ -1428,8 +1431,10 @@ impl<'tcx> Pick<'tcx> {
             tcx.disabled_nightly_features(
                 lint,
                 Some(scope_expr_id),
-                self.unstable_candidates.iter().map(|(candidate, feature)| {
-                    (format!(" `{}`", tcx.def_path_str(candidate.item.def_id)), *feature)
+                self.unstable_candidates.iter().flat_map(|(candidate, features)| {
+                    features.iter().map(|feature| {
+                        (format!(" `{}`", tcx.def_path_str(candidate.item.def_id)), *feature)
+                    })
                 }),
             );
         });
@@ -2017,7 +2022,7 @@ impl<'tcx> Candidate<'tcx> {
     fn to_unadjusted_pick(
         &self,
         self_ty: Ty<'tcx>,
-        unstable_candidates: Vec<(Candidate<'tcx>, Symbol)>,
+        unstable_candidates: Vec<(Candidate<'tcx>, SmallVec<[Symbol; 1]>)>,
     ) -> Pick<'tcx> {
         Pick {
             item: self.item,
