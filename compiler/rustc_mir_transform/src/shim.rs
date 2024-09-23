@@ -616,6 +616,8 @@ impl<'tcx> CloneShimBuilder<'tcx> {
                     target: unwind,
                     unwind: UnwindAction::Terminate(UnwindTerminateReason::InCleanup),
                     replace: false,
+                    drop: None,
+                    async_fut: None,
                 },
                 /* is_cleanup */ true,
             );
@@ -878,6 +880,8 @@ fn build_call_shim<'tcx>(
                 target: BasicBlock::new(2),
                 unwind: UnwindAction::Continue,
                 replace: false,
+                drop: None,
+                async_fut: None,
             },
             false,
         );
@@ -894,6 +898,8 @@ fn build_call_shim<'tcx>(
                 target: BasicBlock::new(4),
                 unwind: UnwindAction::Terminate(UnwindTerminateReason::InCleanup),
                 replace: false,
+                drop: None,
+                async_fut: None,
             },
             /* is_cleanup */ true,
         );

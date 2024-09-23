@@ -690,7 +690,14 @@ impl<'a, 'tcx, R> rustc_mir_dataflow::ResultsVisitor<'a, 'tcx, R>
             TerminatorKind::SwitchInt { discr, targets: _ } => {
                 self.consume_operand(loc, (discr, span), state);
             }
-            TerminatorKind::Drop { place, target: _, unwind: _, replace } => {
+            TerminatorKind::Drop {
+                place,
+                target: _,
+                unwind: _,
+                replace,
+                drop: _,
+                async_fut: _,
+            } => {
                 debug!(
                     "visit_terminator_drop \
                      loc: {:?} term: {:?} place: {:?} span: {:?}",
