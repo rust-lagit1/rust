@@ -3544,7 +3544,7 @@ impl Step for TestFloatParse {
         }
 
         // Run any unit tests in the crate
-        let cargo_test = tool::prepare_tool_cargo(
+        let mut cargo_test = tool::prepare_tool_cargo(
             builder,
             compiler,
             Mode::ToolStd,
@@ -3554,6 +3554,7 @@ impl Step for TestFloatParse {
             SourceType::InTree,
             &[],
         );
+        cargo_test.allow_features("f16");
 
         run_cargo_test(
             cargo_test,
@@ -3577,6 +3578,7 @@ impl Step for TestFloatParse {
             SourceType::InTree,
             &[],
         );
+        cargo_run.allow_features("f16");
 
         cargo_run.arg("--");
         if builder.config.args().is_empty() {
