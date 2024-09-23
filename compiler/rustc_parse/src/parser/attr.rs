@@ -1,6 +1,7 @@
 use rustc_ast as ast;
 use rustc_ast::attr;
 use rustc_ast::token::{self, Delimiter};
+use rustc_ast::tokenstream::ParserRange;
 use rustc_errors::codes::*;
 use rustc_errors::{Diag, PResult};
 use rustc_span::symbol::kw;
@@ -9,8 +10,7 @@ use thin_vec::ThinVec;
 use tracing::debug;
 
 use super::{
-    AttrWrapper, Capturing, FnParseMode, ForceCollect, Parser, ParserRange, PathStyle, Trailing,
-    UsePreAttrPos,
+    AttrWrapper, Capturing, FnParseMode, ForceCollect, Parser, PathStyle, Trailing, UsePreAttrPos,
 };
 use crate::{errors, fluent_generated as fluent, maybe_whole};
 
