@@ -274,6 +274,7 @@ impl Command {
                 size: value_size,
                 pointer: value_ptr as isize,
             }),
+        );
     }
 
     pub fn spawn(

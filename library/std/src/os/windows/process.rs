@@ -426,7 +426,9 @@ impl CommandExt for process::Command {
         value_ptr: *const c_void,
         value_size: usize,
     ) -> &mut process::Command {
-        self.as_inner_mut().raw_attribute_ptr(attribute, value_ptr, value_size);
+        unsafe {
+            self.as_inner_mut().raw_attribute_ptr(attribute, value_ptr, value_size);
+        }
         self
     }
 }
