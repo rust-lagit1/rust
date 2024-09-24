@@ -468,6 +468,20 @@ impl<'a, 'tcx> ThirPrinter<'a, 'tcx> {
                 self.print_expr(*source, depth_lvl + 2);
                 print_indented!(self, "}", depth_lvl);
             }
+            PlaceUnsafeBinderCast { source, kind } => {
+                print_indented!(self, "PlaceUnsafeBinderCast {", depth_lvl);
+                print_indented!(self, format!("kind: {kind:?}"), depth_lvl + 1);
+                print_indented!(self, "source:", depth_lvl + 1);
+                self.print_expr(*source, depth_lvl + 2);
+                print_indented!(self, "}", depth_lvl);
+            }
+            ValueUnsafeBinderCast { source, kind } => {
+                print_indented!(self, "ValueUnsafeBinderCast {", depth_lvl);
+                print_indented!(self, format!("kind: {kind:?}"), depth_lvl + 1);
+                print_indented!(self, "source:", depth_lvl + 1);
+                self.print_expr(*source, depth_lvl + 2);
+                print_indented!(self, "}", depth_lvl);
+            }
             Closure(closure_expr) => {
                 print_indented!(self, "Closure {", depth_lvl);
                 print_indented!(self, "closure_expr:", depth_lvl + 1);

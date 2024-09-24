@@ -15,7 +15,7 @@ use std::ops::Index;
 use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece};
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{BindingMode, ByRef, HirId, MatchSource, RangeEnd};
+use rustc_hir::{BindingMode, ByRef, HirId, MatchSource, RangeEnd, UnsafeBinderCastKind};
 use rustc_index::{IndexVec, newtype_index};
 use rustc_macros::{HashStable, TyDecodable, TyEncodable, TypeVisitable};
 use rustc_middle::middle::region;
@@ -459,6 +459,16 @@ pub enum ExprKind<'tcx> {
         source: ExprId,
         /// Type that the user gave to this expression
         user_ty: UserTy<'tcx>,
+    },
+    /// An unsafe binder cast on a place, e.g. `unwrap_unsafe_binder!(x)`.
+    PlaceUnsafeBinderCast {
+        kind: UnsafeBinderCastKind,
+        source: ExprId,
+    },
+    /// An unsafe binder cast on a value, e.g. `wrap_unsafe_binder!(1; unsafe<> i32)`.
+    ValueUnsafeBinderCast {
+        kind: UnsafeBinderCastKind,
+        source: ExprId,
     },
     /// A closure definition.
     Closure(Box<ClosureExpr<'tcx>>),

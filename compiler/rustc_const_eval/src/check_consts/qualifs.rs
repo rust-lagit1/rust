@@ -337,7 +337,8 @@ where
             | ProjectionElem::ConstantIndex { .. }
             | ProjectionElem::Subslice { .. }
             | ProjectionElem::Downcast(_, _)
-            | ProjectionElem::Index(_) => {}
+            | ProjectionElem::Index(_)
+            | ProjectionElem::UnsafeBinderCast(..) => {}
         }
 
         let base_ty = place_base.ty(cx.body, cx.tcx);

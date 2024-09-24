@@ -933,6 +933,7 @@ impl<'hir> Map<'hir> {
             Node::WhereBoundPredicate(pred) => pred.span,
             Node::ArrayLenInfer(inf) => inf.span,
             Node::PreciseCapturingNonLifetimeArg(param) => param.ident.span,
+            Node::UnsafeBinder(binder) => binder.span,
             Node::Synthetic => unreachable!(),
             Node::Err(span) => span,
         }
@@ -1215,6 +1216,7 @@ fn hir_id_to_string(map: Map<'_>, id: HirId) -> String {
         Node::Synthetic => unreachable!(),
         Node::Err(_) => node_str("error"),
         Node::PreciseCapturingNonLifetimeArg(_param) => node_str("parameter"),
+        Node::UnsafeBinder(_) => node_str("unsafe binder"),
     }
 }
 

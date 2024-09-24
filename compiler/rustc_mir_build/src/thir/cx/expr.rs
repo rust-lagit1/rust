@@ -857,6 +857,17 @@ impl<'tcx> Cx<'tcx> {
                     ExprKind::ValueTypeAscription { source: mirrored, user_ty }
                 }
             }
+
+            hir::ExprKind::UnsafeBinderCast(kind, source, _ty) => {
+                // FIXME(unsafe_binders): Take into account the ascribed type, too.
+                let mirrored = self.mirror_expr(source);
+                if source.is_syntactic_place_expr() {
+                    ExprKind::PlaceUnsafeBinderCast { source: mirrored, kind }
+                } else {
+                    ExprKind::ValueUnsafeBinderCast { source: mirrored, kind }
+                }
+            }
+
             hir::ExprKind::DropTemps(source) => ExprKind::Use { source: self.mirror_expr(source) },
             hir::ExprKind::Array(fields) => ExprKind::Array { fields: self.mirror_exprs(fields) },
             hir::ExprKind::Tup(fields) => ExprKind::Tuple { fields: self.mirror_exprs(fields) },

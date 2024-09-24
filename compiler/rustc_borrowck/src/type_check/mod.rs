@@ -742,6 +742,48 @@ impl<'a, 'b, 'tcx> TypeVerifier<'a, 'b, 'tcx> {
                     .unwrap();
                 PlaceTy::from_ty(ty)
             }
+            ProjectionElem::UnsafeBinderCast(kind, ty) => match kind {
+                hir::UnsafeBinderCastKind::Wrap => {
+                    let ty::UnsafeBinder(binder_ty) = *ty.kind() else {
+                        bug!();
+                    };
+                    let expected_ty = self.cx.infcx.instantiate_binder_with_fresh_vars(
+                        self.body().source_info(location).span,
+                        BoundRegionConversionTime::HigherRankedType,
+                        binder_ty.into(),
+                    );
+                    self.cx
+                        .relate_types(
+                            expected_ty,
+                            self.get_ambient_variance(context),
+                            base_ty,
+                            location.to_locations(),
+                            ConstraintCategory::TypeAnnotation,
+                        )
+                        .unwrap();
+                    PlaceTy::from_ty(ty)
+                }
+                hir::UnsafeBinderCastKind::Unwrap => {
+                    let ty::UnsafeBinder(binder_ty) = *base_ty.kind() else {
+                        bug!();
+                    };
+                    let found_ty = self.cx.infcx.instantiate_binder_with_fresh_vars(
+                        self.body().source_info(location).span,
+                        BoundRegionConversionTime::HigherRankedType,
+                        binder_ty.into(),
+                    );
+                    self.cx
+                        .relate_types(
+                            ty,
+                            self.get_ambient_variance(context),
+                            found_ty,
+                            location.to_locations(),
+                            ConstraintCategory::TypeAnnotation,
+                        )
+                        .unwrap();
+                    PlaceTy::from_ty(ty)
+                }
+            },
         }
     }
 
@@ -2744,7 +2786,8 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
                 | ProjectionElem::OpaqueCast(..)
                 | ProjectionElem::Index(..)
                 | ProjectionElem::ConstantIndex { .. }
-                | ProjectionElem::Subslice { .. } => {
+                | ProjectionElem::Subslice { .. }
+                | ProjectionElem::UnsafeBinderCast(..) => {
                     // other field access
                 }
                 ProjectionElem::Subtype(_) => {

@@ -1,5 +1,6 @@
 use std::mem;
 
+use rustc_hir::UnsafeBinderCastKind;
 use rustc_index::IndexVec;
 use rustc_middle::mir::tcx::{PlaceTy, RvalueInitializationState};
 use rustc_middle::mir::*;
@@ -161,6 +162,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Slice(_)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(..)
                     | ty::Dynamic(_, _, _)
                     | ty::Closure(..)
                     | ty::CoroutineClosure(..)
@@ -204,6 +206,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Ref(_, _, _)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(_)
                     | ty::Dynamic(_, _, _)
                     | ty::CoroutineWitness(..)
                     | ty::Never
@@ -213,7 +216,7 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     | ty::Infer(_)
                     | ty::Error(_)
                     | ty::Placeholder(_) => bug!(
-                        "When Place contains ProjectionElem::Field it's type shouldn't be {place_ty:#?}"
+                        "When Place contains ProjectionElem::Field its type shouldn't be {place_ty:#?}"
                     ),
                 },
                 ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. } => {
@@ -231,9 +234,14 @@ impl<'a, 'tcx, F: Fn(Ty<'tcx>) -> bool> MoveDataBuilder<'a, 'tcx, F> {
                     }
                     _ => bug!("Unexpected type {place_ty:#?}"),
                 },
+                ProjectionElem::UnsafeBinderCast(UnsafeBinderCastKind::Unwrap, _) => {}
+                ProjectionElem::UnsafeBinderCast(UnsafeBinderCastKind::Wrap, _) => {
+                    union_path.get_or_insert(base);
+                }
                 // `OpaqueCast`:Only transmutes the type, so no moves there.
                 // `Downcast`  :Only changes information about a `Place` without moving.
                 // `Subtype`   :Only transmutes the type, so moves.
+                // `UnsafeBinderCast`: Only transmutes the place without moving.
                 // So it's safe to skip these.
                 ProjectionElem::OpaqueCast(_)
                 | ProjectionElem::Subtype(_)

@@ -5,8 +5,8 @@
 
 use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece, Mutability};
 use rustc_data_structures::packed::Pu128;
-use rustc_hir::CoroutineKind;
 use rustc_hir::def_id::DefId;
+use rustc_hir::{CoroutineKind, UnsafeBinderCastKind};
 use rustc_index::IndexVec;
 use rustc_macros::{HashStable, TyDecodable, TyEncodable, TypeFoldable, TypeVisitable};
 use rustc_span::Span;
@@ -1165,6 +1165,8 @@ pub enum ProjectionElem<V, T> {
     /// Like an explicit cast from an opaque type to a concrete type, but without
     /// requiring an intermediate variable.
     OpaqueCast(T),
+
+    UnsafeBinderCast(UnsafeBinderCastKind, T),
 
     /// A `Subtype(T)` projection is applied to any `StatementKind::Assign` where
     /// type of lvalue doesn't match the type of rvalue, the primary goal is making subtyping

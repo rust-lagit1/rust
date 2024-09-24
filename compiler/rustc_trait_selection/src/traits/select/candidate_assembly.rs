@@ -654,7 +654,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 continue;
             }
 
-            match obligation.self_ty().skip_binder().kind() {
+            let self_ty = obligation.self_ty().skip_binder();
+            match self_ty.kind() {
                 // Fast path to avoid evaluating an obligation that trivially holds.
                 // There may be more bounds, but these are checked by the regular path.
                 ty::FnPtr(..) => return false,
@@ -667,6 +668,9 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 | ty::Param(..)
                 | ty::Bound(_, _) => {}
 
+                // FIXME: Function definitions could actually implement `FnPtr` by
+                // casting the ZST function def to a function pointer.
+                ty::FnDef(_, _) => return true,
                 // These can't possibly implement `FnPtr` as they are concrete types
                 // and not `FnPtr`
                 ty::Bool
@@ -686,12 +690,13 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 | ty::CoroutineClosure(..)
                 | ty::Coroutine(_, _)
                 | ty::CoroutineWitness(..)
+                | ty::UnsafeBinder(_)
                 | ty::Never
                 | ty::Tuple(_)
-                | ty::Error(_) => return true,
-                // FIXME: Function definitions could actually implement `FnPtr` by
-                // casting the ZST function def to a function pointer.
-                ty::FnDef(_, _) => return true,
+                | ty::Error(_) => {
+                    debug_assert!(self_ty.is_known_rigid());
+                    return true;
+                }
             }
 
             // Generic params can implement `FnPtr` if the predicate
@@ -829,7 +834,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 | ty::Coroutine(..)
                 | ty::Never
                 | ty::Tuple(_)
-                | ty::CoroutineWitness(..) => {
+                | ty::CoroutineWitness(..)
+                | ty::UnsafeBinder(_) => {
                     // Only consider auto impls if there are no manual impls for the root of `self_ty`.
                     //
                     // For example, we only consider auto candidates for `&i32: Auto` if no explicit impl
@@ -1200,6 +1206,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 // not structurally... so don't push a candidate.
             }
 
+            ty::UnsafeBinder(_) => todo!(),
+
             ty::Bool
             | ty::Char
             | ty::Int(_)
@@ -1295,6 +1303,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             | ty::FnDef(_, _)
             | ty::Pat(_, _)
             | ty::FnPtr(..)
+            | ty::UnsafeBinder(_)
             | ty::Dynamic(_, _, _)
             | ty::Closure(..)
             | ty::CoroutineClosure(..)
@@ -1364,6 +1373,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             | ty::CoroutineClosure(..)
             | ty::Coroutine(..)
             | ty::CoroutineWitness(..)
+            | ty::UnsafeBinder(_)
             | ty::Never
             | ty::Tuple(..)
             | ty::Alias(..)

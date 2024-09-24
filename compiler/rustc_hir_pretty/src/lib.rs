@@ -123,6 +123,7 @@ impl<'a> State<'a> {
                 self.print_bounds(":", pred.bounds);
             }
             Node::ArrayLenInfer(_) => self.word("_"),
+            Node::UnsafeBinder(binder) => self.print_unsafe_binder(binder),
             Node::Synthetic => unreachable!(),
             Node::Err(_) => self.word("/*ERROR*/"),
         }
@@ -293,6 +294,9 @@ impl<'a> State<'a> {
             hir::TyKind::BareFn(f) => {
                 self.print_ty_fn(f.abi, f.safety, f.decl, None, f.generic_params, f.param_names);
             }
+            hir::TyKind::UnsafeBinder(unsafe_binder) => {
+                self.print_unsafe_binder(unsafe_binder);
+            }
             hir::TyKind::OpaqueDef(..) => self.word("/*impl Trait*/"),
             hir::TyKind::Path(ref qpath) => self.print_qpath(qpath, false),
             hir::TyKind::TraitObject(bounds, lifetime, syntax) => {
@@ -346,6 +350,15 @@ impl<'a> State<'a> {
             }
         }
         self.end()
+    }
+
+    fn print_unsafe_binder(&mut self, unsafe_binder: &hir::UnsafeBinderTy<'_>) {
+        self.ibox(INDENT_UNIT);
+        self.word("unsafe");
+        self.print_generic_params(unsafe_binder.generic_params);
+        self.nbsp();
+        self.print_type(unsafe_binder.inner_ty);
+        self.end();
     }
 
     fn print_foreign_item(&mut self, item: &hir::ForeignItem<'_>) {
@@ -1522,6 +1535,19 @@ impl<'a> State<'a> {
                     }
                 }
 
+                self.word(")");
+            }
+            hir::ExprKind::UnsafeBinderCast(kind, expr, ty) => {
+                match kind {
+                    hir::UnsafeBinderCastKind::Wrap => self.word("wrap_unsafe_binder!("),
+                    hir::UnsafeBinderCastKind::Unwrap => self.word("unwrap_unsafe_binder!("),
+                }
+                self.print_expr(expr);
+                if let Some(ty) = ty {
+                    self.word(",");
+                    self.space();
+                    self.print_type(ty);
+                }
                 self.word(")");
             }
             hir::ExprKind::Yield(expr, _) => {

@@ -8,7 +8,7 @@ use rustc_ast::{
 };
 pub use rustc_ast::{
     BinOp, BinOpKind, BindingMode, BorrowKind, ByRef, CaptureBy, ImplPolarity, IsAuto, Movability,
-    Mutability, UnOp,
+    Mutability, UnOp, UnsafeBinderCastKind,
 };
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::sorted_map::SortedMap;
@@ -1755,9 +1755,10 @@ impl Expr<'_> {
             ExprKind::Struct(..) => ExprPrecedence::Struct,
             ExprKind::Repeat(..) => ExprPrecedence::Repeat,
             ExprKind::Yield(..) => ExprPrecedence::Yield,
-            ExprKind::Type(..) | ExprKind::InlineAsm(..) | ExprKind::OffsetOf(..) => {
-                ExprPrecedence::Mac
-            }
+            ExprKind::Type(..)
+            | ExprKind::InlineAsm(..)
+            | ExprKind::OffsetOf(..)
+            | ExprKind::UnsafeBinderCast(..) => ExprPrecedence::Mac,
             ExprKind::Err(_) => ExprPrecedence::Err,
         }
     }
@@ -1784,6 +1785,9 @@ impl Expr<'_> {
             // operand. See:
             // https://github.com/rust-lang/rfcs/blob/master/text/0803-type-ascription.md#type-ascription-and-temporaries
             ExprKind::Type(ref e, _) => e.is_place_expr(allow_projections_from),
+
+            // Unsafe binder cast preserves place-ness of the sub-expression.
+            ExprKind::UnsafeBinderCast(_, e, _) => e.is_place_expr(allow_projections_from),
 
             ExprKind::Unary(UnOp::Deref, _) => true,
 
@@ -1866,7 +1870,8 @@ impl Expr<'_> {
             | ExprKind::Field(base, _)
             | ExprKind::Index(base, _, _)
             | ExprKind::AddrOf(.., base)
-            | ExprKind::Cast(base, _) => {
+            | ExprKind::Cast(base, _)
+            | ExprKind::UnsafeBinderCast(_, base, _) => {
                 // This isn't exactly true for `Index` and all `Unary`, but we are using this
                 // method exclusively for diagnostics and there's a *cultural* pressure against
                 // them being used only for its side-effects.
@@ -2122,6 +2127,10 @@ pub enum ExprKind<'hir> {
 
     /// A suspension point for coroutines (i.e., `yield <expr>`).
     Yield(&'hir Expr<'hir>, YieldSource),
+
+    /// Operators which can be used to interconvert `unsafe` binder types.
+    /// e.g. `unsafe<'a> &'a i32` <=> `&i32`.
+    UnsafeBinderCast(UnsafeBinderCastKind, &'hir Expr<'hir>, Option<&'hir Ty<'hir>>),
 
     /// A placeholder for an expression that wasn't syntactically well formed in some way.
     Err(rustc_span::ErrorGuaranteed),
@@ -2748,6 +2757,14 @@ pub struct BareFnTy<'hir> {
 }
 
 #[derive(Debug, Clone, Copy, HashStable_Generic)]
+pub struct UnsafeBinderTy<'hir> {
+    pub hir_id: HirId,
+    pub span: Span,
+    pub generic_params: &'hir [GenericParam<'hir>],
+    pub inner_ty: &'hir Ty<'hir>,
+}
+
+#[derive(Debug, Clone, Copy, HashStable_Generic)]
 pub struct OpaqueTy<'hir> {
     pub generics: &'hir Generics<'hir>,
     pub bounds: GenericBounds<'hir>,
@@ -2839,6 +2856,8 @@ pub enum TyKind<'hir> {
     Ref(&'hir Lifetime, MutTy<'hir>),
     /// A bare function (e.g., `fn(usize) -> bool`).
     BareFn(&'hir BareFnTy<'hir>),
+    /// Uwu
+    UnsafeBinder(&'hir UnsafeBinderTy<'hir>),
     /// The never type (`!`).
     Never,
     /// A tuple (`(A, B, C, D, ...)`).
@@ -3810,6 +3829,7 @@ pub enum Node<'hir> {
     // FIXME: Merge into `Node::Infer`.
     ArrayLenInfer(&'hir InferArg),
     PreciseCapturingNonLifetimeArg(&'hir PreciseCapturingNonLifetimeArg),
+    UnsafeBinder(&'hir UnsafeBinderTy<'hir>),
     // Created by query feeding
     Synthetic,
     Err(Span),
@@ -3862,6 +3882,7 @@ impl<'hir> Node<'hir> {
             | Node::Infer(..)
             | Node::WhereBoundPredicate(..)
             | Node::ArrayLenInfer(..)
+            | Node::UnsafeBinder(..)
             | Node::Synthetic
             | Node::Err(..) => None,
         }

@@ -282,6 +282,7 @@ where
             | ty::Ref(..)
             | ty::Pat(..)
             | ty::FnPtr(..)
+            | ty::UnsafeBinder(_)
             | ty::Param(..)
             | ty::Bound(..)
             | ty::Error(_)

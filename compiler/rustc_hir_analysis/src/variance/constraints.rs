@@ -322,6 +322,11 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
                 self.add_constraints_from_sig(current, sig_tys.with(hdr), variance);
             }
 
+            ty::UnsafeBinder(ty) => {
+                let invariant = self.invariant(variance);
+                self.add_constraints_from_ty(current, ty.skip_binder(), invariant);
+            }
+
             ty::Error(_) => {
                 // we encounter this when walking the trait references for object
                 // types, where we use Error as the Self type

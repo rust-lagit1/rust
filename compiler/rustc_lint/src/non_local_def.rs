@@ -436,6 +436,8 @@ fn ty_has_local_parent(
         | TyKind::Ptr(_)
         | TyKind::Ref(_, _)
         | TyKind::BareFn(_)
+        // FIXME(unsafe_binders): Do we want to consider this local?
+        | TyKind::UnsafeBinder(_)
         | TyKind::Never
         | TyKind::Tup(_)
         | TyKind::Path(_)

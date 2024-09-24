@@ -1329,6 +1329,7 @@ impl Expr {
             | ExprKind::Type(..)
             | ExprKind::OffsetOf(..)
             | ExprKind::FormatArgs(..)
+            | ExprKind::UnsafeBinderCast(..)
             | ExprKind::MacCall(..) => ExprPrecedence::Mac,
             ExprKind::Err(_) | ExprKind::Dummy => ExprPrecedence::Err,
         }
@@ -1455,7 +1456,13 @@ pub enum ExprKind {
     /// `'label: for await? pat in iter { block }`
     ///
     /// This is desugared to a combination of `loop` and `match` expressions.
-    ForLoop { pat: P<Pat>, iter: P<Expr>, body: P<Block>, label: Option<Label>, kind: ForLoopKind },
+    ForLoop {
+        pat: P<Pat>,
+        iter: P<Expr>,
+        body: P<Block>,
+        label: Option<Label>,
+        kind: ForLoopKind,
+    },
     /// Conditionless loop (can be exited with `break`, `continue`, or `return`).
     ///
     /// `'label: loop { block }`
@@ -1560,6 +1567,8 @@ pub enum ExprKind {
     /// A `format_args!()` expression.
     FormatArgs(P<FormatArgs>),
 
+    UnsafeBinderCast(UnsafeBinderCastKind, P<Expr>, Option<P<Ty>>),
+
     /// Placeholder for an expression that wasn't syntactically well formed in some way.
     Err(ErrorGuaranteed),
 
@@ -1596,6 +1605,16 @@ impl GenBlockKind {
             GenBlockKind::AsyncGen => "async gen",
         }
     }
+}
+
+/// Whether we're unwrapping or wrapping an unsafe binder
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Encodable, Decodable, HashStable_Generic)]
+pub enum UnsafeBinderCastKind {
+    // e.g. `&i32` -> `unsafe<'a> &'a i32`
+    Wrap,
+    // e.g. `unsafe<'a> &'a i32` -> `&i32`
+    Unwrap,
 }
 
 /// The explicit `Self` type in a "qualified path". The actual
@@ -2148,6 +2167,12 @@ pub struct BareFnTy {
     pub decl_span: Span,
 }
 
+#[derive(Clone, Encodable, Decodable, Debug)]
+pub struct UnsafeBinderTy {
+    pub generic_params: ThinVec<GenericParam>,
+    pub inner_ty: P<Ty>,
+}
+
 /// The various kinds of type recognized by the compiler.
 //
 // Adding a new variant? Please update `test_ty` in `tests/ui/macros/stringify.rs`.
@@ -2163,6 +2188,8 @@ pub enum TyKind {
     Ref(Option<Lifetime>, MutTy),
     /// A bare function (e.g., `fn(usize) -> bool`).
     BareFn(P<BareFnTy>),
+    /// An unsafe existential lifetime binder (e.g., `unsafe<'a> &'a ()`).
+    UnsafeBinder(P<UnsafeBinderTy>),
     /// The never type (`!`).
     Never,
     /// A tuple (`(A, B, C, D,...)`).

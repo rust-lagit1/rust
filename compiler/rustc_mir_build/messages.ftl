@@ -8,6 +8,7 @@ mir_build_bindings_with_variant_name =
     pattern binding `{$name}` is named the same as one of the variants of the type `{$ty_path}`
     .suggestion = to match on the variant, qualify the path
 
+
 mir_build_borrow = value is borrowed by `{$name}` here
 
 mir_build_borrow_of_layout_constrained_field_requires_unsafe =
@@ -339,6 +340,18 @@ mir_build_unreachable_pattern = unreachable pattern
     .unreachable_covered_by_one = matches all the relevant values
     .unreachable_covered_by_many = multiple earlier patterns match some of the same values
     .suggestion = remove the match arm
+
+mir_build_unsafe_binder_cast_requires_unsafe =
+    unsafe binder cast is unsafe and requires unsafe block
+    .label = unsafe binder cast
+    .note = casting to or from an `unsafe<...>` binder type is unsafe since it erases lifetime
+        information that may be required to uphold safety guarantees of a type
+
+mir_build_unsafe_binder_cast_requires_unsafe_unsafe_op_in_unsafe_fn_allowed =
+    unsafe binder cast is unsafe and requires unsafe block or unsafe fn
+    .label = unsafe binder cast
+    .note = casting to or from an `unsafe<...>` binder type is unsafe since it erases lifetime
+        information that may be required to uphold safety guarantees of a type
 
 mir_build_unsafe_fn_safe_body = an unsafe function restricts its caller, but its body is safe by default
 mir_build_unsafe_not_inherited = items do not inherit unsafety from separate enclosing items

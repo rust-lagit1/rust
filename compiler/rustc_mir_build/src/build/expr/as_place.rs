@@ -106,7 +106,8 @@ fn convert_to_hir_projections_and_truncate_for_capture(
             ProjectionElem::OpaqueCast(_) | ProjectionElem::Subtype(..) => continue,
             ProjectionElem::Index(..)
             | ProjectionElem::ConstantIndex { .. }
-            | ProjectionElem::Subslice { .. } => {
+            | ProjectionElem::Subslice { .. }
+            | ProjectionElem::UnsafeBinderCast(..) => {
                 // We don't capture array-access projections.
                 // We can stop here as arrays are captured completely.
                 break;
@@ -522,6 +523,22 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 block.and(PlaceBuilder::from(temp))
             }
 
+            ExprKind::PlaceUnsafeBinderCast { source, kind } => {
+                let place_builder = unpack!(
+                    block = this.expr_as_place(block, source, mutability, fake_borrow_temps,)
+                );
+                block.and(place_builder.project(PlaceElem::UnsafeBinderCast(kind, expr.ty)))
+            }
+            ExprKind::ValueUnsafeBinderCast { source, kind } => {
+                let source_expr = &this.thir[source];
+                let temp = unpack!(
+                    block = this.as_temp(block, source_expr.temp_lifetime, source, mutability)
+                );
+                block.and(
+                    PlaceBuilder::from(temp).project(PlaceElem::UnsafeBinderCast(kind, expr.ty)),
+                )
+            }
+
             ExprKind::Array { .. }
             | ExprKind::Tuple { .. }
             | ExprKind::Adt { .. }
@@ -712,7 +729,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     | ProjectionElem::OpaqueCast(..)
                     | ProjectionElem::Subtype(..)
                     | ProjectionElem::ConstantIndex { .. }
-                    | ProjectionElem::Subslice { .. } => (),
+                    | ProjectionElem::Subslice { .. }
+                    | ProjectionElem::UnsafeBinderCast(..) => (),
                 }
             }
         }

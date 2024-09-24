@@ -1634,6 +1634,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                     | ty::Slice(_)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(_)
                     | ty::Dynamic(_, _, _)
                     | ty::Closure(_, _)
                     | ty::CoroutineClosure(_, _)
@@ -1679,6 +1680,7 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                     | ty::Ref(_, _, _)
                     | ty::FnDef(_, _)
                     | ty::FnPtr(..)
+                    | ty::UnsafeBinder(_)
                     | ty::Dynamic(_, _, _)
                     | ty::CoroutineWitness(..)
                     | ty::Never
@@ -1722,7 +1724,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                 // So it's safe to skip these.
                 ProjectionElem::OpaqueCast(_)
                 | ProjectionElem::Subtype(_)
-                | ProjectionElem::Downcast(_, _) => (),
+                | ProjectionElem::Downcast(_, _)
+                | ProjectionElem::UnsafeBinderCast(_, _) => (),
             }
 
             place_ty = place_ty.projection_ty(tcx, elem);
@@ -1955,6 +1958,10 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                 //
                 // FIXME: is this true even if P is an adt with a dtor?
                 { }
+
+                ProjectionElem::UnsafeBinderCast(..) => {
+                    check_parent_of_field(self, location, place_base, span, state);
+                }
 
                 // assigning to (*P) requires P to be initialized
                 ProjectionElem::Deref => {
@@ -2339,7 +2346,8 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
                     | ProjectionElem::Subslice { .. }
                     | ProjectionElem::Subtype(..)
                     | ProjectionElem::OpaqueCast { .. }
-                    | ProjectionElem::Downcast(..) => {
+                    | ProjectionElem::Downcast(..)
+                    | ProjectionElem::UnsafeBinderCast(..) => {
                         let upvar_field_projection = self.is_upvar_field_projection(place);
                         if let Some(field) = upvar_field_projection {
                             let upvar = &self.upvars[field.index()];

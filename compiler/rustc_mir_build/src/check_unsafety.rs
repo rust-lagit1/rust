@@ -422,6 +422,8 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             | ExprKind::NeverToAny { .. }
             | ExprKind::PlaceTypeAscription { .. }
             | ExprKind::ValueTypeAscription { .. }
+            | ExprKind::PlaceUnsafeBinderCast { .. }
+            | ExprKind::ValueUnsafeBinderCast { .. }
             | ExprKind::PointerCoercion { .. }
             | ExprKind::Repeat { .. }
             | ExprKind::StaticRef { .. }
@@ -625,6 +627,9 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
                     }
                 }
             }
+            ExprKind::PlaceUnsafeBinderCast { .. } | ExprKind::ValueUnsafeBinderCast { .. } => {
+                self.requires_unsafe(expr.span, UnsafeBinderCast);
+            }
             _ => {}
         }
         visit::walk_expr(self, expr);
@@ -671,6 +676,7 @@ enum UnsafeOpKind {
         /// (e.g., with `-C target-feature`).
         build_enabled: Vec<Symbol>,
     },
+    UnsafeBinderCast,
 }
 
 use UnsafeOpKind::*;
@@ -810,6 +816,15 @@ impl UnsafeOpKind {
                             .collect(),
                     ),
                     build_target_features_count: build_enabled.len(),
+                    unsafe_not_inherited_note,
+                },
+            ),
+            UnsafeBinderCast => tcx.emit_node_span_lint(
+                UNSAFE_OP_IN_UNSAFE_FN,
+                hir_id,
+                span,
+                UnsafeOpInUnsafeFnUnsafeBinderCastRequiresUnsafe {
+                    span,
                     unsafe_not_inherited_note,
                 },
             ),
@@ -997,6 +1012,15 @@ impl UnsafeOpKind {
                     unsafe_not_inherited_note,
                     function: tcx.def_path_str(*function),
                 });
+            }
+            UnsafeBinderCast if unsafe_op_in_unsafe_fn_allowed => {
+                dcx.emit_err(UnsafeBinderCastRequiresUnsafeUnsafeOpInUnsafeFnAllowed {
+                    span,
+                    unsafe_not_inherited_note,
+                });
+            }
+            UnsafeBinderCast => {
+                dcx.emit_err(UnsafeBinderCastRequiresUnsafe { span, unsafe_not_inherited_note });
             }
         }
     }

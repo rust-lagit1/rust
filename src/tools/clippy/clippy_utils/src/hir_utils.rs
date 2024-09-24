@@ -347,6 +347,10 @@ impl HirEqInterExpr<'_, '_, '_> {
             },
             (&ExprKind::Tup(l_tup), &ExprKind::Tup(r_tup)) => self.eq_exprs(l_tup, r_tup),
             (&ExprKind::Type(le, lt), &ExprKind::Type(re, rt)) => self.eq_expr(le, re) && self.eq_ty(lt, rt),
+            (&ExprKind::UnsafeBinderCast(lkind, le, None), &ExprKind::UnsafeBinderCast(rkind, re, None)) =>
+                lkind == rkind && self.eq_expr(le, re),
+            (&ExprKind::UnsafeBinderCast(lkind, le, Some(lt)), &ExprKind::UnsafeBinderCast(rkind, re, Some(rt))) =>
+                lkind == rkind && self.eq_expr(le, re) && self.eq_ty(lt, rt),
             (&ExprKind::Unary(l_op, le), &ExprKind::Unary(r_op, re)) => l_op == r_op && self.eq_expr(le, re),
             (&ExprKind::Yield(le, _), &ExprKind::Yield(re, _)) => return self.eq_expr(le, re),
             (
@@ -381,6 +385,7 @@ impl HirEqInterExpr<'_, '_, '_> {
                 | &ExprKind::Type(..)
                 | &ExprKind::Unary(..)
                 | &ExprKind::Yield(..)
+                | &ExprKind::UnsafeBinderCast(..)
 
                 // --- Special cases that do not have a positive branch.
 
@@ -928,6 +933,13 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
                 std::mem::discriminant(&lop).hash(&mut self.s);
                 self.hash_expr(le);
             },
+            ExprKind::UnsafeBinderCast(kind, e, t) => {
+                std::mem::discriminant(&kind).hash(&mut self.s);
+                self.hash_expr(e);
+                if let Some(t) = t {
+                    self.hash_ty(t);
+                }
+            }
             ExprKind::Err(_) => {},
         }
     }
@@ -1125,6 +1137,10 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
             TyKind::Typeof(anon_const) => {
                 self.hash_body(anon_const.body);
             },
+            TyKind::UnsafeBinder(binder) => {
+                // FIXME(unsafe_binder): Hash generics...
+                self.hash_ty(binder.inner_ty);
+            }
             TyKind::Err(_) | TyKind::Infer | TyKind::Never | TyKind::InferDelegation(..) | TyKind::AnonAdt(_) => {},
         }
     }

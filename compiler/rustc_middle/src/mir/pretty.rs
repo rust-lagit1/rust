@@ -1271,6 +1271,14 @@ fn pre_fmt_projection(projection: &[PlaceElem<'_>], fmt: &mut Formatter<'_>) -> 
             ProjectionElem::Index(_)
             | ProjectionElem::ConstantIndex { .. }
             | ProjectionElem::Subslice { .. } => {}
+            ProjectionElem::UnsafeBinderCast(kind, _) => match kind {
+                hir::UnsafeBinderCastKind::Wrap => {
+                    write!(fmt, "wrap_unsafe_binder!(")?;
+                }
+                rustc_ast::UnsafeBinderCastKind::Unwrap => {
+                    write!(fmt, "unwrap_unsafe_binder!(")?;
+                }
+            },
         }
     }
 
@@ -1318,6 +1326,9 @@ fn post_fmt_projection(projection: &[PlaceElem<'_>], fmt: &mut Formatter<'_>) ->
             }
             ProjectionElem::Subslice { from, to, from_end: false } => {
                 write!(fmt, "[{from:?}..{to:?}]")?;
+            }
+            ProjectionElem::UnsafeBinderCast(_, ty) => {
+                write!(fmt, "; {ty})")?;
             }
         }
     }
