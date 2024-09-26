@@ -850,7 +850,7 @@ impl<A: Step> Iterator for ops::Range<A> {
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         if self.start < self.end {
-            (0, Some(0));
+            (0, Some(0))
         } else {
             Step::steps_between(&self.start, &self.end)
         }
