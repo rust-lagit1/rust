@@ -32,7 +32,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
             if cast_ty == dest.layout.ty { dest.layout } else { self.layout_of(cast_ty)? };
         // FIXME: In which cases should we trigger UB when the source is uninit?
         match cast_kind {
-            CastKind::PointerCoercion(PointerCoercion::Unsize) => {
+            CastKind::PointerCoercion(PointerCoercion::Unsize, _) => {
                 self.unsize_into(src, cast_layout, dest)?;
             }
 
@@ -68,11 +68,12 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
 
             CastKind::PointerCoercion(
                 PointerCoercion::MutToConstPointer | PointerCoercion::ArrayToPointer,
+                _,
             ) => {
                 bug!("{cast_kind:?} casts are for borrowck only, not runtime MIR");
             }
 
-            CastKind::PointerCoercion(PointerCoercion::ReifyFnPointer) => {
+            CastKind::PointerCoercion(PointerCoercion::ReifyFnPointer, _) => {
                 // All reifications must be monomorphic, bail out otherwise.
                 ensure_monomorphic_enough(*self.tcx, src.layout.ty)?;
 
@@ -94,7 +95,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 }
             }
 
-            CastKind::PointerCoercion(PointerCoercion::UnsafeFnPointer) => {
+            CastKind::PointerCoercion(PointerCoercion::UnsafeFnPointer, _) => {
                 let src = self.read_immediate(src)?;
                 match cast_ty.kind() {
                     ty::FnPtr(..) => {
@@ -105,7 +106,7 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 }
             }
 
-            CastKind::PointerCoercion(PointerCoercion::ClosureFnPointer(_)) => {
+            CastKind::PointerCoercion(PointerCoercion::ClosureFnPointer(_), _) => {
                 // All reifications must be monomorphic, bail out otherwise.
                 ensure_monomorphic_enough(*self.tcx, src.layout.ty)?;
 
@@ -125,10 +126,10 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 }
             }
 
-            CastKind::DynStar => {
+            CastKind::PointerCoercion(PointerCoercion::DynStar, _) => {
                 if let ty::Dynamic(data, _, ty::DynStar) = cast_ty.kind() {
                     // Initial cast from sized to dyn trait
-                    let vtable = self.get_vtable_ptr(src.layout.ty, data.principal())?;
+                    let vtable = self.get_vtable_ptr(src.layout.ty, data)?;
                     let vtable = Scalar::from_maybe_pointer(vtable, self);
                     let data = self.read_immediate(src)?.to_scalar();
                     let _assert_pointer_like = data.to_pointer(self)?;
@@ -446,12 +447,12 @@ impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
                 }
 
                 // Get the destination trait vtable and return that.
-                let new_vptr = self.get_vtable_ptr(ty, data_b.principal())?;
+                let new_vptr = self.get_vtable_ptr(ty, data_b)?;
                 self.write_immediate(Immediate::new_dyn_trait(old_data, new_vptr, self), dest)
             }
             (_, &ty::Dynamic(data, _, ty::Dyn)) => {
                 // Initial cast from sized to dyn trait
-                let vtable = self.get_vtable_ptr(src_pointee_ty, data.principal())?;
+                let vtable = self.get_vtable_ptr(src_pointee_ty, data)?;
                 let ptr = self.read_pointer(src)?;
                 let val = Immediate::new_dyn_trait(ptr, vtable, &*self.tcx);
                 self.write_immediate(val, dest)

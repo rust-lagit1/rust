@@ -1516,11 +1516,7 @@ pub const unsafe fn read<T>(src: *const T) -> T {
 #[inline]
 #[stable(feature = "ptr_unaligned", since = "1.17.0")]
 #[rustc_const_stable(feature = "const_ptr_read", since = "1.71.0")]
-#[rustc_allow_const_fn_unstable(
-    const_mut_refs,
-    const_maybe_uninit_as_mut_ptr,
-    const_intrinsic_copy
-)]
+#[cfg_attr(bootstrap, rustc_allow_const_fn_unstable(const_mut_refs))]
 #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
 #[rustc_diagnostic_item = "ptr_read_unaligned"]
 pub const unsafe fn read_unaligned<T>(src: *const T) -> T {
@@ -1734,7 +1730,7 @@ pub const unsafe fn write_unaligned<T>(dst: *mut T, src: T) {
     // `dst` cannot overlap `src` because the caller has mutable access
     // to `dst` while `src` is owned by this function.
     unsafe {
-        copy_nonoverlapping(addr_of!(src) as *const u8, dst as *mut u8, mem::size_of::<T>());
+        copy_nonoverlapping((&raw const src) as *const u8, dst as *mut u8, mem::size_of::<T>());
         // We are calling the intrinsic directly to avoid function calls in the generated code.
         intrinsics::forget(src);
     }
@@ -2352,7 +2348,6 @@ impl<F: FnPtr> fmt::Debug for F {
 /// no difference whether the pointer is null or dangling.)
 #[stable(feature = "raw_ref_macros", since = "1.51.0")]
 #[rustc_macro_transparency = "semitransparent"]
-#[allow_internal_unstable(raw_ref_op)]
 pub macro addr_of($place:expr) {
     &raw const $place
 }
@@ -2443,7 +2438,6 @@ pub macro addr_of($place:expr) {
 /// makes no difference whether the pointer is null or dangling.)
 #[stable(feature = "raw_ref_macros", since = "1.51.0")]
 #[rustc_macro_transparency = "semitransparent"]
-#[allow_internal_unstable(raw_ref_op)]
 pub macro addr_of_mut($place:expr) {
     &raw mut $place
 }
