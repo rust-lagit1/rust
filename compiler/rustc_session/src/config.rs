@@ -2092,8 +2092,8 @@ fn parse_assert_incr_state(
     opt_assertion: Option<&str>,
 ) -> Option<IncrementalStateAssertion> {
     match opt_assertion {
-        Some(s) if s == "loaded" => Some(IncrementalStateAssertion::Loaded),
-        Some(s) if s == "not-loaded" => Some(IncrementalStateAssertion::NotLoaded),
+        Some("loaded") => Some(IncrementalStateAssertion::Loaded),
+        Some("not-loaded") => Some(IncrementalStateAssertion::NotLoaded),
         Some(s) => {
             early_dcx.early_fatal(format!("unexpected incremental state assertion value: {s}"))
         }

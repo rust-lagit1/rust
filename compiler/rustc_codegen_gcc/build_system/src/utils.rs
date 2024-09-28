@@ -21,9 +21,9 @@ fn exec_command(
 ) -> Result<ExitStatus, String> {
     let status = get_command_inner(input, cwd, env)
         .spawn()
-        .map_err(|e| command_error(input, &cwd, e))?
+        .map_err(|e| command_error(input, cwd, e))?
         .wait()
-        .map_err(|e| command_error(input, &cwd, e))?;
+        .map_err(|e| command_error(input, cwd, e))?;
     #[cfg(unix)]
     {
         if let Some(signal) = status.signal() {
@@ -31,7 +31,7 @@ fn exec_command(
                 raise(signal as _);
             }
             // In case the signal didn't kill the current process.
-            return Err(command_error(input, &cwd, format!("Process received signal {}", signal)));
+            return Err(command_error(input, cwd, format!("Process received signal {}", signal)));
         }
     }
     Ok(status)
@@ -112,7 +112,7 @@ pub fn run_command_with_env(
     env: Option<&HashMap<String, String>>,
 ) -> Result<Output, String> {
     let output =
-        get_command_inner(input, cwd, env).output().map_err(|e| command_error(input, &cwd, e))?;
+        get_command_inner(input, cwd, env).output().map_err(|e| command_error(input, cwd, e))?;
     check_exit_status(input, cwd, output.status, Some(&output), true)?;
     Ok(output)
 }
