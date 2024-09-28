@@ -92,7 +92,7 @@ fn check_exit_status(
     Err(error)
 }
 
-fn command_error<D: Debug>(input: &[&dyn AsRef<OsStr>], cwd: &Option<&Path>, error: D) -> String {
+fn command_error<D: Debug>(input: &[&dyn AsRef<OsStr>], cwd: Option<&Path>, error: D) -> String {
     format!(
         "Command `{}`{} failed to run: {error:?}",
         input.iter().map(|s| s.as_ref().to_str().unwrap()).collect::<Vec<_>>().join(" "),
