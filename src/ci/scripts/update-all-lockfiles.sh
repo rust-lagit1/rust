@@ -9,6 +9,7 @@ lockfiles=(
     "root=."
     "library=library"
     "rustbook=src/tools/rustbook"
+    "bootstrap=src/bootstrap"
 )
 
 echo "{}" > update_output.json
