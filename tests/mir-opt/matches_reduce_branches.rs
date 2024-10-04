@@ -25,7 +25,7 @@ fn foo(bar: Option<()>) {
 #[custom_mir(dialect = "built")]
 fn my_is_some<T>(bar: Option<T>) -> bool {
     // CHECK-LABEL: fn my_is_some(
-    // CHECK: switchInt
+    // CHECK: = Ne
     // CHECK: return
     mir! {
         {
