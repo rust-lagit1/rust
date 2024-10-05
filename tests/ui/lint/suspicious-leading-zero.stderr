@@ -1,0 +1,29 @@
+error: TODO
+  --> $DIR/suspicious-leading-zero.rs:4:13
+   |
+LL |     let _ = 0111;
+   |             ^
+   |
+note: the lint level is defined here
+  --> $DIR/suspicious-leading-zero.rs:1:9
+   |
+LL | #![deny(suspicious_leading_zero)]
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+help: TODO
+   |
+LL |     let _ = 0o111;
+   |             ~~
+
+error: TODO
+  --> $DIR/suspicious-leading-zero.rs:5:13
+   |
+LL |     let _ = 0007;
+   |             ^
+   |
+help: TODO
+   |
+LL |     let _ = 0o007;
+   |             ~~
+
+error: aborting due to 2 previous errors
+

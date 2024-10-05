@@ -3061,3 +3061,10 @@ pub(crate) enum MutRefSugg {
 #[derive(LintDiagnostic)]
 #[diag(lint_unqualified_local_imports)]
 pub(crate) struct UnqualifiedLocalImportsDiag {}
+
+#[derive(LintDiagnostic)]
+#[diag(lint_suspicious_leading_zero)]
+pub(crate) struct SuspiciousLeadingZero {
+    #[suggestion(code = "0o", style = "verbose", applicability = "maybe-incorrect")]
+    pub span: Span,
+}

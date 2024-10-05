@@ -66,7 +66,7 @@ use crate::lints::{
     BuiltinTrivialBounds, BuiltinTypeAliasBounds, BuiltinUngatedAsyncFnTrackCaller,
     BuiltinUnpermittedTypeInit, BuiltinUnpermittedTypeInitSub, BuiltinUnreachablePub,
     BuiltinUnsafe, BuiltinUnstableFeatures, BuiltinUnusedDocComment, BuiltinUnusedDocCommentSub,
-    BuiltinWhileTrue, InvalidAsmLabel,
+    BuiltinWhileTrue, InvalidAsmLabel, SuspiciousLeadingZero,
 };
 use crate::nonstandard_style::{MethodLateContext, method_context};
 use crate::{
@@ -3032,6 +3032,36 @@ impl EarlyLintPass for SpecialModuleName {
                     _ => continue,
                 }
             }
+        }
+    }
+}
+
+declare_lint! {
+    /// TODO
+    pub SUSPICIOUS_LEADING_ZERO,
+    Warn,
+    "TODO",
+}
+
+declare_lint_pass!(LeadingZero => [SUSPICIOUS_LEADING_ZERO]);
+
+impl EarlyLintPass for LeadingZero {
+    fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &ast::Expr) {
+        if let ast::ExprKind::Lit(literal) = expr.kind
+            && let token::Lit { kind: token::LitKind::Integer, symbol, suffix: _ } = literal
+            && let s = symbol.as_str()
+            && s.starts_with('0')
+            && !["0x", "0b", "0o"].into_iter().any(|prefix| s.starts_with(prefix))
+            // Has some other digits after the leading 0 and all those digits are octal:
+            && let Some(true) = s.bytes().skip(1).try_fold(false, |res, c| match c {
+                b'0'..=b'7' => Some(true),
+                b'8' | b'9' => None,
+                ..=b'/' | b':'.. => Some(res),
+            })
+        {
+            let lit_span = expr.span;
+            let span = lit_span.with_hi(lit_span.lo() + BytePos(1));
+            cx.emit_span_lint(SUSPICIOUS_LEADING_ZERO, span, SuspiciousLeadingZero { span });
         }
     }
 }
