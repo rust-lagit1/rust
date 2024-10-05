@@ -1347,6 +1347,7 @@ impl f16 {
     #[unstable(feature = "f16", issue = "116909")]
     #[must_use = "method returns a new number and does not mutate the original value"]
     pub fn copysign(self, sign: f16) -> f16 {
+        // SAFETY: this is actually a safe intrinsic
         unsafe { intrinsics::copysignf16(self, sign) }
     }
 }

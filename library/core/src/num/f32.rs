@@ -1433,6 +1433,7 @@ impl f32 {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
     pub fn abs(self) -> f32 {
+        // SAFETY: this is actually a safe intrinsic
         unsafe { intrinsics::fabsf32(self) }
     }
 
@@ -1491,6 +1492,7 @@ impl f32 {
     #[inline]
     #[stable(feature = "copysign", since = "1.35.0")]
     pub fn copysign(self, sign: f32) -> f32 {
+        // SAFETY: this is actually a safe intrinsic
         unsafe { intrinsics::copysignf32(self, sign) }
     }
 }
