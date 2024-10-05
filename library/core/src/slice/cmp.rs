@@ -267,10 +267,8 @@ macro_rules! impl_slice_contains {
                     // Make our LANE_COUNT 4x the normal lane count. The compiler will nicely unroll it.
                     const LANE_COUNT: usize = 4 * (128 / (mem::size_of::<$t>() * 8));
                     // SIMD
-                    let mut matches = [false; LANE_COUNT];
                     for chunk in arr.chunks_exact(LANE_COUNT){
-                        matches.iter_mut().zip(chunk).for_each(|(m, x)| *m = *x == *self);
-                        if matches.iter().fold(false, |acc, x| acc | x) {
+                        if chunk.iter().fold(false, |acc, x| acc | (*x == *self)) {
                             return true;
                         }
                     }
