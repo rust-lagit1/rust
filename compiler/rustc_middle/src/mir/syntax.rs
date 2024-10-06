@@ -5,8 +5,8 @@
 
 use rustc_ast::{InlineAsmOptions, InlineAsmTemplatePiece, Mutability};
 use rustc_data_structures::packed::Pu128;
-use rustc_hir::CoroutineKind;
 use rustc_hir::def_id::DefId;
+use rustc_hir::{CoroutineKind, ItemLocalId};
 use rustc_index::IndexVec;
 use rustc_macros::{HashStable, TyDecodable, TyEncodable, TypeFoldable, TypeVisitable};
 use rustc_span::Span;
@@ -705,7 +705,15 @@ pub enum TerminatorKind<'tcx> {
     /// The `replace` flag indicates whether this terminator was created as part of an assignment.
     /// This should only be used for diagnostic purposes, and does not have any operational
     /// meaning.
-    Drop { place: Place<'tcx>, target: BasicBlock, unwind: UnwindAction, replace: bool },
+    Drop {
+        place: Place<'tcx>,
+        target: BasicBlock,
+        unwind: UnwindAction,
+        /// The HIR region scope that this drop is issued for when the evaluation exits the said scope.
+        /// It is provided at best effort and may come from foreign sources due to inlining.
+        scope: Option<(DefId, ItemLocalId)>,
+        replace: bool,
+    },
 
     /// Roughly speaking, evaluates the `func` operand and the arguments, and starts execution of
     /// the referred to function. The operand types must match the argument types of the function.
