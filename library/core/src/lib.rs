@@ -107,6 +107,7 @@
 //
 // Library features:
 // tidy-alphabetical-start
+#![cfg_attr(bootstrap, feature(const_fmt_arguments_new))]
 #![feature(array_ptr_get)]
 #![feature(asm_experimental_arch)]
 #![feature(const_align_of_val)]
@@ -120,13 +121,10 @@
 #![feature(const_char_encode_utf16)]
 #![feature(const_eval_select)]
 #![feature(const_exact_div)]
-#![feature(const_fmt_arguments_new)]
 #![feature(const_hash)]
 #![feature(const_heap)]
-#![feature(const_index_range_slice_index)]
 #![feature(const_ipv4)]
 #![feature(const_ipv6)]
-#![feature(const_likely)]
 #![feature(const_make_ascii)]
 #![feature(const_maybe_uninit_assume_init)]
 #![feature(const_nonnull_new)]
@@ -147,6 +145,7 @@
 #![feature(const_typed_swap)]
 #![feature(const_ub_checks)]
 #![feature(const_unicode_case_lookup)]
+#![feature(core_intrinsics)]
 #![feature(coverage_attribute)]
 #![feature(do_not_recommend)]
 #![feature(internal_impls_macro)]
@@ -161,6 +160,7 @@
 #![feature(ptr_alignment_type)]
 #![feature(ptr_metadata)]
 #![feature(set_ptr_value)]
+#![feature(slice_as_chunks)]
 #![feature(slice_ptr_get)]
 #![feature(str_internals)]
 #![feature(str_split_inclusive_remainder)]
