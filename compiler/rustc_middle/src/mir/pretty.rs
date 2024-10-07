@@ -537,7 +537,7 @@ fn write_coverage_info_hi(
 ) -> io::Result<()> {
     let coverage::CoverageInfoHi {
         num_block_markers: _,
-        branch_spans,
+        branch_arm_lists,
         mcdc_branch_spans,
         mcdc_decision_spans,
     } = coverage_info_hi;
@@ -545,11 +545,12 @@ fn write_coverage_info_hi(
     // Only add an extra trailing newline if we printed at least one thing.
     let mut did_print = false;
 
-    for coverage::BranchSpan { span, true_marker, false_marker } in branch_spans {
-        writeln!(
-            w,
-            "{INDENT}coverage branch {{ true: {true_marker:?}, false: {false_marker:?} }} => {span:?}",
-        )?;
+    for arms in branch_arm_lists {
+        writeln!(w, "{INDENT}coverage branches {{")?;
+        for coverage::BranchArm { span, pre_guard_marker, arm_taken_marker } in arms {
+            writeln!(w, "{INDENT}{INDENT}{pre_guard_marker:?}, {arm_taken_marker:?} => {span:?}")?;
+        }
+        writeln!(w, "{INDENT}}}")?;
         did_print = true;
     }
 

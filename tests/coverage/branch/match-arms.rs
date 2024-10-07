@@ -86,5 +86,3 @@ fn main() {
         call_everything(Enum::D(d));
     }
 }
-
-// FIXME(#124118) Actually instrument match arms for branch coverage.
