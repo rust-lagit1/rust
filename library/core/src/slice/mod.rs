@@ -930,6 +930,7 @@ impl<T> [T] {
     /// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
     #[unstable(feature = "slice_swap_unchecked", issue = "88539")]
     #[rustc_const_unstable(feature = "const_swap", issue = "83163")]
+    #[track_caller]
     pub const unsafe fn swap_unchecked(&mut self, a: usize, b: usize) {
         assert_unsafe_precondition!(
             check_library_ub,
@@ -1276,6 +1277,7 @@ impl<T> [T] {
     #[unstable(feature = "slice_as_chunks", issue = "74985")]
     #[inline]
     #[must_use]
+    #[track_caller]
     pub const unsafe fn as_chunks_unchecked<const N: usize>(&self) -> &[[T; N]] {
         assert_unsafe_precondition!(
             check_language_ub,
@@ -1433,6 +1435,7 @@ impl<T> [T] {
     #[unstable(feature = "slice_as_chunks", issue = "74985")]
     #[inline]
     #[must_use]
+    #[track_caller]
     pub const unsafe fn as_chunks_unchecked_mut<const N: usize>(&mut self) -> &mut [[T; N]] {
         assert_unsafe_precondition!(
             check_language_ub,
@@ -1960,6 +1963,7 @@ impl<T> [T] {
     #[rustc_const_stable(feature = "const_slice_split_at_unchecked", since = "1.77.0")]
     #[inline]
     #[must_use]
+    #[track_caller]
     pub const unsafe fn split_at_unchecked(&self, mid: usize) -> (&[T], &[T]) {
         // FIXME(const-hack): the const function `from_raw_parts` is used to make this
         // function const; previously the implementation used
@@ -2014,6 +2018,7 @@ impl<T> [T] {
     #[cfg_attr(bootstrap, rustc_allow_const_fn_unstable(const_mut_refs))]
     #[inline]
     #[must_use]
+    #[track_caller]
     pub const unsafe fn split_at_mut_unchecked(&mut self, mid: usize) -> (&mut [T], &mut [T]) {
         let len = self.len();
         let ptr = self.as_mut_ptr();
