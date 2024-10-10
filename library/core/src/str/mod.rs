@@ -185,30 +185,49 @@ impl str {
     /// ```
     #[must_use]
     #[stable(feature = "is_char_boundary", since = "1.9.0")]
+    #[rustc_const_unstable(feature = "const_is_char_boundary", issue = "none")]
     #[inline]
-    pub fn is_char_boundary(&self, index: usize) -> bool {
-        // 0 is always ok.
-        // Test for 0 explicitly so that it can optimize out the check
-        // easily and skip reading string data for that case.
-        // Note that optimizing `self.get(..index)` relies on this.
-        if index == 0 {
-            return true;
-        }
+    pub const fn is_char_boundary(&self, index: usize) -> bool {
+        fn is_char_boundary_runtime(s: &str, index: usize) -> bool {
+            // 0 is always ok.
+            // Test for 0 explicitly so that it can optimize out the check
+            // easily and skip reading string data for that case.
+            // Note that optimizing `self.get(..index)` relies on this.
+            if index == 0 {
+                return true;
+            }
 
-        match self.as_bytes().get(index) {
-            // For `None` we have two options:
-            //
-            // - index == self.len()
-            //   Empty strings are valid, so return true
-            // - index > self.len()
-            //   In this case return false
-            //
-            // The check is placed exactly here, because it improves generated
-            // code on higher opt-levels. See PR #84751 for more details.
-            None => index == self.len(),
+            match s.as_bytes().get(index) {
+                // For `None` we have two options:
+                //
+                // - index == self.len()
+                //   Empty strings are valid, so return true
+                // - index > self.len()
+                //   In this case return false
+                //
+                // The check is placed exactly here, because it improves generated
+                // code on higher opt-levels. See PR #84751 for more details.
+                None => index == s.len(),
 
-            Some(&b) => b.is_utf8_char_boundary(),
+                Some(&b) => b.is_utf8_char_boundary(),
+            }
         }
+        const fn is_char_boundary_const(s: &str, index: usize) -> bool {
+            // 0 is always ok, s.len() is always okay
+            if index == 0 || index == s.len() {
+                true
+            } else if index > s.len() {
+                false
+            } else {
+                // now we know index is a valid byte index in s
+                s.as_bytes()[index].is_utf8_char_boundary()
+            }
+        }
+        crate::intrinsics::const_eval_select(
+            (self, index),
+            is_char_boundary_const,
+            is_char_boundary_runtime,
+        )
     }
 
     /// Finds the closest `x` not exceeding `index` where `is_char_boundary(x)` is `true`.
