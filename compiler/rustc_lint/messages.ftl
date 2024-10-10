@@ -772,6 +772,9 @@ lint_suspicious_double_ref_clone =
 lint_suspicious_double_ref_deref =
     using `.deref()` on a double reference, which returns `{$ty}` instead of dereferencing the inner type
 
+lint_suspicious_leading_zero = TODO
+    .suggestion = TODO
+
 lint_tail_expr_drop_order = these values and local bindings have significant drop implementation that will have a different drop order from that of Edition 2021
     .label = these values have significant drop implementation and will observe changes in drop order under Edition 2024
 
