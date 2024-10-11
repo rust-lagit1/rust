@@ -10,7 +10,7 @@ use rustc_middle::ty::{RegionVid, TyCtxt, VarianceDiagInfo};
 use rustc_span::Span;
 use tracing::{debug, instrument};
 
-use crate::region_infer::{PlaceholderTracking, RegionDefinition, RegionTracker};
+use crate::region_infer::{PlaceholderTracking, RegionDefinition, RegionTracker, SccAnnotations};
 use crate::type_check::Locations;
 use crate::universal_regions::UniversalRegions;
 
@@ -60,15 +60,18 @@ impl<'tcx> OutlivesConstraintSet<'tcx> {
     /// Computes cycles (SCCs) in the graph of regions. In particular,
     /// find all regions R1, R2 such that R1: R2 and R2: R1 and group
     /// them into an SCC, and find the relationships between SCCs.
-    pub(crate) fn compute_sccs<A: scc::Annotation, F: Fn(RegionVid) -> A>(
+    pub(crate) fn compute_sccs<
+        A: scc::Annotation,
+        AA: scc::Annotations<RegionVid, ConstraintSccIndex, A>,
+    >(
         &self,
         static_region: RegionVid,
-        definitions: &IndexVec<RegionVid, RegionDefinition<'tcx>>,
-        annotate_region: F,
-    ) -> scc::Sccs<RegionVid, ConstraintSccIndex, A> {
-        let constraint_graph = self.graph(definitions.len());
+        num_region_vars: usize,
+        annotations: &mut AA,
+    ) -> scc::Sccs<RegionVid, ConstraintSccIndex> {
+        let constraint_graph = self.graph(num_region_vars);
         let region_graph = &constraint_graph.region_graph(self, static_region);
-        scc::Sccs::new_with_annotation(&region_graph, annotate_region)
+        scc::Sccs::new_with_annotation(&region_graph, annotations)
     }
 
     /// There is a placeholder violation; add a requirement
@@ -127,20 +130,20 @@ impl<'tcx> OutlivesConstraintSet<'tcx> {
     /// Every constraint added by this method is an
     /// internal `IllegalUniverse` constraint.
     #[instrument(skip(self, universal_regions, definitions))]
-    pub(crate) fn add_outlives_static(
+    pub(crate) fn add_outlives_static<'d>(
         &mut self,
         universal_regions: &UniversalRegions<'tcx>,
-        definitions: &IndexVec<RegionVid, RegionDefinition<'tcx>>,
-    ) -> scc::Sccs<RegionVid, ConstraintSccIndex, PlaceholderTracking> {
+        definitions: &'d IndexVec<RegionVid, RegionDefinition<'tcx>>,
+    ) -> (scc::Sccs<RegionVid, ConstraintSccIndex>, PlaceholderTracking) {
         let fr_static = universal_regions.fr_static;
-        let new_tracker = |r| PlaceholderTracking::On(RegionTracker::new(r, &definitions[r]));
-
-        let sccs = self.compute_sccs(fr_static, definitions, new_tracker);
+        let mut annotations = SccAnnotations::init(definitions);
+        let sccs = self.compute_sccs(fr_static, definitions.len(), &mut annotations);
 
         // Is this SCC already outliving static directly or transitively?
         let mut outlives_static = FxHashSet::default();
 
-        for (scc, annotation) in sccs.all_annotations() {
+        for scc in sccs.all_sccs() {
+            let annotation: RegionTracker = annotations.scc_to_annotation[scc];
             if scc == sccs.scc(fr_static) {
                 // No use adding 'static: 'static.
                 continue;
@@ -178,7 +181,7 @@ impl<'tcx> OutlivesConstraintSet<'tcx> {
 
         // The second kind of violation: a placeholder reaching another placeholder.
         for (scc, rvid) in placeholders_and_sccs {
-            let annotation = sccs.annotation(scc);
+            let annotation = annotations.scc_to_annotation[scc];
 
             if sccs.scc(fr_static) == scc || outlives_static.contains(&scc) {
                 debug!("{:?} already outlives (or is) static", annotation.representative_rvid());
@@ -201,11 +204,16 @@ impl<'tcx> OutlivesConstraintSet<'tcx> {
 
         if !outlives_static.is_empty() {
             debug!("The following SCCs had :'static constraints added: {:?}", outlives_static);
+            let mut annotations = SccAnnotations::init(definitions);
+
             // We changed the constraint set and so must recompute SCCs.
-            self.compute_sccs(fr_static, definitions, new_tracker)
+            (
+                self.compute_sccs(fr_static, definitions.len(), &mut annotations),
+                PlaceholderTracking::On(annotations.scc_to_annotation),
+            )
         } else {
             // If we didn't add any back-edges; no more work needs doing
-            sccs
+            (sccs, PlaceholderTracking::On(annotations.scc_to_annotation))
         }
     }
 }

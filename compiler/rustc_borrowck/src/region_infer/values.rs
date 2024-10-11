@@ -250,10 +250,11 @@ impl<N: Idx> RegionValues<N> {
     /// Creates a new set of "region values" that tracks causal information.
     /// Each of the regions in num_region_variables will be initialized with an
     /// empty set of points and no causal information.
-    pub(crate) fn new(elements: &Rc<DenseLocationMap>, num_universal_regions: usize) -> Self {
+    pub(crate) fn new(elements: Rc<DenseLocationMap>, num_universal_regions: usize) -> Self {
+        let num_points = elements.num_points();
         Self {
-            elements: elements.clone(),
-            points: SparseIntervalMatrix::new(elements.num_points()),
+            elements: elements,
+            points: SparseIntervalMatrix::new(num_points),
             free_regions: SparseBitMatrix::new(num_universal_regions),
         }
     }

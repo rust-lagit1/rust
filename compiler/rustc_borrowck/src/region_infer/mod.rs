@@ -46,89 +46,53 @@ mod reverse_sccs;
 
 pub(crate) mod values;
 
-pub(crate) type ConstraintSccs = Sccs<RegionVid, ConstraintSccIndex, PlaceholderTracking>;
-
-#[derive(Copy, Clone, Debug)]
-pub enum PlaceholderTracking {
-    Off(Representative),
-    On(RegionTracker),
+pub(crate) struct SccAnnotations<'d, 'tcx, A: scc::Annotation> {
+    pub(crate) scc_to_annotation: IndexVec<ConstraintSccIndex, A>,
+    definitions: &'d IndexVec<RegionVid, RegionDefinition<'tcx>>,
 }
 
-impl scc::Annotation for PlaceholderTracking {
-    fn merge_scc(self, other: Self) -> Self {
-        use PlaceholderTracking::*;
-
-        match (self, other) {
-            (Off(this), Off(that)) => Off(this.merge_scc(that)),
-            (On(this), On(that)) => On(this.merge_scc(that)),
-            _ => unreachable!(),
-        }
-    }
-
-    fn merge_reached(self, other: Self) -> Self {
-        use PlaceholderTracking::*;
-
-        match (self, other) {
-            (Off(this), Off(that)) => Off(this.merge_reached(that)),
-            (On(this), On(that)) => On(this.merge_reached(that)),
-            _ => unreachable!(),
-        }
+impl<'d, 'tcx, A: scc::Annotation> SccAnnotations<'d, 'tcx, A> {
+    pub(crate) fn init(definitions: &'d IndexVec<RegionVid, RegionDefinition<'tcx>>) -> Self {
+        Self { scc_to_annotation: IndexVec::new(), definitions }
     }
 }
 
-impl PlaceholderTracking {
-    pub(crate) fn representative_rvid(&self) -> RegionVid {
-        match self {
-            PlaceholderTracking::Off(r) => r.rvid(),
-            PlaceholderTracking::On(region_tracker) => region_tracker.representative_rvid(),
-        }
+impl scc::Annotations<RegionVid, ConstraintSccIndex, RegionTracker>
+    for SccAnnotations<'_, '_, RegionTracker>
+{
+    fn new(&self, element: RegionVid) -> RegionTracker {
+        RegionTracker::new(element, &self.definitions[element])
     }
 
-    pub(crate) fn reaches_other_placeholder(&self, other: RegionVid) -> Option<RegionVid> {
-        match self {
-            PlaceholderTracking::Off(_) => None,
-            PlaceholderTracking::On(region_tracker) => {
-                region_tracker.reaches_other_placeholder(other)
-            }
-        }
+    fn annotate_scc(&mut self, scc: ConstraintSccIndex, annotation: RegionTracker) {
+        let idx = self.scc_to_annotation.push(annotation);
+        assert!(idx == scc);
+    }
+}
+
+impl scc::Annotations<RegionVid, ConstraintSccIndex, Representative>
+    for SccAnnotations<'_, '_, Representative>
+{
+    fn new(&self, element: RegionVid) -> Representative {
+        Representative::new(element, self.definitions)
     }
 
-    pub(crate) fn universe_violation(&self) -> Option<RegionVid> {
-        match self {
-            PlaceholderTracking::Off(_) => None,
-            PlaceholderTracking::On(region_tracker) => region_tracker.universe_violation(),
-        }
+    fn annotate_scc(&mut self, scc: ConstraintSccIndex, annotation: Representative) {
+        let idx = self.scc_to_annotation.push(annotation);
+        assert!(idx == scc);
     }
+}
 
-    fn min_universe(&self) -> UniverseIndex {
-        match self {
-            PlaceholderTracking::Off(_) => UniverseIndex::ROOT, // Not technically correct?
-            PlaceholderTracking::On(region_tracker) => region_tracker.min_universe(),
-        }
-    }
-
-    fn universe_compatible_with(&self, other: PlaceholderTracking) -> bool {
-        use PlaceholderTracking::*;
-        match (self, other) {
-            (Off(_), Off(_)) => true, // Not technically correct?
-            (On(this), On(that)) => this.universe_compatible_with(that),
-            _ => unreachable!(),
-        }
-    }
-
-    fn placeholder_representative(&self) -> Option<RegionVid> {
-        match self {
-            PlaceholderTracking::Off(_) => None,
-            PlaceholderTracking::On(region_tracker) => region_tracker.placeholder_representative(),
-        }
-    }
+pub(crate) enum PlaceholderTracking {
+    Off(IndexVec<ConstraintSccIndex, Representative>),
+    On(IndexVec<ConstraintSccIndex, RegionTracker>),
 }
 
 /// The representative region variable for an SCC, tagged by its origin.
 /// We prefer placeholders over existentially quantified variables, otherwise
 /// it's the one with the smallest Region Variable ID.
 #[derive(Copy, Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub enum Representative {
+pub(crate) enum Representative {
     FreeRegion(RegionVid),
     Placeholder(RegionVid),
     Existential(RegionVid),
@@ -217,7 +181,7 @@ impl PlaceholderReachability {
 /// An annotation for region graph SCCs that tracks
 /// the values of its elements.
 #[derive(Copy, Debug, Clone)]
-pub struct RegionTracker {
+pub(crate) struct RegionTracker {
     /// The representative Region Variable Id for this SCC.
     representative: Representative,
 
@@ -379,7 +343,9 @@ pub struct RegionInferenceContext<'tcx> {
     /// The SCC computed from `constraints` and the constraint
     /// graph. We have an edge from SCC A to SCC B if `A: B`. Used to
     /// compute the values of each region.
-    constraint_sccs: ConstraintSccs,
+    constraint_sccs: Sccs<RegionVid, ConstraintSccIndex>,
+
+    scc_annotations: PlaceholderTracking,
 
     /// Reverse of the SCC constraint graph --  i.e., an edge `A -> B` exists if
     /// `B: A`. This is used to compute the universal regions that are required
@@ -541,9 +507,9 @@ pub(crate) enum ExtraConstraintInfo {
 }
 
 #[instrument(skip(infcx, sccs), level = "debug")]
-fn sccs_info<'tcx, A: scc::Annotation>(
+fn sccs_info<'tcx>(
     infcx: &BorrowckInferCtxt<'tcx>,
-    sccs: &scc::Sccs<RegionVid, ConstraintSccIndex, A>,
+    sccs: &scc::Sccs<RegionVid, ConstraintSccIndex>,
 ) {
     use crate::renumber::RegionCtxt;
 
@@ -624,7 +590,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         universe_causes: FxIndexMap<ty::UniverseIndex, UniverseInfo<'tcx>>,
         type_tests: Vec<TypeTest<'tcx>>,
         mut liveness_constraints: LivenessValues,
-        elements: &Rc<DenseLocationMap>,
+        elements: Rc<DenseLocationMap>,
     ) -> Self {
         debug!("universal_regions: {:#?}", universal_regions);
         debug!("outlives constraints: {:#?}", outlives_constraints);
@@ -650,14 +616,18 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             (definitions, has_placeholders)
         };
 
-        let constraint_sccs = if has_placeholders {
+        let (constraint_sccs, scc_annotations) = if has_placeholders {
             debug!("Placeholders present; activating placeholder handling logic!");
             outlives_constraints.add_outlives_static(&universal_regions, &definitions)
         } else {
             debug!("No placeholders in MIR body; disabling their validation.");
-            outlives_constraints.compute_sccs(universal_regions.fr_static, &definitions, |r| {
-                PlaceholderTracking::Off(Representative::new(r, &definitions))
-            })
+            let mut annotator = SccAnnotations::init(&definitions);
+            let sccs = outlives_constraints.compute_sccs(
+                universal_regions.fr_static,
+                definitions.len(),
+                &mut annotator,
+            );
+            (sccs, PlaceholderTracking::Off(annotator.scc_to_annotation))
         };
         let constraints = Frozen::freeze(outlives_constraints);
         let constraint_graph = Frozen::freeze(constraints.graph(definitions.len()));
@@ -707,6 +677,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             type_tests,
             universal_regions,
             universal_region_relations,
+            scc_annotations,
         }
     }
 
@@ -932,8 +903,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
 
         // If the member region lives in a higher universe, we currently choose
         // the most conservative option by leaving it unchanged.
-
-        if !self.constraint_sccs().annotation(scc).min_universe().is_root() {
+        if !self.scc_universe(scc).is_root() {
             return;
         }
 
@@ -1005,9 +975,13 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// in `scc_a`. Used during constraint propagation, and only once
     /// the value of `scc_b` has been computed.
     fn universe_compatible(&self, scc_b: ConstraintSccIndex, scc_a: ConstraintSccIndex) -> bool {
-        self.constraint_sccs()
-            .annotation(scc_a)
-            .universe_compatible_with(self.constraint_sccs().annotation(scc_b))
+        match &self.scc_annotations {
+            // This isn't technically true but seems to work.
+            PlaceholderTracking::Off(_) => true,
+            PlaceholderTracking::On(annotations) => {
+                annotations[scc_a].universe_compatible_with(annotations[scc_b])
+            }
+        }
     }
 
     /// Once regions have been propagated, this method is used to see
@@ -1115,7 +1089,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             "lower_bound = {:?} r_scc={:?} universe={:?}",
             lower_bound,
             r_scc,
-            self.constraint_sccs.annotation(r_scc).min_universe()
+            self.scc_universe(r_scc)
         );
 
         // If the type test requires that `T: 'a` where `'a` is a
@@ -1125,7 +1099,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         // It doesn't matter *what* universe because the promoted `T` will
         // always be in the root universe.
 
-        if let Some(p) = self.constraint_sccs.annotation(r_scc).placeholder_representative() {
+        if let Some(p) = self.placeholder_representative(r_scc) {
             debug!("encountered placeholder in higher universe: {:?}, requiring 'static", p);
             let static_r = self.universal_regions.fr_static;
             propagated_outlives_requirements.push(ClosureOutlivesRequirement {
@@ -1633,7 +1607,10 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// The minimum universe of any variable reachable from this
     /// SCC, inside or outside of it.
     fn scc_universe(&self, scc: ConstraintSccIndex) -> UniverseIndex {
-        self.constraint_sccs().annotation(scc).min_universe()
+        match &self.scc_annotations {
+            PlaceholderTracking::Off(_) => UniverseIndex::ROOT, // Not technically correct?
+            PlaceholderTracking::On(annotations) => annotations[scc].min_universe(),
+        }
     }
     /// Checks the final value for the free region `fr` to see if it
     /// grew too large. In particular, examine what `end(X)` points
@@ -2303,7 +2280,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// This can be used to quickly under-approximate the regions which are equal to each other
     /// and their relative orderings.
     // This is `pub` because it's used by unstable external borrowck data users, see `consumers.rs`.
-    pub fn constraint_sccs(&self) -> &ConstraintSccs {
+    pub fn constraint_sccs(&self) -> &Sccs<RegionVid, ConstraintSccIndex> {
         &self.constraint_sccs
     }
 
@@ -2343,7 +2320,10 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// they *must* be equal (though not having the same repr does not
     /// mean they are unequal).
     fn scc_representative(&self, scc: ConstraintSccIndex) -> RegionVid {
-        self.constraint_sccs.annotation(scc).representative_rvid()
+        match &self.scc_annotations {
+            PlaceholderTracking::Off(annotations) => annotations[scc].rvid(),
+            PlaceholderTracking::On(annotations) => annotations[scc].representative_rvid(),
+        }
     }
 
     /// Returns true if `r` is `'static`.
@@ -2357,13 +2337,18 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         &self,
         scc: ConstraintSccIndex,
     ) -> Option<PlaceholderRegion> {
-        if let Some(representative) =
-            self.constraint_sccs.annotation(scc).placeholder_representative()
-            && let NllRegionVariableOrigin::Placeholder(p) = self.definitions[representative].origin
-        {
-            Some(p)
-        } else {
-            None
+        match &self.scc_annotations {
+            PlaceholderTracking::Off(_) => None,
+            PlaceholderTracking::On(annotations) => {
+                if let Some(representative) = annotations[scc].placeholder_representative()
+                    && let NllRegionVariableOrigin::Placeholder(p) =
+                        self.definitions[representative].origin
+                {
+                    Some(p)
+                } else {
+                    None
+                }
+            }
         }
     }
 }
