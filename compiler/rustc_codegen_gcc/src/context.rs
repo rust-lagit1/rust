@@ -17,9 +17,12 @@ use rustc_middle::ty::layout::{
 use rustc_middle::ty::{self, Instance, ParamEnv, PolyExistentialTraitRef, Ty, TyCtxt};
 use rustc_session::Session;
 use rustc_span::source_map::respan;
+use rustc_span::symbol::sym;
 use rustc_span::{DUMMY_SP, Span};
 use rustc_target::abi::{HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx};
-use rustc_target::spec::{HasTargetSpec, HasWasmCAbiOpt, Target, TlsModel, WasmCAbi};
+use rustc_target::spec::{
+    HasS390xVector, HasTargetSpec, HasWasmCAbiOpt, Target, TlsModel, WasmCAbi,
+};
 
 use crate::callee::get_fn;
 use crate::common::SignType;
@@ -535,6 +538,13 @@ impl<'gcc, 'tcx> HasTargetSpec for CodegenCx<'gcc, 'tcx> {
 impl<'gcc, 'tcx> HasWasmCAbiOpt for CodegenCx<'gcc, 'tcx> {
     fn wasm_c_abi_opt(&self) -> WasmCAbi {
         self.tcx.sess.opts.unstable_opts.wasm_c_abi
+    }
+}
+
+impl<'gcc, 'tcx> HasS390xVector for CodegenCx<'gcc, 'tcx> {
+    fn has_s390x_vector(&self) -> bool {
+        // `unstable_target_features` is used here because "vector" is gated behind s390x_target_feature.
+        self.tcx.sess.unstable_target_features.contains(&sym::vector)
     }
 }
 
