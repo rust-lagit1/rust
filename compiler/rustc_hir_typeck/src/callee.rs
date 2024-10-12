@@ -570,7 +570,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                         ));
 
                         self.select_obligations_where_possible(|_| {});
-                    } else if idx == 0 && !self.tcx.is_const_fn_raw(def_id) {
+                    } else if idx == 0 && !self.tcx.is_const_fn(def_id) {
                         self.dcx().emit_err(errors::ConstSelectMustBeConst { span });
                     }
                 } else {
