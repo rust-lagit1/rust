@@ -51,7 +51,11 @@ impl PowerPCInlineAsmRegClass {
                 }
             }
             Self::freg => types! { _: F32, F64; },
-            Self::vreg => &[],
+            // FIXME: vsx also supports integers and floats
+            Self::vreg => types! {
+                altivec: VecI8(16), VecI16(8), VecI32(4), VecF32(4);
+                vsx: VecI64(2), VecF64(2);
+            },
             Self::cr | Self::xer => &[],
         }
     }

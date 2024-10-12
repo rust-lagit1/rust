@@ -34,7 +34,7 @@ This feature tracks `asm!` and `global_asm!` support for the following architect
 | PowerPC      | `reg`          | `r0`, `r[3-12]`, `r[14-28]`        | `r`                  |
 | PowerPC      | `reg_nonzero`  | `r[3-12]`, `r[14-28]`              | `b`                  |
 | PowerPC      | `freg`         | `f[0-31]`                          | `f`                  |
-| PowerPC      | `vreg`         | `v[0-31]`                          | Only clobbers        |
+| PowerPC      | `vreg`         | `v[0-31]`                          | `v`                  |
 | PowerPC      | `cr`           | `cr[0-7]`, `cr`                    | Only clobbers        |
 | PowerPC      | `xer`          | `xer`                              | Only clobbers        |
 | wasm32       | `local`        | None\*                             | `r`                  |
@@ -80,7 +80,8 @@ This feature tracks `asm!` and `global_asm!` support for the following architect
 | PowerPC      | `reg`                           | None           | `i8`, `i16`, `i32`, `i64` (powerpc64 only) |
 | PowerPC      | `reg_nonzero`                   | None           | `i8`, `i16`, `i32`, `i64` (powerpc64 only) |
 | PowerPC      | `freg`                          | None           | `f32`, `f64`                            |
-| PowerPC      | `vreg`                          | N/A            | Only clobbers                           |
+| PowerPC      | `vreg`                          | `altivec`      | `vector_bool_char`, `vector_bool_short`, `vector_bool_int`, `vector_signed_char`, `vector_signed_short`, `vector_signed_int`, `vector_unsigned_char`, `vector_unsigned_short`, `vector_unsigned_int`, `vector_float` |
+| PowerPC      | `vreg`                          | `vsx`      | `vector_bool_long`, `vector_signed_long`, `vector_unsigned_long`, `vector_double` |
 | PowerPC      | `cr`                            | N/A            | Only clobbers                           |
 | PowerPC      | `xer`                           | N/A            | Only clobbers                           |
 | wasm32       | `local`                         | None           | `i8` `i16` `i32` `i64` `f32` `f64`      |
@@ -192,6 +193,7 @@ This feature tracks `asm!` and `global_asm!` support for the following architect
 | PowerPC      | `reg`          | None     | `0`            | None          |
 | PowerPC      | `reg_nonzero`  | None     | `3`            | None          |
 | PowerPC      | `freg`         | None     | `0`            | None          |
+| PowerPC      | `vreg`         | None     | `0`            | None          |
 | s390x        | `reg`          | None     | `%r0`          | None          |
 | s390x        | `reg_addr`     | None     | `%r1`          | None          |
 | s390x        | `freg`         | None     | `%f0`          | None          |
