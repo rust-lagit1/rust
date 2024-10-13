@@ -1,7 +1,9 @@
-//@ revisions: s390x
+//@ revisions: s390x s390x_vector
 //@ assembly-output: emit-asm
 //@[s390x] compile-flags: --target s390x-unknown-linux-gnu
 //@[s390x] needs-llvm-components: systemz
+//@[s390x_vector] compile-flags: --target s390x-unknown-linux-gnu -C target-feature=+vector
+//@[s390x_vector] needs-llvm-components: systemz
 //@ compile-flags: -Zmerge-functions=disabled
 
 #![feature(no_core, lang_items, rustc_attrs, repr_simd, asm_experimental_arch)]
@@ -27,7 +29,22 @@ trait Sized {}
 #[lang = "copy"]
 trait Copy {}
 
+impl<T: Copy, const N: usize> Copy for [T; N] {}
+
 type ptr = *const i32;
+
+#[repr(simd)]
+pub struct i8x16([i8; 16]);
+#[repr(simd)]
+pub struct i16x8([i16; 8]);
+#[repr(simd)]
+pub struct i32x4([i32; 4]);
+#[repr(simd)]
+pub struct i64x2([i64; 2]);
+#[repr(simd)]
+pub struct f32x4([f32; 4]);
+#[repr(simd)]
+pub struct f64x2([f64; 2]);
 
 impl Copy for i8 {}
 impl Copy for u8 {}
@@ -37,6 +54,12 @@ impl Copy for i64 {}
 impl Copy for f32 {}
 impl Copy for f64 {}
 impl Copy for ptr {}
+impl Copy for i8x16 {}
+impl Copy for i16x8 {}
+impl Copy for i32x4 {}
+impl Copy for i64x2 {}
+impl Copy for f32x4 {}
+impl Copy for f64x2 {}
 
 extern "C" {
     fn extern_func();
@@ -65,7 +88,6 @@ macro_rules! check_reg { ($func:ident, $ty:ty, $reg:tt, $mov:literal) => {
 // CHECK: #APP
 // CHECK: brasl %r14, extern_func
 // CHECK: #NO_APP
-#[cfg(s390x)]
 #[no_mangle]
 pub unsafe fn sym_fn_32() {
     asm!("brasl %r14, {}", sym extern_func);
@@ -146,6 +168,48 @@ check!(reg_f64, f64, freg, "ldr");
 // CHECK: #NO_APP
 check!(reg_ptr, ptr, reg, "lgr");
 
+// s390x_vector-LABEL: vreg_i8x16:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_i8x16, i8x16, vreg, "vlr");
+
+// s390x_vector-LABEL: vreg_i16x8:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_i16x8, i16x8, vreg, "vlr");
+
+// s390x_vector-LABEL: vreg_i32x4:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_i32x4, i32x4, vreg, "vlr");
+
+// s390x_vector-LABEL: vreg_i64x2:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_i64x2, i64x2, vreg, "vlr");
+
+// s390x_vector-LABEL: vreg_f32x4:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_f32x4, f32x4, vreg, "vlr");
+
+// s390x_vector-LABEL: vreg_f64x2:
+// s390x_vector: #APP
+// s390x_vector: vlr %v{{[0-9]+}}, %v{{[0-9]+}}
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check!(vreg_f64x2, f64x2, vreg, "vlr");
+
 // CHECK-LABEL: r0_i8:
 // CHECK: #APP
 // CHECK: lr %r0, %r0
@@ -181,3 +245,45 @@ check_reg!(f0_f32, f32, "f0", "ler");
 // CHECK: ldr %f0, %f0
 // CHECK: #NO_APP
 check_reg!(f0_f64, f64, "f0", "ldr");
+
+// s390x_vector-LABEL: v0_i8x16:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_i8x16, i8x16, "v0", "vlr");
+
+// s390x_vector-LABEL: v0_i16x8:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_i16x8, i16x8, "v0", "vlr");
+
+// s390x_vector-LABEL: v0_i32x4:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_i32x4, i32x4, "v0", "vlr");
+
+// s390x_vector-LABEL: v0_i64x2:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_i64x2, i64x2, "v0", "vlr");
+
+// s390x_vector-LABEL: v0_f32x4:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_f32x4, f32x4, "v0", "vlr");
+
+// s390x_vector-LABEL: v0_f64x2:
+// s390x_vector: #APP
+// s390x_vector: vlr %v0, %v0
+// s390x_vector: #NO_APP
+#[cfg(s390x_vector)]
+check_reg!(v0_f64x2, f64x2, "v0", "vlr");
