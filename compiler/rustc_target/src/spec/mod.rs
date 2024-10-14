@@ -2096,6 +2096,10 @@ pub trait HasWasmCAbiOpt {
     fn wasm_c_abi_opt(&self) -> WasmCAbi;
 }
 
+pub trait HasS390xVector {
+    fn has_s390x_vector(&self) -> bool;
+}
+
 type StaticCow<T> = Cow<'static, T>;
 
 /// Optional aspects of a target specification.

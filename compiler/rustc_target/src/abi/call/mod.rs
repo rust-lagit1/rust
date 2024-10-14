@@ -5,7 +5,7 @@ use rustc_macros::HashStable_Generic;
 use rustc_span::Symbol;
 
 use crate::abi::{self, Abi, Align, FieldsShape, HasDataLayout, Size, TyAbiInterface, TyAndLayout};
-use crate::spec::{self, HasTargetSpec, HasWasmCAbiOpt, WasmCAbi};
+use crate::spec::{self, HasS390xVector, HasTargetSpec, HasWasmCAbiOpt, WasmCAbi};
 
 mod aarch64;
 mod amdgpu;
@@ -876,7 +876,7 @@ impl<'a, Ty> FnAbi<'a, Ty> {
     ) -> Result<(), AdjustForForeignAbiError>
     where
         Ty: TyAbiInterface<'a, C> + Copy,
-        C: HasDataLayout + HasTargetSpec + HasWasmCAbiOpt,
+        C: HasDataLayout + HasTargetSpec + HasWasmCAbiOpt + HasS390xVector,
     {
         if abi == spec::abi::Abi::X86Interrupt {
             if let Some(arg) = self.args.first_mut() {

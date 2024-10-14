@@ -21,7 +21,9 @@ use rustc_span::{DUMMY_SP, ErrorGuaranteed, Span};
 use rustc_target::abi::call::FnAbi;
 use rustc_target::abi::{FieldIdx, TyAbiInterface, VariantIdx, call};
 use rustc_target::spec::abi::Abi as SpecAbi;
-use rustc_target::spec::{HasTargetSpec, HasWasmCAbiOpt, PanicStrategy, Target, WasmCAbi};
+use rustc_target::spec::{
+    HasS390xVector, HasTargetSpec, HasWasmCAbiOpt, PanicStrategy, Target, WasmCAbi,
+};
 use tracing::debug;
 use {rustc_abi as abi, rustc_hir as hir};
 
@@ -544,6 +546,13 @@ impl<'tcx> HasWasmCAbiOpt for TyCtxt<'tcx> {
     }
 }
 
+impl<'tcx> HasS390xVector for TyCtxt<'tcx> {
+    fn has_s390x_vector(&self) -> bool {
+        // `unstable_target_features` is used here because "vector" is gated behind s390x_target_feature.
+        self.sess.unstable_target_features.contains(&sym::vector)
+    }
+}
+
 impl<'tcx> HasTyCtxt<'tcx> for TyCtxt<'tcx> {
     #[inline]
     fn tcx(&self) -> TyCtxt<'tcx> {
@@ -592,6 +601,12 @@ impl<'tcx> HasTargetSpec for LayoutCx<'tcx> {
 impl<'tcx> HasWasmCAbiOpt for LayoutCx<'tcx> {
     fn wasm_c_abi_opt(&self) -> WasmCAbi {
         self.calc.cx.wasm_c_abi_opt()
+    }
+}
+
+impl<'tcx> HasS390xVector for LayoutCx<'tcx> {
+    fn has_s390x_vector(&self) -> bool {
+        self.calc.cx.has_s390x_vector()
     }
 }
 

@@ -42,7 +42,10 @@ impl S390xInlineAsmRegClass {
         match self {
             Self::reg | Self::reg_addr => types! { _: I8, I16, I32, I64; },
             Self::freg => types! { _: F32, F64; },
-            Self::vreg => &[],
+            // FIXME: I8, I16, I32, I64, F32, F64
+            Self::vreg => types! {
+                vector: VecI8(16), VecI16(8), VecI32(4), VecI64(2), VecF16(8), VecF32(4), VecF64(2);
+            },
             Self::areg => &[],
         }
     }
