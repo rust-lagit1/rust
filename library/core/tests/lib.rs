@@ -22,7 +22,6 @@
 #![feature(const_ip)]
 #![feature(const_ipv4)]
 #![feature(const_ipv6)]
-#![feature(const_likely)]
 #![feature(const_nonnull_new)]
 #![feature(const_option_ext)]
 #![feature(const_pin)]

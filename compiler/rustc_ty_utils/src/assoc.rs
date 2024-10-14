@@ -250,7 +250,7 @@ fn associated_type_for_effects(tcx: TyCtxt<'_>, def_id: LocalDefId) -> Option<De
 
             // set the type of the associated type! If this is a const impl,
             // we set to Maybe, otherwise we set to `Runtime`.
-            let type_def_id = if tcx.is_const_trait_impl_raw(impl_def_id.to_def_id()) {
+            let type_def_id = if tcx.is_const_trait_impl(impl_def_id.to_def_id()) {
                 tcx.require_lang_item(hir::LangItem::EffectsMaybe, Some(span))
             } else {
                 tcx.require_lang_item(hir::LangItem::EffectsRuntime, Some(span))
