@@ -2,7 +2,7 @@ use rustc_abi::Abi;
 use rustc_middle::ty::{self, Instance, InstanceKind, ParamEnv, Ty, TyCtxt};
 use rustc_span::def_id::DefId;
 use rustc_span::{Span, Symbol};
-use rustc_target::abi::call::{FnAbi, PassMode};
+use rustc_target::abi::call::{FnAbi, PassMode, RegKind};
 
 use crate::errors::{AbiErrorDisabledVectorTypeCall, AbiErrorDisabledVectorTypeDef};
 
@@ -10,6 +10,7 @@ use crate::errors::{AbiErrorDisabledVectorTypeCall, AbiErrorDisabledVectorTypeDe
 // to have their "proper" ABI.
 const X86_VECTOR_FEATURES: &'static [(u64, &'static str)] =
     &[(128, "sse"), (256, "avx"), (512, "avx512f")];
+const S390X_VECTOR_FEATURES: &'static [(u64, &'static str)] = &[(128, "vector")];
 
 fn do_check_abi<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -22,6 +23,8 @@ fn do_check_abi<'tcx>(
     } else if tcx.sess.target.arch == "aarch64" {
         // ABI on aarch64 does not depend on target features.
         return;
+    } else if tcx.sess.target.arch == "s390x" {
+        S390X_VECTOR_FEATURES
     } else {
         // FIXME: add support for non-tier1 architectures
         return;
@@ -31,6 +34,7 @@ fn do_check_abi<'tcx>(
         let size = arg_abi.layout.size;
         if matches!(arg_abi.layout.abi, Abi::Vector { .. })
             && !matches!(arg_abi.mode, PassMode::Indirect { .. })
+            || matches!(&arg_abi.mode, PassMode::Cast { cast, .. } if cast.rest.unit.kind == RegKind::Vector)
         {
             let feature = match feature_def.iter().find(|(bits, _)| size.bits() <= *bits) {
                 Some((_, feature)) => feature,
