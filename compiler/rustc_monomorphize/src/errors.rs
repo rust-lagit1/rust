@@ -96,7 +96,7 @@ pub(crate) struct UnknownCguCollectionMode<'a> {
 #[derive(Diagnostic)]
 #[diag(monomorphize_abi_error_disabled_vector_type_def)]
 #[help]
-pub struct AbiErrorDisabledVectorTypeDef<'a> {
+pub(crate) struct AbiErrorDisabledVectorTypeDef<'a> {
     #[primary_span]
     pub span: Span,
     pub required_feature: &'a str,
@@ -105,7 +105,7 @@ pub struct AbiErrorDisabledVectorTypeDef<'a> {
 #[derive(Diagnostic)]
 #[diag(monomorphize_abi_error_disabled_vector_type_call)]
 #[help]
-pub struct AbiErrorDisabledVectorTypeCall<'a> {
+pub(crate) struct AbiErrorDisabledVectorTypeCall<'a> {
     #[primary_span]
     pub span: Span,
     pub required_feature: &'a str,

@@ -48,7 +48,7 @@ fn do_check_abi<'tcx>(
 
 /// Checks that the ABI of a given instance of a function does not contain vector-passed arguments
 /// or return values for which the corresponding target feature is not enabled.
-pub fn check_instance_abi<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) {
+pub(crate) fn check_instance_abi<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) {
     let param_env = ParamEnv::reveal_all();
     let Ok(abi) = tcx.fn_abi_of_instance(param_env.and((instance, ty::List::empty()))) else {
         // An error will be reported during codegen if we cannot determine the ABI of this
@@ -65,7 +65,7 @@ pub fn check_instance_abi<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) {
 
 /// Checks that a call expression does not try to pass a vector-passed argument which requires a
 /// target feature that the caller does not have, as doing so causes UB because of ABI mismatch.
-pub fn check_call_site_abi<'tcx>(
+pub(crate) fn check_call_site_abi<'tcx>(
     tcx: TyCtxt<'tcx>,
     ty: Ty<'tcx>,
     span: Span,
