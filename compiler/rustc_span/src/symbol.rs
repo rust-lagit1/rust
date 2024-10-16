@@ -1143,6 +1143,7 @@ symbols! {
         link_section,
         linkage,
         linker,
+        linker_messages,
         lint_reasons,
         literal,
         load,
