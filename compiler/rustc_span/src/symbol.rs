@@ -1076,6 +1076,7 @@ symbols! {
         infer_outlives_requirements,
         infer_static_outlives_requirements,
         inherent_associated_types,
+        inherent_str_constructors,
         inherit,
         inlateout,
         inline,
