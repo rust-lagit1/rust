@@ -15,13 +15,14 @@ use rustc_ast::CRATE_NODE_ID;
 use rustc_data_structures::fx::{FxIndexMap, FxIndexSet};
 use rustc_data_structures::memmap::Mmap;
 use rustc_data_structures::temp_dir::MaybeTempDir;
-use rustc_errors::{DiagCtxtHandle, ErrorGuaranteed, FatalError};
+use rustc_errors::{DiagCtxtHandle, ErrorGuaranteed, FatalError, LintDiagnostic};
 use rustc_fs_util::{fix_windows_verbatim_for_gcc, try_canonicalize};
 use rustc_hir::def_id::{CrateNum, LOCAL_CRATE};
-use rustc_macros::Diagnostic;
+use rustc_macros::LintDiagnostic;
 use rustc_metadata::fs::{METADATA_FILENAME, copy_to_stdout, emit_wrapper_file};
 use rustc_metadata::{find_native_static_library, walk_native_lib_search_dirs};
 use rustc_middle::bug;
+use rustc_middle::lint::lint_level;
 use rustc_middle::middle::debugger_visualizer::DebuggerVisualizerFile;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::SymbolExportKind;
@@ -30,6 +31,7 @@ use rustc_session::config::{
     OutputType, PrintKind, SplitDwarfKind, Strip,
 };
 use rustc_session::cstore::DllImport;
+use rustc_session::lint::builtin::LINKER_MESSAGES;
 use rustc_session::output::{check_file_is_writeable, invalid_output_for_target, out_filename};
 use rustc_session::search_paths::PathKind;
 use rustc_session::utils::NativeLibKind;
@@ -52,7 +54,7 @@ use super::linker::{self, Linker};
 use super::metadata::{MetadataPosition, create_wrapper_file};
 use super::rpath::{self, RPathConfig};
 use crate::{
-    CodegenResults, CompiledModule, CrateInfo, NativeLib, common, errors,
+    CodegenLintLevels, CodegenResults, CompiledModule, CrateInfo, NativeLib, common, errors,
     looks_like_rust_object_file,
 };
 
@@ -70,6 +72,7 @@ pub fn link_binary(
     sess: &Session,
     archive_builder_builder: &dyn ArchiveBuilderBuilder,
     codegen_results: &CodegenResults,
+    lint_levels: CodegenLintLevels,
     outputs: &OutputFilenames,
 ) -> Result<(), ErrorGuaranteed> {
     let _timer = sess.timer("link_binary");
@@ -142,6 +145,7 @@ pub fn link_binary(
                         crate_type,
                         &out_filename,
                         codegen_results,
+                        lint_levels,
                         path.as_ref(),
                     )?;
                 }
@@ -747,7 +751,7 @@ fn link_dwarf_object(sess: &Session, cg_results: &CodegenResults, executable_out
     }
 }
 
-#[derive(Diagnostic)]
+#[derive(LintDiagnostic)]
 #[diag(codegen_ssa_linker_output)]
 /// Translating this is kind of useless. We don't pass translation flags to the linker, so we'd just
 /// end up with inconsistent languages within the same diagnostic.
@@ -765,6 +769,7 @@ fn link_natively(
     crate_type: CrateType,
     out_filename: &Path,
     codegen_results: &CodegenResults,
+    lint_levels: CodegenLintLevels,
     tmpdir: &Path,
 ) -> Result<(), ErrorGuaranteed> {
     info!("preparing {:?} to {:?}", crate_type, out_filename);
@@ -1028,6 +1033,13 @@ fn link_natively(
                 sess.dcx().abort_if_errors();
             }
 
+            let (level, src) = lint_levels.linker_messages;
+            let lint = |msg| {
+                lint_level(sess, LINKER_MESSAGES, level, src, None, |diag| {
+                    LinkerOutput { inner: msg }.decorate_lint(diag)
+                })
+            };
+
             if !prog.stderr.is_empty() {
                 // We already print `warning:` at the start of the diagnostic. Remove it from the linker output if present.
                 let stderr = escape_string(&prog.stderr);
@@ -1036,12 +1048,10 @@ fn link_natively(
                     .strip_prefix("warning: ")
                     .unwrap_or(&stderr)
                     .replace(": warning: ", ": ");
-                sess.dcx().emit_warn(LinkerOutput { inner: format!("linker stderr: {stderr}") });
+                lint(format!("linker stderr: {stderr}"));
             }
             if !prog.stdout.is_empty() && sess.opts.verbose {
-                sess.dcx().emit_warn(LinkerOutput {
-                    inner: format!("linker stdout: {}", escape_string(&prog.stdout)),
-                });
+                lint(format!("linker stdout: {}", escape_string(&prog.stdout)))
             }
         }
         Err(e) => {
