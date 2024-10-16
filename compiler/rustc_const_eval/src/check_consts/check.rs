@@ -716,7 +716,7 @@ impl<'tcx> Visitor<'tcx> for Checker<'_, 'tcx> {
                         let feature_gate_declared = gate_declared(feature);
                         let implied_gate_declared = implied_by.is_some_and(gate_declared);
                         if !feature_gate_declared && !implied_gate_declared {
-                            bad_gates.push(feature);
+                            bad_gates.push(gate.into());
                             continue;
                         }
 
@@ -735,7 +735,7 @@ impl<'tcx> Visitor<'tcx> for Checker<'_, 'tcx> {
                             continue;
                         }
 
-                        bad_gates.push(feature);
+                        bad_gates.push(gate.into());
                     }
                     if !bad_gates.is_empty() {
                         self.check_op(ops::FnCallUnstable(callee, bad_gates));
