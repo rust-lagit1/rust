@@ -1817,8 +1817,10 @@ pub const fn encode_utf8_raw(code: u32, dst: &mut [u8]) -> &mut [u8] {
 ///
 /// For a safe version of this function, see the [`encode_utf8_raw`] function.
 #[unstable(feature = "char_internals", reason = "exposed only for libstd", issue = "none")]
+#[rustc_const_stable(feature = "const_char_encode_utf8", since = "CURRENT_RUSTC_VERSION")]
 #[doc(hidden)]
 #[inline]
+#[cfg_attr(bootstrap, rustc_allow_const_fn_unstable(const_mut_refs))]
 pub const unsafe fn encode_utf8_raw_unchecked(code: u32, dst: *mut u8) {
     let len = len_utf8(code);
     // SAFETY: The caller must guarantee that the buffer pointed to by `dst`
