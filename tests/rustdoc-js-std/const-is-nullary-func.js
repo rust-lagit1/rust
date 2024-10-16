@@ -1,6 +1,6 @@
 const EXPECTED = {
-	'query': '-> char',
-	'others': [
-		{ 'path': 'std::char', 'name': 'MAX' },
-	],
+    'query': '-> char',
+    'others': [
+        { 'path': 'std::char', 'name': 'MAX' },
+    ],
 }
