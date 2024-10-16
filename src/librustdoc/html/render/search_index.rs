@@ -762,6 +762,7 @@ pub(crate) fn get_function_type_for_search<'tcx>(
         clean::FunctionItem(ref f) | clean::MethodItem(ref f, _) | clean::TyMethodItem(ref f) => {
             get_fn_inputs_and_outputs(f, tcx, impl_or_trait_generics, cache)
         }
+        clean::ConstantItem(ref c) => make_nullary_fn(&c.type_),
         _ => return None,
     };
 
@@ -1271,6 +1272,17 @@ fn simplify_fn_constraint<'a, 'tcx>(
         }
     }
     res.push((ty_constrained_assoc, ty_constraints));
+}
+
+/// Create a fake nullary function.
+///
+/// Used to allow type-based search on constants and statics.
+fn make_nullary_fn(
+    clean_type: &clean::Type,
+) -> (Vec<RenderType>, Vec<RenderType>, Vec<Vec<RenderType>>) {
+    let mut rgen: FxIndexMap<SimplifiedParam, (isize, Vec<RenderType>)> = Default::default();
+    let output = get_index_type(clean_type, vec![], &mut rgen);
+    (vec![], vec![output], vec![])
 }
 
 /// Return the full list of types when bounds have been resolved.
