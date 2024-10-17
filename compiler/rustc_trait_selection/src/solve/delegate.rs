@@ -12,7 +12,7 @@ use rustc_infer::traits::{ObligationCause, Reveal};
 use rustc_middle::ty::fold::TypeFoldable;
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt as _};
 use rustc_span::{DUMMY_SP, ErrorGuaranteed, Span};
-use rustc_type_ir::solve::{Certainty, NoSolution, SolverMode};
+use rustc_type_ir::solve::{Certainty, NoSolution};
 use tracing::trace;
 
 use crate::traits::specialization_graph;
@@ -46,7 +46,6 @@ impl<'tcx> rustc_next_trait_solver::delegate::SolverDelegate for SolverDelegate<
 
     fn build_with_canonical<V>(
         interner: TyCtxt<'tcx>,
-        solver_mode: SolverMode,
         canonical: &CanonicalQueryInput<'tcx, V>,
     ) -> (Self, V, CanonicalVarValues<'tcx>)
     where
@@ -55,10 +54,6 @@ impl<'tcx> rustc_next_trait_solver::delegate::SolverDelegate for SolverDelegate<
         let (infcx, value, vars) = interner
             .infer_ctxt()
             .with_next_trait_solver(true)
-            .intercrate(match solver_mode {
-                SolverMode::Normal => false,
-                SolverMode::Coherence => true,
-            })
             .build_with_canonical(DUMMY_SP, canonical);
         (SolverDelegate(infcx), value, vars)
     }
