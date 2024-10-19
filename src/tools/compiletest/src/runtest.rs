@@ -468,6 +468,9 @@ impl<'test> TestCx<'test> {
 
         if let Some(revision) = self.revision {
             let normalized_revision = normalize_revision(revision);
+            if self.config.builtin_cfg_names().contains(&normalized_revision) {
+                panic!("error: revision `{normalized_revision}` collides with a builtin cfg");
+            }
             cmd.args(&["--cfg", &normalized_revision]);
         }
 
