@@ -378,7 +378,8 @@ declare_features! (
     /// Allows `for await` loops.
     (unstable, async_for_loop, "1.77.0", Some(118898)),
     /// Allows `#[link(kind = "dylib")]` without a library name.
-    (unstable, bare_link_kind, "CURRENT_RUSTC_VERSION", None),
+    /// FIXME: put real issue here.
+    (unstable, bare_link_kind, "CURRENT_RUSTC_VERSION", Some(131966)),
     /// Allows using C-variadics.
     (unstable, c_variadic, "1.34.0", Some(44930)),
     /// Allows the use of `#[cfg(<true/false>)]`.
