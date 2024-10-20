@@ -120,7 +120,7 @@ fn codegen_fn_attrs(tcx: TyCtxt<'_>, did: LocalDefId) -> CodegenFnAttrs {
                     mixed_export_name_no_mangle_lint_state.track_no_mangle(
                         attr.span,
                         tcx.local_def_id_to_hir_id(did),
-                        name.to_ident_string().into(),
+                        rustc_ast_pretty::pprust::attribute_to_string(attr),
                     );
                 } else {
                     tcx.dcx()

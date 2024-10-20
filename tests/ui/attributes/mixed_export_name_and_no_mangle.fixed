@@ -3,13 +3,12 @@
 //@ check-pass
 
 #![warn(unused_attributes)]
-//~^ WARN the `#[no_mangle]` attribute may not be used in combination with `#[export_name]`
+//~^ WARN the `#[no_mangle]` attribute may not be used in combination with `#[export_name]` [unused_attributes]
 #[export_name = "foo"]
 pub fn bar() {}
 
-//~^ WARN the `#[unsafe(no_mangle)]` attribute may not be used in combination with `#[export_name]`
+//~^ WARN the `#[unsafe(no_mangle)]` attribute may not be used in combination with `#[export_name]` [unused_attributes]
 #[export_name = "baz"]
 pub fn bak() {}
-
 
 fn main() {}
