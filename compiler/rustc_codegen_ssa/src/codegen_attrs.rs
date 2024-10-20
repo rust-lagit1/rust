@@ -117,8 +117,11 @@ fn codegen_fn_attrs(tcx: TyCtxt<'_>, did: LocalDefId) -> CodegenFnAttrs {
             sym::no_mangle => {
                 if tcx.opt_item_name(did.to_def_id()).is_some() {
                     codegen_fn_attrs.flags |= CodegenFnAttrFlags::NO_MANGLE;
-                    mixed_export_name_no_mangle_lint_state
-                        .track_no_mangle(attr.span, tcx.local_def_id_to_hir_id(did));
+                    mixed_export_name_no_mangle_lint_state.track_no_mangle(
+                        attr.span,
+                        tcx.local_def_id_to_hir_id(did),
+                        name.to_ident_string().into(),
+                    );
                 } else {
                     tcx.dcx()
                         .struct_span_err(
@@ -789,6 +792,7 @@ struct MixedExportNameAndNoMangleState {
     export_name: Option<Span>,
     hir_id: Option<HirId>,
     no_mangle: Option<Span>,
+    no_mangle_attr_name: Option<String>,
 }
 
 impl MixedExportNameAndNoMangleState {
@@ -796,9 +800,10 @@ impl MixedExportNameAndNoMangleState {
         self.export_name = Some(span);
     }
 
-    fn track_no_mangle(&mut self, span: Span, hir_id: HirId) {
+    fn track_no_mangle(&mut self, span: Span, hir_id: HirId, attr_name: String) {
         self.no_mangle = Some(span);
         self.hir_id = Some(hir_id);
+        self.no_mangle_attr_name = Some(attr_name);
     }
 
     /// Emit diagnostics if the lint condition is met.
@@ -807,6 +812,7 @@ impl MixedExportNameAndNoMangleState {
             export_name: Some(export_name),
             no_mangle: Some(no_mangle),
             hir_id: Some(hir_id),
+            no_mangle_attr_name: Some(no_mangle_attr_name),
         } = self
         {
             tcx.emit_node_span_lint(
@@ -815,6 +821,7 @@ impl MixedExportNameAndNoMangleState {
                 no_mangle,
                 errors::MixedExportNameAndNoMangle {
                     no_mangle,
+                    no_mangle_attr_name,
                     export_name,
                     removal_span: no_mangle,
                 },

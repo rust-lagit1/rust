@@ -8,4 +8,10 @@
 #[export_name = "foo"]
 pub fn bar() {}
 
+#[unsafe(no_mangle)]
+//~^ WARN the `#[unsafe(no_mangle)]` attribute may not be used in combination with `#[export_name]`
+#[export_name = "baz"]
+pub fn bak() {}
+
+
 fn main() {}

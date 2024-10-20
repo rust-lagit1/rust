@@ -1098,6 +1098,7 @@ impl<G: EmissionGuarantee> Diagnostic<'_, G> for TargetFeatureDisableOrEnable<'_
 pub(crate) struct MixedExportNameAndNoMangle {
     #[label]
     pub no_mangle: Span,
+    pub no_mangle_attr_name: String,
     #[note]
     pub export_name: Span,
     #[suggestion(style = "verbose", code = "", applicability = "machine-applicable")]
