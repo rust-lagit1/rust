@@ -2754,17 +2754,13 @@ impl Config {
             }
         };
 
-        let files_to_track = &[
-            "compiler",
-            "library",
-            "src/version",
-            "src/stage0",
-            "src/ci/channel",
-        ];
+        let files_to_track =
+            &["compiler", "library", "src/version", "src/stage0", "src/ci/channel"];
 
         // Look for a version to compare to based on the current commit.
         // Only commits merged by bors will have CI artifacts.
-        let commit = self.last_modified_commit(files_to_track, "download-rustc", if_unchanged).unwrap();
+        let commit =
+            self.last_modified_commit(files_to_track, "download-rustc", if_unchanged).unwrap();
 
         if CiEnv::is_ci() && {
             let head_sha =
