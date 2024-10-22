@@ -1764,6 +1764,9 @@ impl<T: ?Sized> From<&mut T> for NonNull<T> {
     /// Converts a `&mut T` to a `NonNull<T>`.
     ///
     /// This conversion is safe and infallible since references cannot be null.
+    ///
+    /// It is semantically equivalent to `NonNull::new_unchecked(reference as *mut T)`, including
+    /// with respect to provenance.
     #[inline]
     fn from(r: &mut T) -> Self {
         NonNull::from_mut(r)
@@ -1775,6 +1778,9 @@ impl<T: ?Sized> From<&T> for NonNull<T> {
     /// Converts a `&T` to a `NonNull<T>`.
     ///
     /// This conversion is safe and infallible since references cannot be null.
+    ///
+    /// It is semantically equivalent to `NonNull::new_unchecked((reference as *const T).cast_mut())`,
+    /// including with respect to provenance.
     #[inline]
     fn from(r: &T) -> Self {
         NonNull::from_ref(r)
