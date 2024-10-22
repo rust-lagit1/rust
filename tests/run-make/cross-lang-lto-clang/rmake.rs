@@ -9,6 +9,16 @@
 
 use run_make_support::{clang, env_var, llvm_ar, llvm_objdump, rustc, static_lib_name};
 
+#[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
+const ALWAYS_INLINED_PATTERN = "bl.*<rust_always_inlined>";
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+const ALWAYS_INLINED_PATTERN = "call.*rust_always_inlined";
+
+#[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
+const NEVER_INLINED_PATTERN = "bl.*<rust_never_inlined>";
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+const NEVER_INLINED_PATTERN = "call.*rust_never_inlined";
+
 fn main() {
     rustc()
         .linker_plugin_lto("on")
@@ -31,14 +41,14 @@ fn main() {
         .disassemble()
         .input("cmain")
         .run()
-        .assert_stdout_not_contains_regex("call.*rust_always_inlined");
+        .assert_stdout_not_contains_regex(ALWAYS_INLINED_PATTERN);
     // As a sanity check, make sure we do find a call instruction to a
     // non-inlined function
     llvm_objdump()
         .disassemble()
         .input("cmain")
         .run()
-        .assert_stdout_contains_regex("call.*rust_never_inlined");
+        .assert_stdout_contains_regex(NEVER_INLINED_PATTERN);
     clang().input("clib.c").lto("thin").arg("-c").out_exe("clib.o").arg("-O2").run();
     llvm_ar().obj_to_ar().output_input(static_lib_name("xyz"), "clib.o").run();
     rustc()
@@ -53,10 +63,10 @@ fn main() {
         .disassemble()
         .input("rsmain")
         .run()
-        .assert_stdout_not_contains_regex("call.*c_always_inlined");
+        .assert_stdout_not_contains_regex(ALWAYS_INLINED_PATTERN);
     llvm_objdump()
         .disassemble()
         .input("rsmain")
         .run()
-        .assert_stdout_contains_regex("call.*c_never_inlined");
+        .assert_stdout_contains_regex(NEVER_INLINED_PATTERN);
 }
