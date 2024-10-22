@@ -2053,7 +2053,11 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     .iter()
                     .map(|(_, name)| {
                         let field_name = name.to_string();
-                        if is_number(&field_name) { format!("{field_name}: _") } else { field_name }
+                        if is_number(&field_name) {
+                            format!("{}: _", field_name)
+                        } else {
+                            field_name
+                        }
                     })
                     .collect::<Vec<_>>()
                     .join(", "),
@@ -2065,11 +2069,28 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         err.span_suggestion(
             sp,
             format!(
-                "if you don't care about {these} missing field{s}, you can explicitly ignore {them}",
-                these = pluralize!("this", len),
+                "if the value{s} {are} not relevant, discard {them} explicitly",
+                are = if len == 1 { "is" } else { "are" },
                 s = pluralize!(len),
                 them = if len == 1 { "it" } else { "them" },
             ),
+            format!(
+                "{}{}{}{}",
+                prefix,
+                unmentioned_fields
+                    .iter()
+                    .map(|(_, name)| format!("{}: _", name.to_string()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                if have_inaccessible_fields { ", .." } else { "" },
+                postfix,
+            ),
+            Applicability::MachineApplicable,
+        );
+
+        err.span_suggestion(
+            sp,
+            format!("or allow missing fields here",),
             format!("{prefix}..{postfix}"),
             Applicability::MachineApplicable,
         );
