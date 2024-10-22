@@ -2053,7 +2053,11 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     .iter()
                     .map(|(_, name)| {
                         let field_name = name.to_string();
-                        if is_number(&field_name) { format!("{}: _", field_name) } else { field_name }
+                        if is_number(&field_name) {
+                            format!("{}: _", field_name)
+                        } else {
+                            field_name
+                        }
                     })
                     .collect::<Vec<_>>()
                     .join(", "),
