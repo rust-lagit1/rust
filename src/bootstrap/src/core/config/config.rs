@@ -2755,24 +2755,16 @@ impl Config {
         };
 
         let files_to_track = &[
-            self.src.join("compiler"),
-            self.src.join("library"),
-            self.src.join("src/version"),
-            self.src.join("src/stage0"),
-            self.src.join("src/ci/channel"),
+            "compiler",
+            "library",
+            "src/version",
+            "src/stage0",
+            "src/ci/channel",
         ];
 
         // Look for a version to compare to based on the current commit.
         // Only commits merged by bors will have CI artifacts.
-        let commit =
-            get_closest_merge_commit(Some(&self.src), &self.git_config(), files_to_track).unwrap();
-        if commit.is_empty() {
-            println!("ERROR: could not find commit hash for downloading rustc");
-            println!("HELP: maybe your repository history is too shallow?");
-            println!("HELP: consider disabling `download-rustc`");
-            println!("HELP: or fetch enough history to include one upstream commit");
-            crate::exit!(1);
-        }
+        let commit = self.last_modified_commit(files_to_track, "download-rustc", if_unchanged).unwrap();
 
         if CiEnv::is_ci() && {
             let head_sha =
@@ -2785,30 +2777,6 @@ impl Config {
                 "`rustc.download-ci` functionality will be skipped as artifacts are not available."
             );
             return None;
-        }
-
-        // Warn if there were changes to the compiler or standard library since the ancestor commit.
-        let has_changes = !t!(helpers::git(Some(&self.src))
-            .args(["diff-index", "--quiet", &commit])
-            .arg("--")
-            .args(files_to_track)
-            .as_command_mut()
-            .status())
-        .success();
-        if has_changes {
-            if if_unchanged {
-                if self.is_verbose() {
-                    println!(
-                        "WARNING: saw changes to compiler/ or library/ since {commit}; \
-                            ignoring `download-rustc`"
-                    );
-                }
-                return None;
-            }
-            println!(
-                "WARNING: `download-rustc` is enabled, but there are changes to \
-                    compiler/ or library/"
-            );
         }
 
         Some(commit.to_string())
