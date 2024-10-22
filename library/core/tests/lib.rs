@@ -32,6 +32,8 @@
 #![feature(core_private_bignum)]
 #![feature(core_private_diy_float)]
 #![feature(dec2flt)]
+#![feature(deterministic_random_chacha8)]
+#![feature(deterministic_random_internals)]
 #![feature(duration_constants)]
 #![feature(duration_constructors)]
 #![feature(error_generic_member_access)]
@@ -77,6 +79,7 @@
 #![feature(pointer_is_aligned_to)]
 #![feature(portable_simd)]
 #![feature(ptr_metadata)]
+#![feature(random)]
 #![feature(slice_from_ptr_range)]
 #![feature(slice_internals)]
 #![feature(slice_partition_dedup)]
@@ -140,6 +143,7 @@ mod pattern;
 mod pin;
 mod pin_macro;
 mod ptr;
+mod random;
 mod result;
 mod simd;
 mod slice;
