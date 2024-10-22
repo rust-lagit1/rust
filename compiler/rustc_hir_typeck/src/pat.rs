@@ -2069,7 +2069,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         err.span_suggestion(
             sp,
             format!(
-                "if the field{s} {are} not relevant, discard {them} explicitly",
+                "if the value{s} {are} not relevant, discard {them} explicitly",
                 are = if len == 1 { "is" } else { "are" },
                 s = pluralize!(len),
                 them = if len == 1 { "it" } else { "them" },

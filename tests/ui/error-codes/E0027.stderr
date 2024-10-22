@@ -8,7 +8,7 @@ help: include the missing field in the pattern
    |
 LL |         Dog { age: x, name } => {}
    |                     ~~~~~~~~
-help: if the field is not relevant, discard it explicitly
+help: if the value is not relevant, discard it explicitly
    |
 LL |         Dog { age: x, name: _ } => {}
    |                     ~~~~~~~~~~~
@@ -27,7 +27,7 @@ help: include the missing field in the pattern
    |
 LL |         Dog { name: x, age } => {}
    |                      ~~~~~~~
-help: if the field is not relevant, discard it explicitly
+help: if the value is not relevant, discard it explicitly
    |
 LL |         Dog { name: x, age: _ } => {}
    |                      ~~~~~~~~~~
@@ -46,7 +46,7 @@ help: include the missing field in the pattern
    |
 LL |         Dog { name: x, age } => {}
    |                      ~~~~~~~
-help: if the field is not relevant, discard it explicitly
+help: if the value is not relevant, discard it explicitly
    |
 LL |         Dog { name: x, age: _ } => {}
    |                      ~~~~~~~~~~
@@ -65,7 +65,7 @@ help: include the missing fields in the pattern
    |
 LL |         Dog { name, age } => {}
    |             ~~~~~~~~~~~~~
-help: if the fields are not relevant, discard them explicitly
+help: if the values are not relevant, discard them explicitly
    |
 LL |         Dog { name: _, age: _ } => {}
    |             ~~~~~~~~~~~~~~~~~~~
